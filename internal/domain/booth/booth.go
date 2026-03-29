@@ -7,6 +7,7 @@ import "errors"
 // クラス展示、部活の出店などをあらわす型。
 // 混雑度は専用メソッドから読み取り、書き込みを行う必要があります。
 type Booth struct {
+	ID               string // ブースID
 	Name             string // ブース名
 	Organizer        string // ブースの主催者(ex. 1-1, 陸上部...)
 	Detail           string // ブースの説明
@@ -15,6 +16,7 @@ type Booth struct {
 
 // 新しいBoothのインスタンスを作成します
 func NewBooth(
+	ID string,
 	name string,
 	organizer string,
 	detail string,

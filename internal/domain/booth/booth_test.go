@@ -5,7 +5,7 @@ import (
 )
 
 func TestBoothCongestionStatus(t *testing.T) {
-	booth := NewBooth("テストブース", "1-1", "テストブースです")
+	booth := NewBooth("1-1", "テストブース", "1-1", "テストブースです")
 	t.Run("正常値のセットチェック", func(t *testing.T) {
 		booth.SetCongestionStatus(1)
 		result := booth.congestionStatus
