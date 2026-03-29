@@ -1,0 +1,464 @@
+openapi: 3.0.3
+info:
+  title: KCTFestNav API
+  description: 高専祭ナビゲーションアプリ「KCTFestNav」のバックエンドAPI仕様書
+  version: 1.1.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: ローカル開発サーバー
+
+paths:
+  /auth/login:
+    post:
+      summary: ログイン
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: ログイン成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWTトークン
+        '401':
+          description: 認証失敗
+
+  /auth/me:
+    get:
+      summary: ログイン中のユーザー情報を取得
+      tags:
+        - Auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: 未認証
+
+  /spots:
+    get:
+      summary: 全企画・スポットの一覧取得
+      tags:
+        - Spots
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Spot'
+
+  /spots/{spotId}:
+    get:
+      summary: 個別企画の詳細取得
+      tags:
+        - Spots
+      parameters:
+        - name: spotId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Spot'
+
+  /spots/{spotId}/congestion:
+    patch:
+      summary: 混雑度の更新
+      description: 企画担当者（自企画のみ）または運営委員のみ実行可能。
+      tags:
+        - Spots
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: spotId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                level:
+                  $ref: '#/components/schemas/CongestionLevel'
+      responses:
+        '200':
+          description: 更新成功
+        '403':
+          description: 権限不足
+
+  /live-events:
+    get:
+      summary: 全ライブイベントのスケジュール取得
+      tags:
+        - LiveEvents
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LiveEvent'
+
+  /live-events/current:
+    get:
+      summary: 現在進行中のライブ情報を取得
+      tags:
+        - LiveEvents
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveEvent'
+    patch:
+      summary: 現在のライブ状態を更新
+      description: 運営委員のみ実行可能。
+      tags:
+        - LiveEvents
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                liveEventId:
+                  type: string
+                  description: 次に開始する、または現在進行中のライブイベントID
+      responses:
+        '200':
+          description: 更新成功
+
+  /announcements:
+    get:
+      summary: お知らせ一覧の取得
+      tags:
+        - Announcements
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Announcement'
+    post:
+      summary: お知らせの作成
+      description: 運営委員のみ実行可能。
+      tags:
+        - Announcements
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewAnnouncement'
+      responses:
+        '201':
+          description: 作成成功
+
+  /announcements/{announcementId}:
+    delete:
+      summary: お知らせの削除
+      description: 運営委員のみ実行可能。
+      tags:
+        - Announcements
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: announcementId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 削除成功
+
+  /admin/spots:
+    post:
+      summary: 企画・スポットの新規作成
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewSpot'
+      responses:
+        '201':
+          description: 作成成功
+
+  /admin/spots/{spotId}:
+    put:
+      summary: 企画・スポット情報の更新
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: spotId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewSpot'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: 企画・スポットの削除
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: spotId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 削除成功
+
+  /admin/users:
+    get:
+      summary: ユーザー一覧の取得
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      summary: 担当者ユーザーの作成
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '201':
+          description: 作成成功
+
+  /admin/users/{userId}:
+    delete:
+      summary: ユーザーの削除
+      tags:
+        - Admin
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 削除成功
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        assignedSpotId:
+          type: string
+          nullable: true
+          description: 企画担当者の場合、担当している企画ID
+
+    NewUser:
+      type: object
+      required: [username, password, role]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        assignedSpotId:
+          type: string
+          nullable: true
+
+    UserRole:
+      type: string
+      enum: [admin, staff]
+      description: admin=運営委員, staff=企画担当者
+
+    Spot:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        location:
+          $ref: '#/components/schemas/Location'
+        congestion:
+          $ref: '#/components/schemas/CongestionLevel'
+        category:
+          $ref: '#/components/schemas/SpotCategory'
+        updatedAt:
+          type: string
+          format: date-time
+
+    NewSpot:
+      type: object
+      required: [name, location, category]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        location:
+          $ref: '#/components/schemas/Location'
+        category:
+          $ref: '#/components/schemas/SpotCategory'
+
+    SpotCategory:
+      type: string
+      enum: [exhibition, food, performance, other]
+
+    Location:
+      type: object
+      properties:
+        floor:
+          type: integer
+        latitude:
+          type: number
+        longitude:
+          type: number
+        mapPoint:
+          type: object
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+
+    CongestionLevel:
+      type: string
+      enum: [empty, normal, crowded]
+
+    LiveEvent:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        isCurrent:
+          type: boolean
+
+    Announcement:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [info, warning, urgent]
+        createdAt:
+          type: string
+          format: date-time
+
+    NewAnnouncement:
+      type: object
+      required: [title, content, type]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          type: string
+          enum: [info, warning, urgent]
