@@ -21,7 +21,13 @@ func NewBooth(
 	organizer string,
 	detail string,
 ) *Booth {
-	return &Booth{congestionStatus: 0}
+	return &Booth{
+		ID:               ID,
+		Name:             name,
+		Organizer:        organizer,
+		Detail:           detail,
+		congestionStatus: 0,
+	}
 }
 
 func (b *Booth) CongestionStatus() int {
