@@ -55,11 +55,11 @@ paths:
         '401':
           description: 未認証
 
-  /spots:
+  /booths:
     get:
       summary: 全企画・スポットの一覧取得
       tags:
-        - Spots
+        - Booths
       responses:
         '200':
           description: 成功
@@ -70,13 +70,13 @@ paths:
                 items:
                   $ref: '#/components/schemas/Spot'
 
-  /spots/{spotId}:
+  /booths/{boothId}:
     get:
       summary: 個別企画の詳細取得
       tags:
-        - Spots
+        - Booths
       parameters:
-        - name: spotId
+        - name: boothId
           in: path
           required: true
           schema:
@@ -87,9 +87,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Spot'
+                $ref: '#/components/schemas/Booth'
 
-  /spots/{spotId}/congestion:
+  /booths/{boothId}/congestion:
     patch:
       summary: 混雑度の更新
       description: 企画担当者（自企画のみ）または運営委員のみ実行可能。
@@ -98,7 +98,7 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: spotId
+        - name: boothId
           in: path
           required: true
           schema:
