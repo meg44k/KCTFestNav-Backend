@@ -31,6 +31,11 @@ func (u *BoothUsecase) GetBoothByID(ctx context.Context, id string) (*domain.Boo
 	return booth, err 
 }
 
+func (u *BoothUsecase) GetAllBooths(ctx context.Context) ([]*domain.Booth, error) {
+	booths, err := u.boothRepo.GetAllBooths(ctx)
+	return booths, err
+}
+
 // REF: これBooth.CogestionStatusをカプセル化した意味がなくなっちゃってる。Redisで管理したいけど、どうするのがベストなんだろう...
 func (u *BoothUsecase) UpdateBoothCongestion(ctx context.Context, id string, congestionLevel int) error {
 	if err := domain.ValidateCongestionLevel(congestionLevel); err != nil{
