@@ -33,7 +33,7 @@ func (br *boothRepositoryImpl) Update(ctx context.Context,b *domain.Booth) error
 	return nil
 }
 
-func (br *boothRepositoryImpl) UpdateCongestion(ctx context.Context, id string, congestionLevel int) error {
+func (br *boothRepositoryImpl) UpdateCongestion(ctx context.Context, id string, congestionLevel int8) error {
 	// TODO: 実装を行う
 	return nil 
 }
