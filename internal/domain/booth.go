@@ -1,8 +1,9 @@
 // クラスの展示、部活の出店に関するプログラム
 
-package booth
+package domain
 
 import (
+	"context"
 	"errors"
 )
 
@@ -52,4 +53,9 @@ func (b *Booth) SetCongestionStatus(congestionLevel int) error {
 	}
 	b.congestionStatus = congestionLevel
 	return nil
+}
+
+type BoothRepository interface {
+	Create(ctx context.Context, booth *Booth) error
+	GetByID(ctx context.Context, id string) (*Booth, error)
 }

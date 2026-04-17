@@ -1,4 +1,4 @@
-package booth
+package domain
 
 import (
 	"testing"
