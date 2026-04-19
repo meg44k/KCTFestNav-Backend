@@ -3,6 +3,7 @@
 package domain
 
 import (
+	"context"
 	"errors"
 
 	"github.com/google/uuid"
@@ -44,6 +45,14 @@ func NewUser(name string, assignedBoothID string, password string, role Role) (*
 		Password:        password,
 		Role:            role,
 	}, nil
+}
+
+type UserRepository interface {
+	Create(ctx context.Context, user *User) error
+	Update(ctx context.Context,  user *User) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetAll(ctx context.Context) ([]*User, error)
 }
 
 // Roleのバリデーション
