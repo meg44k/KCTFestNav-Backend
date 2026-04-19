@@ -1,4 +1,4 @@
-package booth
+package domain
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ func TestBoothCongestionStatus(t *testing.T) {
 	t.Run("正常値のセットチェック", func(t *testing.T) {
 		booth.SetCongestionStatus(1)
 		result := booth.congestionStatus
-		expected := 1
+		expected := int8(1)
 		if result != expected {
 			t.Error("混雑度が正しくセットできてないよ")
 		}

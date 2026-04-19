@@ -1,6 +1,6 @@
 // ユーザーに関するプログラムです
 
-package user
+package domain
 
 import (
 	"errors"
@@ -54,3 +54,4 @@ func (r Role) IsValid() bool {
 	}
 	return false
 }
+

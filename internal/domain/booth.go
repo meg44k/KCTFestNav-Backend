@@ -1,8 +1,9 @@
 // クラスの展示、部活の出店に関するプログラム
 
-package booth
+package domain
 
 import (
+	"context"
 	"errors"
 )
 
@@ -13,11 +14,12 @@ type Booth struct {
 	Name             string  // ブース名
 	Organizer        string  // ブースの主催者(ex. 1-1, 陸上部...)
 	Detail           string  // ブースの説明
-	congestionStatus int     // 0: 空き 1: 少し混雑している 2: かなり混雑している]
+	congestionStatus int8     // 0: 空き 1: 少し混雑している 2: かなり混雑している]
 	X                float32 // X座標
 	Y                float32 // Y座標
 	Z                float32 // Z座標
 }
+
 
 // 新しいBoothのインスタンスを作成します
 func NewBooth(
@@ -42,14 +44,31 @@ func NewBooth(
 	}
 }
 
-func (b *Booth) CongestionStatus() int {
+type BoothRepository interface {
+	Create(ctx context.Context, booth *Booth) error
+	GetByID(ctx context.Context, id string) (*Booth, error)
+	Update(ctx context.Context, booth *Booth) error
+	UpdateCongestion(ctx context.Context, id string, congestionLevel int8) error 
+	GetAllBooths(ctx context.Context) ([]*Booth, error)
+}
+
+func (b *Booth) CongestionStatus() int8 {
 	return b.congestionStatus
 }
 
-func (b *Booth) SetCongestionStatus(congestionLevel int) error {
-	if 0 > congestionLevel || congestionLevel > 2 {
-		return errors.New("Congestion level must be between 0 and 2")
+func (b *Booth) SetCongestionStatus(congestionLevel int8) error {
+	if err := ValidateCongestionLevel(congestionLevel); err != nil {
+		return err
 	}
 	b.congestionStatus = congestionLevel
 	return nil
 }
+
+func ValidateCongestionLevel(congestionLevel int8) error {
+	if 0 > congestionLevel || congestionLevel > 2 {
+		return errors.New("Congestion level must be between 0 and 2")
+	}
+	return nil
+}
+
+
