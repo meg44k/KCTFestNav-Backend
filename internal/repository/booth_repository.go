@@ -22,7 +22,7 @@ func (br *boothRepositoryImpl) GetByID(ctx context.Context, id string) (*domain.
 	return nil, nil
 }
 
-func (br *boothRepositoryImpl) GetAllBooths(ctx context.Context) ([]*domain.Booth, error) {
+func (br *boothRepositoryImpl) GetAll(ctx context.Context) ([]*domain.Booth, error) {
 	// TODO: 実装を行う
 	return nil, nil
 
