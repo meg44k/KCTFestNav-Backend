@@ -17,19 +17,16 @@ func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 	}
 }
 
-func (uu *UserUsecase) CreateUser(ctx context.Context, user *domain.User) error {
-	uu.userRepo.Create(ctx, user)
-	return nil
+func (uu *UserUsecase) Create(ctx context.Context, user *domain.User) error {
+	return uu.userRepo.Create(ctx, user)
 }
 
-func (uu *UserUsecase) UpdateUser(ctx context.Context, user *domain.User) error {
-	uu.userRepo.Update(ctx, user)
-	return nil
+func (uu *UserUsecase) Update(ctx context.Context, user *domain.User) error {
+	return uu.userRepo.Update(ctx, user)
 }
 
-func (uu *UserUsecase) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	uu.userRepo.Delete(ctx, id)
-	return nil
+func (uu *UserUsecase) Delete(ctx context.Context, id uuid.UUID) error {
+	return uu.userRepo.Delete(ctx, id)
 }
 
 func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {

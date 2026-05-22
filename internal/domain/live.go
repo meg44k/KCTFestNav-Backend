@@ -21,7 +21,7 @@ type LiveStatus int8
 const(
 	LiveStatusUpcoming LiveStatus = 0;
 	LiveStatusOngoing LiveStatus = 1;
-	LivestatusFinished LiveStatus = 2;
+	LiveStatusFinished LiveStatus = 2;
 )
 
 func NewLive(
