@@ -108,3 +108,28 @@ func TestLive_SetStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestLive_SetSessionNumber(t *testing.T) {
+	tests := []struct {
+		name          string
+		sessionNumber int8
+		wantErr       bool
+	}{
+		{"正常系: 正しい番号", 1, false},
+		{"正常系: 正しい番号", 5, false},
+		{"異常系: 0は無効", 0, true},
+		{"異常系: マイナスは無効", -1, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			l := &Live{}
+			err := l.SetSessionNumber(tt.sessionNumber)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SetSessionNumber() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && l.SessionNumber() != tt.sessionNumber {
+				t.Errorf("SetSessionNumber() sessionNumberが更新されていません: got %v, want %v", l.SessionNumber(), tt.sessionNumber)
+			}
+		})
+	}
+}

@@ -16,7 +16,7 @@ type Live struct {
 	ThumbnailURL  string     // サムネイル画像URL
 	StartTime     time.Time  // 始まる時間
 	EndTime       time.Time  // 終わる時間
-	SessionNumber int8       // 何番目にライブがあるか ここに関しては少し変えるかも
+	sessionNumber int8       // 何番目にライブがあるか ここに関しては少し変えるかも
 	status        LiveStatus // ライブの状況 0: まだ始まっていない 1: 開演中 2: 終了済み
 }
 
@@ -50,7 +50,7 @@ func NewLive(
 		ThumbnailURL:  thumbnailURL,
 		StartTime:     startTime,
 		EndTime:       endTime,
-		SessionNumber: sessionNumber,
+		sessionNumber: sessionNumber,
 		status:        LiveStatusUpcoming,
 	}, nil
 }
@@ -80,7 +80,7 @@ func ReconstructLive(
 		ThumbnailURL:  thumbnailURL,
 		StartTime:     startTime,
 		EndTime:       endTime,
-		SessionNumber: sessionNumber,
+		sessionNumber: sessionNumber,
 		status:        status,
 	}, nil
 }
@@ -105,4 +105,16 @@ func (l *Live) SetStatus(status LiveStatus) error {
 
 func (l *Live) Status() LiveStatus {
 	return l.status
+}
+
+func (l *Live) SetSessionNumber(sessionNumber int8) error {
+	if sessionNumber < 1 {
+		return errors.New("session number must be at least 1")
+	}
+	l.sessionNumber = sessionNumber
+	return nil
+}
+
+func (l *Live) SessionNumber() int8 {
+	return l.sessionNumber
 }
