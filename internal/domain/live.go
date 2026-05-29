@@ -17,7 +17,7 @@ type Live struct {
 	StartTime     time.Time  // 始まる時間
 	EndTime       time.Time  // 終わる時間
 	sessionNumber int8       // 何番目にライブがあるか ここに関しては少し変えるかも
-	status        LiveStatus // ライブの状況 0: まだ始まっていない 1: 開演中 2: 終了済み
+	status        LiveStatus // ライブの状況 0: まだ始まっていない 1: 開演中 2: 終了済み 学生会員が手動で状況を変える
 }
 
 const (
@@ -40,8 +40,13 @@ func NewLive(
 		return nil, errors.New("name is required")
 
 	}
+
 	if sessionNumber < 1 {
 		return nil, errors.New("session number must be at least 1")
+	}
+
+	if !endTime.After(startTime) {
+		return nil, errors.New("end time must be after start time")
 	}
 	return &Live{
 		ID:            0,
@@ -70,8 +75,13 @@ func ReconstructLive(
 	if strings.TrimSpace(name) == "" {
 		return nil, errors.New("name is required")
 	}
+
 	if sessionNumber < 1 {
 		return nil, errors.New("session number must be at least 1")
+	}
+
+	if !endTime.After(startTime) {
+		return nil, errors.New("end time must be after start time")
 	}
 	return &Live{
 		ID:            id,

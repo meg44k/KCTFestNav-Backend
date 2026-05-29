@@ -9,20 +9,24 @@ func TestNewLive(t *testing.T) {
 	baseTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
 
 	tests := []struct {
-		name        string
-		inputName   string
-		inputDetail string
-		wantErr     bool
+		name           string
+		inputName      string
+		inputDetail    string
+		inputStartTime time.Time
+		inputEndTime   time.Time
+		wantErr        bool
 	}{
-		{"正常系", "testName", "詳細", false},
-		{"異常系：名前が空文字", "", "詳細", true},
-		{"異常系：名前が半角スペースのみ", " ", "詳細", true},
-		{"異常系：名前が全角スペースのみ", "　", "詳細", true},
+		{"正常系", "testName", "詳細", baseTime, baseTime.Add(1 * time.Hour), false},
+		{"異常系：名前が空文字", "", "詳細", baseTime, baseTime.Add(1 * time.Hour), true},
+		{"異常系：名前が半角スペースのみ", " ", "詳細", baseTime, baseTime.Add(1 * time.Hour), true},
+		{"異常系：名前が全角スペースのみ", "　", "詳細", baseTime, baseTime.Add(1 * time.Hour), true},
+		{"異常系：終了時間が開始時間より前", "testName", "詳細", baseTime, baseTime.Add(-1 * time.Hour), true},
+		{"異常系：終了時間と開始時間が同じ", "testName", "詳細", baseTime, baseTime, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			live, err := NewLive(tt.inputName, tt.inputDetail, "https://example.com/thumb.png", baseTime, baseTime, 1)
+			live, err := NewLive(tt.inputName, tt.inputDetail, "https://example.com/thumb.png", tt.inputStartTime, tt.inputEndTime, 1)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLive() error = %v, wantErr %v", err, tt.wantErr)
@@ -47,22 +51,26 @@ func TestReconstructLive(t *testing.T) {
 	baseTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
 
 	tests := []struct {
-		name        string
-		inputID     int
-		inputName   string
-		inputDetail string
-		inputStatus LiveStatus
-		wantErr     bool
+		name           string
+		inputID        int
+		inputName      string
+		inputDetail    string
+		inputStartTime time.Time
+		inputEndTime   time.Time
+		inputStatus    LiveStatus
+		wantErr        bool
 	}{
-		{"正常系", 99, "testName", "詳細", LiveStatusOngoing, false},
-		{"異常系：名前が空文字", 99, "", "詳細", LiveStatusOngoing, true},
-		{"異常系：名前が半角スペースのみ", 99, " ", "詳細", LiveStatusOngoing, true},
-		{"異常系：名前が全角スペースのみ", 99, "　", "詳細", LiveStatusOngoing, true},
+		{"正常系", 99, "testName", "詳細", baseTime, baseTime.Add(1 * time.Hour), LiveStatusOngoing, false},
+		{"異常系：名前が空文字", 99, "", "詳細", baseTime, baseTime.Add(1 * time.Hour), LiveStatusOngoing, true},
+		{"異常系：名前が半角スペースのみ", 99, " ", "詳細", baseTime, baseTime.Add(1 * time.Hour), LiveStatusOngoing, true},
+		{"異常系：名前が全角スペースのみ", 99, "　", "詳細", baseTime, baseTime.Add(1 * time.Hour), LiveStatusOngoing, true},
+		{"異常系：終了時間が開始時間より前", 99, "testName", "詳細", baseTime, baseTime.Add(-1 * time.Hour), LiveStatusOngoing, true},
+		{"異常系：終了時間と開始時間が同じ", 99, "testName", "詳細", baseTime, baseTime, LiveStatusOngoing, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			live, err := ReconstructLive(tt.inputID, tt.inputName, tt.inputDetail, "https://example.com/thumb.png", baseTime, baseTime, 1, tt.inputStatus)
+			live, err := ReconstructLive(tt.inputID, tt.inputName, tt.inputDetail, "https://example.com/thumb.png", tt.inputStartTime, tt.inputEndTime, 1, tt.inputStatus)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReconstructLive() error = %v, wantErr %v", err, tt.wantErr)
