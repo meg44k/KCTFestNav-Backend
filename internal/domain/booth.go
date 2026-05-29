@@ -10,20 +10,19 @@ import (
 // クラス展示、部活の出店などをあらわす型。
 // 混雑度は専用メソッドから読み取り、書き込みを行う必要があります。
 type Booth struct {
-	ID               string  // ブースID
+	ID               int     // ブースID
 	Name             string  // ブース名
 	Organizer        string  // ブースの主催者(ex. 1-1, 陸上部...)
 	Detail           string  // ブースの説明
-	congestionStatus int8     // 0: 空き 1: 少し混雑している 2: かなり混雑している]
+	congestionStatus int8    // 0: 空き 1: 少し混雑している 2: かなり混雑している]
 	X                float32 // X座標
 	Y                float32 // Y座標
 	Z                float32 // Z座標
 }
 
-
-// 新しいBoothのインスタンスを作成します
+// 新規ブース作成用コンストラクタ
+// IDがDB側で採番されるため、デフォルトではID=0となっている
 func NewBooth(
-	ID string,
 	name string,
 	organizer string,
 	detail string,
@@ -31,9 +30,9 @@ func NewBooth(
 	Y float32,
 	Z float32,
 
-) *Booth {
+) (*Booth, error) {
 	return &Booth{
-		ID:               ID,
+		ID:               0,
 		Name:             name,
 		Organizer:        organizer,
 		Detail:           detail,
@@ -41,14 +40,39 @@ func NewBooth(
 		X:                X,
 		Y:                Y,
 		Z:                Z,
-	}
+	}, nil
+}
+
+// DBからの復元用コンストラクタ
+// IDがDB側から採択されたものがIDに入っている
+func ReconstructBooth(
+	id int,
+	name string,
+	organizer string,
+	detail string,
+	congestionStatus int8,
+	x float32,
+	y float32,
+	z float32,
+
+) (*Booth, error) {
+	return &Booth{
+		ID:               id,
+		Name:             name,
+		Organizer:        organizer,
+		Detail:           detail,
+		congestionStatus: congestionStatus,
+		X:                x,
+		Y:                y,
+		Z:                z,
+	}, nil
 }
 
 type BoothRepository interface {
 	Create(ctx context.Context, booth *Booth) error
-	GetByID(ctx context.Context, id string) (*Booth, error)
+	GetByID(ctx context.Context, id int) (*Booth, error)
 	Update(ctx context.Context, booth *Booth) error
-	UpdateCongestion(ctx context.Context, id string, congestionLevel int8) error 
+	UpdateCongestion(ctx context.Context, id int, congestionLevel int8) error
 	GetAll(ctx context.Context) ([]*Booth, error)
 }
 
@@ -70,5 +94,3 @@ func ValidateCongestionLevel(congestionLevel int8) error {
 	}
 	return nil
 }
-
-
