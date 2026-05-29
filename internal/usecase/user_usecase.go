@@ -37,7 +37,7 @@ func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User,
 }
 
 func (uu *UserUsecase) GetAll(ctx context.Context) ([]*domain.User, error) {
-	if users, err := uu.userRepo.GetAll(ctx);err != nil {
+	if users, err := uu.userRepo.GetAll(ctx); err != nil {
 		return users, nil
 	}
 	return nil, nil

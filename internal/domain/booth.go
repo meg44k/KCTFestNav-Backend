@@ -10,20 +10,19 @@ import (
 // クラス展示、部活の出店などをあらわす型。
 // 混雑度は専用メソッドから読み取り、書き込みを行う必要があります。
 type Booth struct {
-	ID               string  // ブースID
+	ID               int     // ブースID
 	Name             string  // ブース名
 	Organizer        string  // ブースの主催者(ex. 1-1, 陸上部...)
 	Detail           string  // ブースの説明
-	congestionStatus int8     // 0: 空き 1: 少し混雑している 2: かなり混雑している]
+	congestionStatus int8    // 0: 空き 1: 少し混雑している 2: かなり混雑している]
 	X                float32 // X座標
 	Y                float32 // Y座標
 	Z                float32 // Z座標
 }
 
-
 // 新しいBoothのインスタンスを作成します
 func NewBooth(
-	ID string,
+	ID int,
 	name string,
 	organizer string,
 	detail string,
@@ -46,9 +45,9 @@ func NewBooth(
 
 type BoothRepository interface {
 	Create(ctx context.Context, booth *Booth) error
-	GetByID(ctx context.Context, id string) (*Booth, error)
+	GetByID(ctx context.Context, id int) (*Booth, error)
 	Update(ctx context.Context, booth *Booth) error
-	UpdateCongestion(ctx context.Context, id string, congestionLevel int8) error 
+	UpdateCongestion(ctx context.Context, id int, congestionLevel int8) error
 	GetAll(ctx context.Context) ([]*Booth, error)
 }
 
@@ -70,5 +69,3 @@ func ValidateCongestionLevel(congestionLevel int8) error {
 	}
 	return nil
 }
-
-

@@ -12,7 +12,7 @@ import (
 type User struct {
 	ID              uuid.UUID // UserのID UUIDv4
 	Name            string    // ユーザー名
-	AssignedBoothID string    // 配属されたブースのID(1-1の人ならID:1-1など)
+	AssignedBoothID int       // 配属されたブースのID(1-1の人ならID:1-1など)
 	Password        string    // パスワード
 	Role            Role      // 役職 (Admin / Gakuseikai / Student / Member)
 }
@@ -31,7 +31,7 @@ const (
 	RoleMember     Role = "Member"
 )
 
-func NewUser(name string, assignedBoothID string, password string, role Role) (*User, error) {
+func NewUser(name string, assignedBoothID int, password string, role Role) (*User, error) {
 	// Roleのバリデーション
 	if !role.IsValid() {
 		return nil, errors.New("Role should be Admin, Gakuseikai, Student or Member")
@@ -49,7 +49,7 @@ func NewUser(name string, assignedBoothID string, password string, role Role) (*
 
 type UserRepository interface {
 	Create(ctx context.Context, user *User) error
-	Update(ctx context.Context,  user *User) error
+	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetAll(ctx context.Context) ([]*User, error)
@@ -63,4 +63,3 @@ func (r Role) IsValid() bool {
 	}
 	return false
 }
-
