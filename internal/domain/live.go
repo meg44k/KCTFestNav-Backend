@@ -26,6 +26,11 @@ const (
 	LiveStatusFinished LiveStatus = 2 // 終了済
 )
 
+var ErrLiveNameRequired = errors.New("name is required")
+var ErrEndTimeAfterStartTime = errors.New("end time must be after start time")
+var ErrSessionNumberLessThanOne = errors.New("session number must be at least 1")
+var ErrInvalidLiveStatus = errors.New("invalid live status value")
+
 // 新規作成用コンストラクタ
 // DBでIDが採番されるためデフォルトではID=0
 func NewLive(
@@ -36,17 +41,9 @@ func NewLive(
 	endTime time.Time,
 	sessionNumber int8,
 ) (*Live, error) {
-	if strings.TrimSpace(name) == "" {
-		return nil, errors.New("name is required")
-
-	}
-
-	if sessionNumber < 1 {
-		return nil, errors.New("session number must be at least 1")
-	}
-
-	if !endTime.After(startTime) {
-		return nil, errors.New("end time must be after start time")
+	err := validateLive(name, startTime, endTime, sessionNumber)
+	if err != nil {
+		return nil, err
 	}
 	return &Live{
 		ID:            0,
@@ -71,17 +68,9 @@ func ReconstructLive(
 	sessionNumber int8,
 	status LiveStatus,
 ) (*Live, error) {
-	// TODO: 実際の実装をここに書く
-	if strings.TrimSpace(name) == "" {
-		return nil, errors.New("name is required")
-	}
-
-	if sessionNumber < 1 {
-		return nil, errors.New("session number must be at least 1")
-	}
-
-	if !endTime.After(startTime) {
-		return nil, errors.New("end time must be after start time")
+	err := validateLive(name, startTime, endTime, sessionNumber)
+	if err != nil {
+		return nil, err
 	}
 	return &Live{
 		ID:            id,
@@ -103,13 +92,33 @@ type LiveRepository interface {
 	GetAll(ctx context.Context) ([]*Live, error)
 }
 
+func validateLive(
+	name string,
+	startTime time.Time,
+	endTime time.Time,
+	sessionNumber int8) error {
+	if strings.TrimSpace(name) == "" {
+		return ErrLiveNameRequired
+	}
+
+	if !endTime.After(startTime) {
+		return ErrEndTimeAfterStartTime
+	}
+
+	if sessionNumber < 1 {
+		return ErrSessionNumberLessThanOne
+	}
+
+	return nil
+}
+
 func (l *Live) SetStatus(status LiveStatus) error {
 	switch status {
 	case LiveStatusUpcoming, LiveStatusOngoing, LiveStatusFinished:
 		l.status = status
 		return nil
 	default:
-		return errors.New("invalid live status value")
+		return ErrInvalidLiveStatus
 	}
 }
 
@@ -119,7 +128,7 @@ func (l *Live) Status() LiveStatus {
 
 func (l *Live) SetSessionNumber(sessionNumber int8) error {
 	if sessionNumber < 1 {
-		return errors.New("session number must be at least 1")
+		return ErrSessionNumberLessThanOne
 	}
 	l.sessionNumber = sessionNumber
 	return nil
