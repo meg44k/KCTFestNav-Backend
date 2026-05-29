@@ -2,26 +2,27 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
-type Live struct {
-	ID            int       // ライブID
-	Name          string    // バンドorライブ名
-	Detail        string    // 説明文
-	ThumbnailURL  string    // サムネイル画像URL
-	StartTime     time.Time // 始まる時間
-	EndTime       time.Time // 終わる時間
-	SessionNumber int8      // 何番目にライブがあるか ここに関しては少し変えるかも
-	Status        int8      // ライブの状況 0: まだ始まっていない 1: 開演中 2: 終了済み
-}
-
 type LiveStatus int8
 
+type Live struct {
+	ID            int        // ライブID
+	Name          string     // バンドorライブ名
+	Detail        string     // 説明文
+	ThumbnailURL  string     // サムネイル画像URL
+	StartTime     time.Time  // 始まる時間
+	EndTime       time.Time  // 終わる時間
+	SessionNumber int8       // 何番目にライブがあるか ここに関しては少し変えるかも
+	status        LiveStatus // ライブの状況 0: まだ始まっていない 1: 開演中 2: 終了済み
+}
+
 const (
-	LiveStatusUpcoming LiveStatus = 0
-	LiveStatusOngoing  LiveStatus = 1
-	LiveStatusFinished LiveStatus = 2
+	LiveStatusUpcoming LiveStatus = 0 // 開演前
+	LiveStatusOngoing  LiveStatus = 1 // 公演中
+	LiveStatusFinished LiveStatus = 2 // 終了済
 )
 
 // 新規作成用コンストラクタ
@@ -33,7 +34,7 @@ func NewLive(
 	startTime time.Time,
 	endTime time.Time,
 	sessionNumber int8,
-	status int8) (*Live, error) {
+) (*Live, error) {
 	// TODO: 実際の実装をここに書く
 	return &Live{
 		ID:            0,
@@ -43,7 +44,7 @@ func NewLive(
 		StartTime:     startTime,
 		EndTime:       endTime,
 		SessionNumber: sessionNumber,
-		Status:        status,
+		status:        LiveStatusUpcoming,
 	}, nil
 }
 
@@ -56,7 +57,8 @@ func ReconstructLive(
 	startTime time.Time,
 	endTime time.Time,
 	sessionNumber int8,
-	status int8) (*Live, error) {
+	status LiveStatus,
+) (*Live, error) {
 	// TODO: 実際の実装をここに書く
 	return &Live{
 		ID:            id,
@@ -66,7 +68,7 @@ func ReconstructLive(
 		StartTime:     startTime,
 		EndTime:       endTime,
 		SessionNumber: sessionNumber,
-		Status:        status,
+		status:        status,
 	}, nil
 }
 
@@ -76,4 +78,18 @@ type LiveRepository interface {
 	Delete(ctx context.Context, id int) error
 	GetByID(ctx context.Context, id int) (*Live, error)
 	GetAll(ctx context.Context) ([]*Live, error)
+}
+
+func (l *Live) SetStatus(status LiveStatus) error {
+	switch status {
+	case LiveStatusUpcoming, LiveStatusOngoing, LiveStatusFinished:
+		l.status = status
+		return nil
+	default:
+		return errors.New("invalid live status value")
+	}
+}
+
+func (l *Live) Status() LiveStatus {
+	return l.status
 }
