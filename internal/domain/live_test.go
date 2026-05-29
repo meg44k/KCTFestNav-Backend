@@ -6,52 +6,80 @@ import (
 )
 
 func TestNewLive(t *testing.T) {
-	startTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
-	endTime := time.Date(2026, time.May, 29, 14, 0, 0, 0, time.Local)
+	baseTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
 
-	// 実際の関数（コンストラクタ）を呼び出してテストする
-	live, err := NewLive("testName", "詳細", "https://example.com/thumb.png", startTime, endTime, 1)
-
-	if err != nil {
-		t.Fatalf("NewLive() で予期せぬエラーが発生しました: %v", err)
+	tests := []struct {
+		name        string
+		inputName   string
+		inputDetail string
+		wantErr     bool
+	}{
+		{"正常系", "testName", "詳細", false},
+		{"異常系：名前が空文字", "", "詳細", true},
+		{"異常系：名前が半角スペースのみ", " ", "詳細", true},
+		{"異常系：名前が全角スペースのみ", "　", "詳細", true},
 	}
 
-	// 新規作成時は ID が 0 であることの確認
-	if live.ID != 0 {
-		t.Errorf("NewLive() ID = %v, want 0 (自動採番される前は0であるべき)", live.ID)
-	}
-	// 値が正しく入っているかの確認
-	if live.Name != "testName" {
-		t.Errorf("NewLive() Name = %v, want testName", live.Name)
-	}
-	// 新規作成時は初期ステータスが必ず LiveStatusUpcoming であることの確認
-	if live.Status() != LiveStatusUpcoming {
-		t.Errorf("NewLive() Status = %v, want %v (初期状態は未開演であるべき)", live.Status(), LiveStatusUpcoming)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			live, err := NewLive(tt.inputName, tt.inputDetail, "https://example.com/thumb.png", baseTime, baseTime, 1)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewLive() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr {
+				if live.ID != 0 {
+					t.Errorf("NewLive() ID = %v, want 0", live.ID)
+				}
+				if live.Name != tt.inputName {
+					t.Errorf("NewLive() Name = %v, want %v", live.Name, tt.inputName)
+				}
+				if live.Status() != LiveStatusUpcoming {
+					t.Errorf("NewLive() Status = %v, want %v", live.Status(), LiveStatusUpcoming)
+				}
+			}
+		})
 	}
 }
 
 func TestReconstructLive(t *testing.T) {
-	startTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
-	endTime := time.Date(2026, time.May, 29, 14, 0, 0, 0, time.Local)
+	baseTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
 
-	// DBから取得したという想定で、既存のID(99)やステータス(LiveStatusOngoing)を渡して復元する
-	live, err := ReconstructLive(99, "testName", "詳細", "https://example.com/thumb.png", startTime, endTime, 1, LiveStatusOngoing)
-
-	if err != nil {
-		t.Fatalf("ReconstructLive() で予期せぬエラーが発生しました: %v", err)
+	tests := []struct {
+		name        string
+		inputID     int
+		inputName   string
+		inputDetail string
+		inputStatus LiveStatus
+		wantErr     bool
+	}{
+		{"正常系", 99, "testName", "詳細", LiveStatusOngoing, false},
+		{"異常系：名前が空文字", 99, "", "詳細", LiveStatusOngoing, true},
+		{"異常系：名前が半角スペースのみ", 99, " ", "詳細", LiveStatusOngoing, true},
+		{"異常系：名前が全角スペースのみ", 99, "　", "詳細", LiveStatusOngoing, true},
 	}
 
-	// 渡したIDがそのまま維持されているかの確認
-	if live.ID != 99 {
-		t.Errorf("ReconstructLive() ID = %v, want 99", live.ID)
-	}
-	// 値が正しく入っているかの確認
-	if live.Name != "testName" {
-		t.Errorf("ReconstructLive() Name = %v, want testName", live.Name)
-	}
-	// 渡したステータスがそのまま維持されているかの確認
-	if live.Status() != LiveStatusOngoing {
-		t.Errorf("ReconstructLive() Status = %v, want %v", live.Status(), LiveStatusOngoing)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			live, err := ReconstructLive(tt.inputID, tt.inputName, tt.inputDetail, "https://example.com/thumb.png", baseTime, baseTime, 1, tt.inputStatus)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ReconstructLive() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr {
+				if live.ID != tt.inputID {
+					t.Errorf("ReconstructLive() ID = %v, want %v", live.ID, tt.inputID)
+				}
+				if live.Name != tt.inputName {
+					t.Errorf("ReconstructLive() Name = %v, want %v", live.Name, tt.inputName)
+				}
+				if live.Status() != tt.inputStatus {
+					t.Errorf("ReconstructLive() Status = %v, want %v", live.Status(), tt.inputStatus)
+				}
+			}
+		})
 	}
 }
 

@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -35,7 +36,13 @@ func NewLive(
 	endTime time.Time,
 	sessionNumber int8,
 ) (*Live, error) {
-	// TODO: 実際の実装をここに書く
+	if strings.TrimSpace(name) == "" {
+		return nil, errors.New("name is required")
+
+	}
+	if sessionNumber < 1 {
+		return nil, errors.New("session number must be at least 1")
+	}
 	return &Live{
 		ID:            0,
 		Name:          name,
@@ -60,6 +67,12 @@ func ReconstructLive(
 	status LiveStatus,
 ) (*Live, error) {
 	// TODO: 実際の実装をここに書く
+	if strings.TrimSpace(name) == "" {
+		return nil, errors.New("name is required")
+	}
+	if sessionNumber < 1 {
+		return nil, errors.New("session number must be at least 1")
+	}
 	return &Live{
 		ID:            id,
 		Name:          name,
