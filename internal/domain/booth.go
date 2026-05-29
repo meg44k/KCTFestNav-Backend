@@ -20,9 +20,9 @@ type Booth struct {
 	Z                float32 // Z座標
 }
 
-// 新しいBoothのインスタンスを作成します
+// 新規ブース作成用コンストラクタ
+// IDがDB側で採番されるため、デフォルトではID=0となっている
 func NewBooth(
-	ID int,
 	name string,
 	organizer string,
 	detail string,
@@ -30,9 +30,9 @@ func NewBooth(
 	Y float32,
 	Z float32,
 
-) *Booth {
+) (*Booth, error) {
 	return &Booth{
-		ID:               ID,
+		ID:               0,
 		Name:             name,
 		Organizer:        organizer,
 		Detail:           detail,
@@ -40,7 +40,32 @@ func NewBooth(
 		X:                X,
 		Y:                Y,
 		Z:                Z,
-	}
+	}, nil
+}
+
+// DBからの復元用コンストラクタ
+// IDがDB側から採択されたものがIDに入っている
+func ReconstructBooth(
+	id int,
+	name string,
+	organizer string,
+	detail string,
+	congestionStatus int8,
+	x float32,
+	y float32,
+	z float32,
+
+) (*Booth, error) {
+	return &Booth{
+		ID:               id,
+		Name:             name,
+		Organizer:        organizer,
+		Detail:           detail,
+		congestionStatus: congestionStatus,
+		X:                x,
+		Y:                y,
+		Z:                z,
+	}, nil
 }
 
 type BoothRepository interface {

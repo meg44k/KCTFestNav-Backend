@@ -24,7 +24,31 @@ const (
 	LiveStatusFinished LiveStatus = 2
 )
 
+// 新規作成用コンストラクタ
+// DBでIDが採番されるためデフォルトではID=0
 func NewLive(
+	name string,
+	detail string,
+	thumbnailURL string,
+	startTime time.Time,
+	endTime time.Time,
+	sessionNumber int8,
+	status int8) (*Live, error) {
+	// TODO: 実際の実装をここに書く
+	return &Live{
+		ID:            0,
+		Name:          name,
+		Detail:        detail,
+		ThumbnailURL:  thumbnailURL,
+		StartTime:     startTime,
+		EndTime:       endTime,
+		SessionNumber: sessionNumber,
+		Status:        status,
+	}, nil
+}
+
+// DBからの復元用コンストラクタ
+func ReconstructLive(
 	id int,
 	name string,
 	detail string,
