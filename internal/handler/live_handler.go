@@ -173,3 +173,16 @@ func (h *liveHandler) GetAll(c *echo.Context) error {
 		Lives: res,
 	})
 }
+
+func (h *liveHandler) Delete(c *echo.Context) error {
+	id, err := getIDParam(c)
+	if err != nil {
+		return err
+	}
+	err = h.liveUsecase.Delete(c.Request().Context(), id)
+	if err != nil {
+		return err
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}

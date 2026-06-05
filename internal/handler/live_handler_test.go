@@ -355,3 +355,71 @@ func TestLiveHandler_GetAll(t *testing.T) {
 		})
 	}
 }
+
+func TestLiveHandler_Delete(t *testing.T) {
+	e := echo.New()
+
+	tests := []struct {
+		name           string
+		requestID      string
+		mockDeleteErr  error
+		expectedStatus int
+		wantErr        bool
+	}{
+		{
+			name:           "正常系: 204 No Content が返る",
+			requestID:      "1",
+			mockDeleteErr:  nil,
+			expectedStatus: http.StatusNoContent,
+			wantErr:        false,
+		},
+		{
+			name:           "異常系: IDが数字ではない（400エラーがセットされる）",
+			requestID:      "abc",
+			mockDeleteErr:  nil,
+			expectedStatus: 0,
+			wantErr:        true,
+		},
+		{
+			name:           "異常系: Usecase でエラー（そのまま上に投げる）",
+			requestID:      "999",
+			mockDeleteErr:  errors.New("db error"),
+			expectedStatus: 0,
+			wantErr:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodDelete, "/", nil)
+			rec := httptest.NewRecorder()
+
+			c := echo.NewContext(req, rec, e)
+			c.SetPath("/lives/:id")
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.requestID}})
+
+			mockUC := &mockLiveUsecase{
+				deleteFn: func(ctx context.Context, id int) error {
+					return tt.mockDeleteErr
+				},
+			}
+
+			h := NewLiveHandler(mockUC)
+			err := h.Delete(c)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.mockDeleteErr != nil {
+					assert.Equal(t, tt.mockDeleteErr, err)
+				} else {
+					var he *echo.HTTPError
+					require.ErrorAs(t, err, &he)
+					assert.Equal(t, http.StatusBadRequest, he.Code)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+			}
+		})
+	}
+}
