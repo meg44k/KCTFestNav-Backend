@@ -18,6 +18,17 @@ type CreateLiveRequest struct {
 	SessionNumber int8      `json:"session_number"`
 }
 
+type UpdateLiveRequest struct {
+	ID            int               `param:"id"`
+	Name          string            `json:"name"`
+	Detail        string            `json:"detail"`
+	ThumbnailURL  string            `json:"thumbnail_url"`
+	StartTime     time.Time         `json:"start_time"`
+	EndTime       time.Time         `json:"end_time"`
+	SessionNumber int8              `json:"session_number"`
+	Status        domain.LiveStatus `json:"status"`
+}
+
 type LiveUsecase interface {
 	Create(
 		ctx context.Context,
@@ -58,7 +69,7 @@ func (h *liveHandler) Create(c *echo.Context) error {
 	var req CreateLiveRequest
 	// リクエストをJSONから型にバインドする
 	if err := c.Bind(&req); err != nil {
-		return err 
+		return err
 	}
 	ctx := c.Request().Context()
 	err := h.liveUsecase.Create(
@@ -71,7 +82,31 @@ func (h *liveHandler) Create(c *echo.Context) error {
 		req.SessionNumber,
 	)
 	if err != nil {
-		return err
+		return err // エラーはCustomErrorHandlerで振り分けされる
 	}
 	return c.NoContent(http.StatusCreated)
+}
+
+func (h *liveHandler) Update(c *echo.Context) error {
+	var req UpdateLiveRequest
+
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	ctx := c.Request().Context()
+	err := h.liveUsecase.Update(
+		ctx,
+		req.ID,
+		req.Name,
+		req.Detail,
+		req.ThumbnailURL,
+		req.StartTime,
+		req.EndTime,
+		req.SessionNumber,
+		req.Status,
+	)
+	if err != nil {
+		return err // エラーはCustomErrorHandlerで振り分けされる
+	}
+	return c.NoContent(http.StatusNoContent)
 }

@@ -126,3 +126,88 @@ func TestLiveHandler_Create(t *testing.T) {
 		})
 	}
 }
+
+func TestLiveHandler_Update(t *testing.T) {
+	e := echo.New()
+
+	tests := []struct {
+		name           string
+		requestID      string // パスパラメータ用
+		requestJSON    string // リクエストボディ
+		mockUpdateErr  error
+		expectedStatus int
+		wantErr        bool
+	}{
+		{
+			name:      "正常系: 204 No Content が返る",
+			requestID: "1",
+			requestJSON: `{
+				"name": "更新ライブ",
+				"detail": "詳細",
+				"thumbnail_url": "http://example.com/thumb.png",
+				"start_time": "2026-05-29T13:00:00Z",
+				"end_time": "2026-05-29T14:00:00Z",
+				"session_number": 1,
+				"status": 1
+			}`,
+			mockUpdateErr:  nil,
+			expectedStatus: http.StatusNoContent,
+			wantErr:        false,
+		},
+		{
+			name:          "異常系: JSONのフォーマットが不正（Bindエラー）",
+			requestID:     "1",
+			requestJSON:   `{ invalid json }`,
+			mockUpdateErr: nil,
+			wantErr:       true,
+		},
+		{
+			name:      "異常系: Usecase でエラー（そのまま上に投げる）",
+			requestID: "1",
+			requestJSON: `{
+				"name": "更新ライブ"
+			}`,
+			mockUpdateErr: errors.New("usecase error"),
+			wantErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPut, "/", strings.NewReader(tt.requestJSON))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+
+			c := echo.NewContext(req, rec, e)
+			// URLパスパラメータ（:id）をテスト内でシミュレートする
+			c.SetPath("/lives/:id")
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.requestID}})
+
+			mockUC := &mockLiveUsecase{
+				updateFn: func(ctx context.Context, id int, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8, status domain.LiveStatus) error {
+					return tt.mockUpdateErr
+				},
+			}
+
+			h := NewLiveHandler(mockUC)
+			err := h.Update(c)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.mockUpdateErr != nil {
+					// Usecase で発生したエラーの場合
+					assert.Equal(t, tt.mockUpdateErr, err)
+				} else {
+					// Bindエラーの場合
+					var he *echo.HTTPError
+					require.ErrorAs(t, err, &he)
+					assert.Equal(t, http.StatusBadRequest, he.Code)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+			}
+		})
+	}
+}
+
