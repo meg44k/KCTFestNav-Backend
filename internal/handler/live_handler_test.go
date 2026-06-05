@@ -211,3 +211,147 @@ func TestLiveHandler_Update(t *testing.T) {
 	}
 }
 
+func TestLiveHandler_GetByID(t *testing.T) {
+	e := echo.New()
+
+	mockTime := time.Date(2026, 5, 29, 13, 0, 0, 0, time.UTC)
+	mockLive, _ := domain.ReconstructLive(1, "ライブA", "詳細", "http://example.com/thumb.png", mockTime, mockTime.Add(time.Hour), 1, domain.LiveStatusUpcoming)
+
+	tests := []struct {
+		name           string
+		requestID      string
+		mockGetErr     error
+		mockGetResult  *domain.Live
+		expectedStatus int
+		expectedBody   string
+		wantErr        bool
+	}{
+		{
+			name:           "正常系: 200 OK が返る",
+			requestID:      "1",
+			mockGetErr:     nil,
+			mockGetResult:  mockLive,
+			expectedStatus: http.StatusOK,
+			expectedBody:   `{"id":1,"name":"ライブA","detail":"詳細","thumbnail_url":"http://example.com/thumb.png","start_time":"2026-05-29T13:00:00Z","end_time":"2026-05-29T14:00:00Z","session_number":1,"status":0}`,
+			wantErr:        false,
+		},
+		{
+			name:           "異常系: IDが数字ではない（400エラーがセットされる）",
+			requestID:      "abc",
+			mockGetErr:     nil,
+			mockGetResult:  nil,
+			expectedStatus: 0,
+			wantErr:        true,
+		},
+		{
+			name:           "異常系: Usecase でエラー（そのまま上に投げる）",
+			requestID:      "999",
+			mockGetErr:     errors.New("not found error"),
+			mockGetResult:  nil,
+			expectedStatus: 0,
+			wantErr:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			rec := httptest.NewRecorder()
+
+			c := echo.NewContext(req, rec, e)
+			c.SetPath("/lives/:id")
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.requestID}})
+
+			mockUC := &mockLiveUsecase{
+				getByIDFn: func(ctx context.Context, id int) (*domain.Live, error) {
+					return tt.mockGetResult, tt.mockGetErr
+				},
+			}
+
+			h := NewLiveHandler(mockUC)
+			err := h.GetByID(c)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.mockGetErr != nil {
+					assert.Equal(t, tt.mockGetErr, err)
+				} else {
+					var he *echo.HTTPError
+					require.ErrorAs(t, err, &he)
+					assert.Equal(t, http.StatusBadRequest, he.Code)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				assert.Equal(t, tt.expectedBody, strings.TrimSuffix(rec.Body.String(), "\n"))
+			}
+		})
+	}
+}
+
+func TestLiveHandler_GetAll(t *testing.T) {
+	e := echo.New()
+
+	mockTime := time.Date(2026, 5, 29, 13, 0, 0, 0, time.UTC)
+	mockLive1, _ := domain.ReconstructLive(1, "ライブA", "詳細A", "http://example.com/thumb1.png", mockTime, mockTime.Add(time.Hour), 1, domain.LiveStatusFinished)
+	mockLive2, _ := domain.ReconstructLive(2, "ライブB", "詳細B", "http://example.com/thumb2.png", mockTime.Add(2*time.Hour), mockTime.Add(3*time.Hour), 2, domain.LiveStatusUpcoming)
+
+	tests := []struct {
+		name           string
+		mockGetAllErr  error
+		mockGetAllRes  []*domain.Live
+		expectedStatus int
+		expectedBody   string
+		wantErr        bool
+	}{
+		{
+			name:           "正常系: 200 OK と配列が返る",
+			mockGetAllErr:  nil,
+			mockGetAllRes:  []*domain.Live{mockLive1, mockLive2},
+			expectedStatus: http.StatusOK,
+			expectedBody:   `{"lives":[{"id":1,"name":"ライブA","detail":"詳細A","thumbnail_url":"http://example.com/thumb1.png","start_time":"2026-05-29T13:00:00Z","end_time":"2026-05-29T14:00:00Z","session_number":1,"status":2},{"id":2,"name":"ライブB","detail":"詳細B","thumbnail_url":"http://example.com/thumb2.png","start_time":"2026-05-29T15:00:00Z","end_time":"2026-05-29T16:00:00Z","session_number":2,"status":0}]}`,
+			wantErr:        false,
+		},
+		{
+			name:           "正常系: データが0件の場合は空配列が返る",
+			mockGetAllErr:  nil,
+			mockGetAllRes:  []*domain.Live{},
+			expectedStatus: http.StatusOK,
+			expectedBody:   `{"lives":[]}`,
+			wantErr:        false,
+		},
+		{
+			name:           "異常系: Usecase でエラー（そのまま上に投げる）",
+			mockGetAllErr:  errors.New("db error"),
+			mockGetAllRes:  nil,
+			expectedStatus: 0,
+			wantErr:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/lives", nil)
+			rec := httptest.NewRecorder()
+			c := echo.NewContext(req, rec, e)
+
+			mockUC := &mockLiveUsecase{
+				getAllFn: func(ctx context.Context) ([]*domain.Live, error) {
+					return tt.mockGetAllRes, tt.mockGetAllErr
+				},
+			}
+
+			h := NewLiveHandler(mockUC)
+			err := h.GetAll(c)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, tt.mockGetAllErr, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				assert.Equal(t, tt.expectedBody, strings.TrimSuffix(rec.Body.String(), "\n"))
+			}
+		})
+	}
+}

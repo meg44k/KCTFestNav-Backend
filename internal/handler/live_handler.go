@@ -40,6 +40,10 @@ type LiveResponse struct {
 	Status        domain.LiveStatus `json:"status"`
 }
 
+type GetAllLivesResponse struct {
+	Lives []LiveResponse `json:"lives"`
+}
+
 type LiveUsecase interface {
 	Create(
 		ctx context.Context,
@@ -144,4 +148,28 @@ func (h *liveHandler) GetByID(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, res)
+}
+
+func (h *liveHandler) GetAll(c *echo.Context) error {
+	lives, err := h.liveUsecase.GetAll(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	res := make([]LiveResponse, 0, len(lives)) // cap指定
+	for _, live := range lives {
+		res = append(res, LiveResponse{
+			ID:            live.ID,
+			Name:          live.Name,
+			Detail:        live.Detail,
+			ThumbnailURL:  live.ThumbnailURL,
+			StartTime:     live.StartTime,
+			EndTime:       live.EndTime,
+			SessionNumber: live.SessionNumber(),
+			Status:        live.Status(),
+		})
+	}
+
+	return c.JSON(http.StatusOK, GetAllLivesResponse{
+		Lives: res,
+	})
 }
