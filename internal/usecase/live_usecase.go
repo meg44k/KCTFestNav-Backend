@@ -2,13 +2,10 @@ package usecase
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
-
-var ErrForbidden = errors.New("permission denied")
 
 type LiveUsecase struct {
 	liveRepo domain.LiveRepository

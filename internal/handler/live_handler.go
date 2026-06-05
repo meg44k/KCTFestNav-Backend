@@ -29,6 +29,17 @@ type UpdateLiveRequest struct {
 	Status        domain.LiveStatus `json:"status"`
 }
 
+type LiveResponse struct {
+	ID            int               `json:"id"`
+	Name          string            `json:"name"`
+	Detail        string            `json:"detail"`
+	ThumbnailURL  string            `json:"thumbnail_url"`
+	StartTime     time.Time         `json:"start_time"`
+	EndTime       time.Time         `json:"end_time"`
+	SessionNumber int8              `json:"session_number"`
+	Status        domain.LiveStatus `json:"status"`
+}
+
 type LiveUsecase interface {
 	Create(
 		ctx context.Context,
@@ -109,4 +120,28 @@ func (h *liveHandler) Update(c *echo.Context) error {
 		return err // エラーはCustomErrorHandlerで振り分けされる
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (h *liveHandler) GetByID(c *echo.Context) error {
+	id, err := getIDParam(c)
+	if err != nil {
+		return err
+	}
+	live, err := h.liveUsecase.GetByID(c.Request().Context(), id)
+	if err != nil {
+		return err
+	}
+
+	res := LiveResponse{
+		ID:            live.ID,
+		Name:          live.Name,
+		Detail:        live.Detail,
+		ThumbnailURL:  live.ThumbnailURL,
+		StartTime:     live.StartTime,
+		EndTime:       live.EndTime,
+		SessionNumber: live.SessionNumber(),
+		Status:        live.Status(),
+	}
+
+	return c.JSON(http.StatusOK, res)
 }
