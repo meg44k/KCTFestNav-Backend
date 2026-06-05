@@ -24,6 +24,11 @@ type User struct {
 // Member: 一般ユーザー 閲覧する権限のみを持つ
 type Role string
 
+// contextにJWTから読み取ったRoleを入れるためのキー
+// contextはkey-valueで入ってる
+type contextKey string
+const UserRoleKey contextKey = "userRole"
+
 const (
 	RoleAdmin      Role = "Admin"
 	RoleGakuseikai Role = "Gakuseikai"

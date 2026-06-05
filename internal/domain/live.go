@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 )
@@ -20,16 +19,12 @@ type Live struct {
 	status        LiveStatus // ライブの状況 0: まだ始まっていない 1: 開演中 2: 終了済み 学生会員が手動で状況を変える
 }
 
+// ライブの状態
 const (
 	LiveStatusUpcoming LiveStatus = 0 // 開演前
 	LiveStatusOngoing  LiveStatus = 1 // 公演中
 	LiveStatusFinished LiveStatus = 2 // 終了済
 )
-
-var ErrLiveNameRequired = errors.New("name is required")
-var ErrEndTimeAfterStartTime = errors.New("end time must be after start time")
-var ErrSessionNumberLessThanOne = errors.New("session number must be at least 1")
-var ErrInvalidLiveStatus = errors.New("invalid live status value")
 
 // 新規作成用コンストラクタ
 // DBでIDが採番されるためデフォルトではID=0
