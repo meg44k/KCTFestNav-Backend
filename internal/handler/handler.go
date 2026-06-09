@@ -11,7 +11,7 @@ import (
 )
 
 type Handlers struct {
-	Live *liveHandler
+	Live *LiveHandler
 }
 
 func OK(c *echo.Context) error {

@@ -1,0 +1,9 @@
+version: "2"
+sql:
+  - engine: "mysql"
+    queries: "db/query.sql"       # 実行したいSQLを書くファイル
+    schema: "db/schema.sql"       # すでにあるテーブル定義ファイル
+    gen:
+      go:
+        package: "database"       # 生成されるGoのパッケージ名
+        out: "internal/database"  # コードが生成されるフォルダ
