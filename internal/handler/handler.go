@@ -10,6 +10,10 @@ import (
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
 )
 
+type Handlers struct {
+	Live *liveHandler
+}
+
 func OK(c *echo.Context) error {
 	return c.String(http.StatusOK, "OK")
 }
