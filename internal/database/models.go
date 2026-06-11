@@ -20,7 +20,7 @@ type Booth struct {
 	Z                float64
 }
 
-type Life struct {
+type Live struct {
 	ID            int32
 	Name          string
 	Detail        sql.NullString
@@ -28,7 +28,7 @@ type Life struct {
 	StartTime     time.Time
 	EndTime       time.Time
 	SessionNumber sql.NullInt16
-	Status        sql.NullInt16
+	Status        int8
 }
 
 type User struct {

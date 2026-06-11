@@ -41,7 +41,7 @@ func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) (sql.R
 	)
 }
 
-const createLive = `-- name: CreateLive :execresult
+const createLive = `-- name: CreateLive :exec
 INSERT INTO lives (
 name, detail, thumbnailURL, start_time, end_time, session_number, status
 ) VALUES (
@@ -56,11 +56,11 @@ type CreateLiveParams struct {
 	StartTime     time.Time
 	EndTime       time.Time
 	SessionNumber sql.NullInt16
-	Status        sql.NullInt16
+	Status        int8
 }
 
-func (q *Queries) CreateLive(ctx context.Context, arg CreateLiveParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, createLive,
+func (q *Queries) CreateLive(ctx context.Context, arg CreateLiveParams) error {
+	_, err := q.db.ExecContext(ctx, createLive,
 		arg.Name,
 		arg.Detail,
 		arg.Thumbnailurl,
@@ -69,6 +69,7 @@ func (q *Queries) CreateLive(ctx context.Context, arg CreateLiveParams) (sql.Res
 		arg.SessionNumber,
 		arg.Status,
 	)
+	return err
 }
 
 const createUser = `-- name: CreateUser :exec
@@ -166,15 +167,15 @@ const getAllLives = `-- name: GetAllLives :many
 SELECT id, name, detail, thumbnailurl, start_time, end_time, session_number, status FROM lives
 `
 
-func (q *Queries) GetAllLives(ctx context.Context) ([]Life, error) {
+func (q *Queries) GetAllLives(ctx context.Context) ([]Live, error) {
 	rows, err := q.db.QueryContext(ctx, getAllLives)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Life
+	var items []Live
 	for rows.Next() {
-		var i Life
+		var i Live
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -260,15 +261,15 @@ SELECT id, name, detail, thumbnailurl, start_time, end_time, session_number, sta
 `
 
 // statusの値は仮ですが、例えば1を「進行中」とした場合
-func (q *Queries) GetCurrentLives(ctx context.Context) ([]Life, error) {
+func (q *Queries) GetCurrentLives(ctx context.Context) ([]Live, error) {
 	rows, err := q.db.QueryContext(ctx, getCurrentLives)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Life
+	var items []Live
 	for rows.Next() {
-		var i Life
+		var i Live
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
@@ -302,9 +303,9 @@ SELECT id, name, detail, thumbnailurl, start_time, end_time, session_number, sta
 // ==========================================
 // Lives (ライブイベント関連)
 // ==========================================
-func (q *Queries) GetLiveByID(ctx context.Context, id int32) (Life, error) {
+func (q *Queries) GetLiveByID(ctx context.Context, id int32) (Live, error) {
 	row := q.db.QueryRowContext(ctx, getLiveByID, id)
-	var i Life
+	var i Live
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -383,7 +384,7 @@ type UpdateLiveParams struct {
 	StartTime     time.Time
 	EndTime       time.Time
 	SessionNumber sql.NullInt16
-	Status        sql.NullInt16
+	Status        int8
 	ID            int32
 }
 

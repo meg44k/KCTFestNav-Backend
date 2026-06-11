@@ -27,5 +27,5 @@ CREATE TABLE lives(
   start_time DATETIME NOT NULL,
   end_time DATETIME NOT NULL,
   session_number TINYINT,
-  status TINYINT
+  status TINYINT NOT NULL
 );

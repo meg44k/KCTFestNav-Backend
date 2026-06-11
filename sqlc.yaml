@@ -7,3 +7,5 @@ sql:
       go:
         package: "database"       # 生成されるGoのパッケージ名
         out: "internal/database"  # コードが生成されるフォルダ
+        rename:
+          life: "Live"

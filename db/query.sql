@@ -14,7 +14,7 @@ SELECT * FROM lives;
 -- statusの値は仮ですが、例えば1を「進行中」とした場合
 SELECT * FROM lives WHERE status = 1;
 
--- name: CreateLive :execresult
+-- name: CreateLive :exec
 INSERT INTO lives (
 name, detail, thumbnailURL, start_time, end_time, session_number, status
 ) VALUES (
