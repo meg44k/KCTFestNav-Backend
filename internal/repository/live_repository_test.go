@@ -89,11 +89,15 @@ func TestLiveRepository_GetByID(t *testing.T) {
 		err := repo.Create(ctx, live)
 		assert.NoError(t, err)
 
-		// 2. GetByID を実行する
-		// ※ 事前に TRUNCATE しているので、先ほど保存したデータのIDは必ず「1」になります
-		fetchedLive, err := repo.GetByID(ctx, 1)
+		// 2. DBから実際に採番されたIDを取得する（ハードコードを避けて堅牢にする）
+		var insertedID int
+		err = db.QueryRow("SELECT id FROM lives LIMIT 1").Scan(&insertedID)
+		assert.NoError(t, err)
 
-		// 3. 検証（エラーが出ず、名前が一致しているか）
+		// 3. 取得した実際のIDを使って GetByID を実行する
+		fetchedLive, err := repo.GetByID(ctx, insertedID)
+
+		// 4. 検証（エラーが出ず、名前が一致しているか）
 		assert.NoError(t, err)
 		if assert.NotNil(t, fetchedLive) {
 			assert.Equal(t, "取得テストライブ", fetchedLive.Name)
