@@ -66,8 +66,28 @@ func (lr *liveRepository) GetByID(ctx context.Context, id int) (*domain.Live, er
 }
 
 func (lr *liveRepository) GetAll(ctx context.Context) ([]*domain.Live, error) {
+	dbLives, err := lr.db.GetAllLives(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	lives := make([]*domain.Live, len(dbLives))
+	for i, dbLive := range dbLives {
+		live, err := domain.ReconstructLive(
+			int(dbLive.ID),
+			dbLive.Name,
+			dbLive.Detail.String,
+			dbLive.Thumbnailurl.String,
+			dbLive.StartTime,
+			dbLive.EndTime,
+			int8(dbLive.SessionNumber.Int16),
+			domain.LiveStatus(dbLive.Status))
+		if err != nil {
+			return nil, err
+		}
+		lives[i] = live
+	}
+	return lives, nil
 
 }
 

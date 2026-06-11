@@ -114,3 +114,74 @@ func TestLiveRepository_GetByID(t *testing.T) {
 		assert.Nil(t, fetchedLive)
 	})
 }
+
+func TestLiveRepository_GetAll(t *testing.T) {
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatalf("DBの初期化エラー: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		t.Skipf("テスト用DBが起動していないためスキップします: %v", err)
+	}
+
+	_, _ = db.Exec("TRUNCATE TABLE lives")
+	repo := NewLiveRepository(db, nil)
+	ctx := context.Background()
+
+	t.Run("複数件のデータが正常に取得できること", func(t *testing.T) {
+		// 1. テスト用にダミーデータを2件保存する
+		live1, _ := domain.NewLive(
+			"ライブA",
+			"詳細A",
+			"",
+			time.Now().Round(time.Second),
+			time.Now().Add(1*time.Hour).Round(time.Second),
+			1,
+		)
+		live2, _ := domain.NewLive(
+			"ライブB",
+			"詳細B",
+			"",
+			time.Now().Round(time.Second),
+			time.Now().Add(2*time.Hour).Round(time.Second),
+			2,
+		)
+		
+		err := repo.Create(ctx, live1)
+		assert.NoError(t, err, "1件目のセットアップ失敗")
+		
+		err = repo.Create(ctx, live2)
+		assert.NoError(t, err, "2件目のセットアップ失敗")
+
+		// 2. GetAll を実行
+		lives, err := repo.GetAll(ctx)
+
+		// 3. 検証（エラーが出ず、2件取得できているか）
+		assert.NoError(t, err)
+		if assert.NotNil(t, lives) {
+			assert.Len(t, lives, 2, "2件のライブデータが取得できるはず")
+			
+			// 取り出したデータの中身が合っているか確認
+			// ※ 取得順（ORDER BY）を指定していない場合は順不同で返る可能性があるため、
+			// 名前で検索するか、簡単なチェックにとどめるのが無難です
+			names := []string{lives[0].Name, lives[1].Name}
+			assert.Contains(t, names, "ライブA")
+			assert.Contains(t, names, "ライブB")
+		}
+	})
+
+	t.Run("データが1件もない場合は空の配列が返ること", func(t *testing.T) {
+		// テーブルを空にする
+		_, _ = db.Exec("TRUNCATE TABLE lives")
+
+		lives, err := repo.GetAll(ctx)
+
+		// エラーにはならず、長さ0のスライスが返ってくるはず
+		assert.NoError(t, err)
+		assert.NotNil(t, lives)
+		assert.Len(t, lives, 0)
+	})
+}
