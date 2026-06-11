@@ -92,7 +92,29 @@ func (lr *liveRepository) GetAll(ctx context.Context) ([]*domain.Live, error) {
 }
 
 func (lr *liveRepository) Update(ctx context.Context, l *domain.Live) error {
-	// TODO: 実装を行う
+	arg := database.UpdateLiveParams{
+		Name: l.Name,
+		Detail: sql.NullString{
+			String: l.Detail,
+			Valid:  l.Detail != "",
+		},
+		Thumbnailurl: sql.NullString{
+			String: l.ThumbnailURL,
+			Valid:  l.ThumbnailURL != "",
+		},
+		StartTime: l.StartTime,
+		EndTime:   l.EndTime,
+		SessionNumber: sql.NullInt16{
+			Int16: int16(l.SessionNumber()),
+			Valid: true,
+		},
+		Status: int8(l.Status()),
+		ID:     int32(l.ID),
+	}
+	err := lr.db.UpdateLive(ctx, arg)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

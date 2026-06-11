@@ -185,3 +185,59 @@ func TestLiveRepository_GetAll(t *testing.T) {
 		assert.Len(t, lives, 0)
 	})
 }
+
+func TestLiveRepository_Update(t *testing.T) {
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatalf("DBの初期化エラー: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		t.Skipf("テスト用DBが起動していないためスキップします: %v", err)
+	}
+
+	_, _ = db.Exec("TRUNCATE TABLE lives")
+	repo := NewLiveRepository(db, nil)
+	ctx := context.Background()
+
+	t.Run("正常にデータを更新できること", func(t *testing.T) {
+		// 1. テスト用にダミーデータを1件保存する
+		live, _ := domain.NewLive(
+			"更新前のライブ",
+			"古い詳細",
+			"",
+			time.Now().Round(time.Second),
+			time.Now().Add(1*time.Hour).Round(time.Second),
+			1,
+		)
+		err := repo.Create(ctx, live)
+		assert.NoError(t, err, "セットアップ失敗")
+
+		// 2. 実際に採番されたIDを取得する
+		var insertedID int
+		err = db.QueryRow("SELECT id FROM lives LIMIT 1").Scan(&insertedID)
+		assert.NoError(t, err)
+
+		// 3. ドメインモデルの値を更新する
+		// ※ Createしただけの `live` 変数はIDが0のままなので、取得したIDをセットしてあげます
+		live.ID = insertedID
+		live.Name = "更新されたスーパーライブ！"
+		live.Detail = "詳細も新しくなりました"
+
+		// 4. Update を実行
+		err = repo.Update(ctx, live)
+
+		// 5. 検証（エラーが出ずに更新できたか）
+		assert.NoError(t, err)
+
+		// 6. 本当にDBの中身が変わっているか、GetByID で取り直して確認する
+		updatedLive, err := repo.GetByID(ctx, insertedID)
+		assert.NoError(t, err)
+		if assert.NotNil(t, updatedLive) {
+			assert.Equal(t, "更新されたスーパーライブ！", updatedLive.Name)
+			assert.Equal(t, "詳細も新しくなりました", updatedLive.Detail)
+		}
+	})
+}
