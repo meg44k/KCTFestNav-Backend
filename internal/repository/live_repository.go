@@ -119,6 +119,9 @@ func (lr *liveRepository) Update(ctx context.Context, l *domain.Live) error {
 }
 
 func (lr *liveRepository) Delete(ctx context.Context, id int) error {
-	// TODO: 実装を行う
+	err := lr.db.DeleteLive(ctx, int32(id))
+	if err != nil {
+		return err
+	}
 	return nil
 }

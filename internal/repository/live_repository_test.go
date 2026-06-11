@@ -241,3 +241,52 @@ func TestLiveRepository_Update(t *testing.T) {
 		}
 	})
 }
+
+func TestLiveRepository_Delete(t *testing.T) {
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatalf("DBの初期化エラー: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		t.Skipf("テスト用DBが起動していないためスキップします: %v", err)
+	}
+
+	_, _ = db.Exec("TRUNCATE TABLE lives")
+	repo := NewLiveRepository(db, nil)
+	ctx := context.Background()
+
+	t.Run("正常にデータを削除できること", func(t *testing.T) {
+		// 1. テスト用にダミーデータを1件保存する
+		live, _ := domain.NewLive(
+			"削除される運命のライブ",
+			"詳細",
+			"",
+			time.Now().Round(time.Second),
+			time.Now().Add(1*time.Hour).Round(time.Second),
+			1,
+		)
+		err := repo.Create(ctx, live)
+		assert.NoError(t, err, "セットアップ失敗")
+
+		// 2. 実際に採番されたIDを取得する
+		var insertedID int
+		err = db.QueryRow("SELECT id FROM lives LIMIT 1").Scan(&insertedID)
+		assert.NoError(t, err)
+
+		// 3. Delete を実行
+		err = repo.Delete(ctx, insertedID)
+
+		// 4. 検証（エラーが出ずに削除できたか）
+		assert.NoError(t, err)
+
+		// 5. 本当にDBから消えているか、GetByID で取り直して確認する
+		deletedLive, err := repo.GetByID(ctx, insertedID)
+		
+		// 削除されているので「見つかりません」というエラーが返ってくるはず
+		assert.Error(t, err)
+		assert.Nil(t, deletedLive, "削除されたデータは取得できないこと")
+	})
+}
