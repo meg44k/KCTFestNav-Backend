@@ -108,10 +108,17 @@ func (h *LiveHandler) Update(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
+	// Bindすると、IDがReqParamになった後に、BodyのJSON内のIDが割り当てられるため、IDがJSONの初期値のID=0で上書きされてしまう。
+	// そのため、Paramから手動でIDを取り出している。
+	id, err := getIDParam(c)
+	if err != nil {
+		return err
+	}
+
 	ctx := c.Request().Context()
-	err := h.liveUsecase.Update(
+	err = h.liveUsecase.Update(
 		ctx,
-		req.ID,
+		id,
 		req.Name,
 		req.Detail,
 		req.ThumbnailURL,
@@ -155,18 +162,19 @@ func (h *LiveHandler) GetAll(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	res := make([]LiveResponse, 0, len(lives)) // cap指定
-	for _, live := range lives {
-		res = append(res, LiveResponse{
-			ID:            live.ID,
-			Name:          live.Name,
-			Detail:        live.Detail,
-			ThumbnailURL:  live.ThumbnailURL,
-			StartTime:     live.StartTime,
-			EndTime:       live.EndTime,
-			SessionNumber: live.SessionNumber(),
-			Status:        live.Status(),
-		})
+	res := make([]LiveResponse, len(lives))
+	for i, l := range lives {
+		resLive := LiveResponse{
+			ID:            l.ID,
+			Name:          l.Name,
+			Detail:        l.Detail,
+			ThumbnailURL:  l.ThumbnailURL,
+			StartTime:     l.StartTime,
+			EndTime:       l.EndTime,
+			SessionNumber: l.SessionNumber(),
+			Status:        l.Status(),
+		}
+		res[i] = resLive
 	}
 
 	return c.JSON(http.StatusOK, GetAllLivesResponse{
