@@ -20,10 +20,9 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	e.GET("/booths/:boothId", handler.OK) // 特定のブースIDの情報を取得
 
 	// ライブイベント
-	e.GET("/lives", h.Live.GetAll)             // 全ライブイベントの情報を取得
-	e.GET("/lives/:id", h.Live.GetByID)        // 特定のライブIDの情報を取得
-	e.GET("/lives/current", handler.OK)        // 現在進行中のライブ情報を取得
-	e.GET("/lives/current/stream", handler.OK) // 現在進行中のライブ情報を取得
+	e.GET("/lives", h.Live.GetAll)                 // 全ライブイベントの情報を取得
+	e.GET("/lives/:id", h.Live.GetByID)            // 特定のライブIDの情報を取得
+	e.GET("/lives/current", h.Live.GetCurrentLive) // 現在進行中のライブ情報を取得
 
 	// アナウンス
 	e.GET("/announcements", handler.OK)         // お知らせの一覧を表示

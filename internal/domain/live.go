@@ -85,6 +85,7 @@ type LiveRepository interface {
 	Delete(ctx context.Context, id int) error
 	GetByID(ctx context.Context, id int) (*Live, error)
 	GetAll(ctx context.Context) ([]*Live, error)
+	GetCurrentLive(ctx context.Context) (*Live, error)
 }
 
 func validateLive(

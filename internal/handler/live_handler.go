@@ -68,6 +68,7 @@ type LiveUsecase interface {
 	Delete(ctx context.Context, id int) error
 	GetByID(ctx context.Context, id int) (*domain.Live, error)
 	GetAll(ctx context.Context) ([]*domain.Live, error)
+	GetCurrentLive(ctx context.Context) (*domain.Live, error)
 }
 
 type LiveHandler struct {
@@ -180,6 +181,26 @@ func (h *LiveHandler) GetAll(c *echo.Context) error {
 	return c.JSON(http.StatusOK, GetAllLivesResponse{
 		Lives: res,
 	})
+}
+
+func (h *LiveHandler) GetCurrentLive(c *echo.Context) error {
+	live, err := h.liveUsecase.GetCurrentLive(c.Request().Context())
+	if err != nil {
+		return err
+	}
+
+	res := LiveResponse{
+		ID:            live.ID,
+		Name:          live.Name,
+		Detail:        live.Detail,
+		ThumbnailURL:  live.ThumbnailURL,
+		StartTime:     live.StartTime,
+		EndTime:       live.EndTime,
+		SessionNumber: live.SessionNumber(),
+		Status:        live.Status(),
+	}
+
+	return c.JSON(http.StatusOK, res)
 }
 
 func (h *LiveHandler) Delete(c *echo.Context) error {

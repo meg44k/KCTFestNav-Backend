@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 
@@ -20,6 +22,17 @@ func NewLiveRepository(db *sql.DB, rdb *redis.Client) domain.LiveRepository {
 		db:    database.New(db),
 		cache: rdb,
 	}
+}
+
+type currentLiveDTO struct {
+	ID            int               `json:"id"`
+	Name          string            `json:"name"`
+	Detail        string            `json:"detail"`
+	ThumbnailURL  string            `json:"thumbnail_url"`
+	StartTime     time.Time         `json:"start_time"`
+	EndTime       time.Time         `json:"end_time"`
+	SessionNumber int8              `json:"session_number"`
+	Status        domain.LiveStatus `json:"status"`
 }
 
 func (lr *liveRepository) Create(ctx context.Context, l *domain.Live) error {
@@ -89,6 +102,32 @@ func (lr *liveRepository) GetAll(ctx context.Context) ([]*domain.Live, error) {
 	}
 	return lives, nil
 
+}
+
+func (lr *liveRepository) GetCurrentLive(ctx context.Context) (*domain.Live, error) {
+	currentLiveKey := "lives:current"
+	val, err := lr.cache.Get(ctx, currentLiveKey).Result()
+	if err != nil {
+		return nil, err
+	}
+	// Redis型をリポジトリ層内で隠蔽するために、DTOに一回展開。
+	var liveDTO currentLiveDTO
+	json.Unmarshal([]byte(val), &liveDTO)
+	// live型へ
+	live, err := domain.ReconstructLive(
+		liveDTO.ID,
+		liveDTO.Name,
+		liveDTO.Detail,
+		liveDTO.ThumbnailURL,
+		liveDTO.StartTime,
+		liveDTO.EndTime,
+		liveDTO.SessionNumber,
+		liveDTO.Status,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return live, nil
 }
 
 func (lr *liveRepository) Update(ctx context.Context, l *domain.Live) error {

@@ -20,10 +20,11 @@ import (
 	"github.com/meg44k/KCTFestNav-Backend/internal/repository"
 	"github.com/meg44k/KCTFestNav-Backend/internal/router"
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
+	"github.com/redis/go-redis/v9"
 )
 
 // setupE2ETest はテスト用のDBとEchoルーターを初期化して返します
-func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB) {
+func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -37,8 +38,17 @@ func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB) {
 	// テーブルを初期化
 	_, _ = db.Exec("TRUNCATE TABLE lives")
 
+	// Redisの初期化
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "127.0.0.1:6379",
+	})
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		t.Skipf("テスト用Redisが起動していないためスキップします: %v", err)
+	}
+	rdb.Del(context.Background(), "lives:current")
+
 	// 依存関係（DI）のセットアップ
-	repo := repository.NewLiveRepository(db, nil)
+	repo := repository.NewLiveRepository(db, rdb)
 	uc := usecase.NewLiveUsecase(repo)
 	liveHandler := handler.NewLiveHandler(uc)
 
@@ -60,12 +70,13 @@ func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB) {
 	// ルーティングの登録
 	router.InitRoutes(e, &handler.Handlers{Live: liveHandler})
 
-	return e, db
+	return e, db, rdb
 }
 
 func TestLiveE2E(t *testing.T) {
-	e, db := setupE2ETest(t)
+	e, db, rdb := setupE2ETest(t)
 	defer db.Close()
+	defer rdb.Close()
 
 	// テスト間でデータを共有するためにIDを保持
 	var insertedLiveID int
@@ -159,6 +170,26 @@ func TestLiveE2E(t *testing.T) {
 		assert.Equal(t, "E2E更新済みライブ", newName)
 	})
 
+	t.Run("GET /lives/current - 現在進行中のライブを取得", func(t *testing.T) {
+		// 直前のPUTでStatusを1（進行中）に更新したので、ここで取得できるはず
+		req := httptest.NewRequest(http.MethodGet, "/lives/current", nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		// 200 OK が返ってくること
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var res handler.LiveResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &res)
+		assert.NoError(t, err)
+
+		// さっき更新した「E2E更新済みライブ」が進行中として取得できること
+		assert.Equal(t, insertedLiveID, res.ID)
+		assert.Equal(t, "E2E更新済みライブ", res.Name)
+		assert.Equal(t, int8(1), res.Status)
+	})
+
 	t.Run("DELETE /manage/lives/:id - ライブの削除", func(t *testing.T) {
 		path := fmt.Sprintf("/manage/lives/%d", insertedLiveID)
 		req := httptest.NewRequest(http.MethodDelete, path, nil)
@@ -175,4 +206,16 @@ func TestLiveE2E(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 0, count)
 	})
+
+	t.Run("GET /lives/current - 進行中がない場合の確認", func(t *testing.T) {
+		// 直前のDELETEでデータが消えたので、進行中のライブは見つからないはず
+		req := httptest.NewRequest(http.MethodGet, "/lives/current", nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		// 404 NotFound が返ってくること
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
 }
+

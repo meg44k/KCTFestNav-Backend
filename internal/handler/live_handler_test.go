@@ -21,6 +21,7 @@ type mockLiveUsecase struct {
 	deleteFn  func(ctx context.Context, id int) error
 	getByIDFn func(ctx context.Context, id int) (*domain.Live, error)
 	getAllFn  func(ctx context.Context) ([]*domain.Live, error)
+	getCurrentLiveFn func(ctx context.Context) (*domain.Live, error)
 }
 
 func (m *mockLiveUsecase) Create(ctx context.Context, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8) error {
@@ -37,6 +38,12 @@ func (m *mockLiveUsecase) GetByID(ctx context.Context, id int) (*domain.Live, er
 }
 func (m *mockLiveUsecase) GetAll(ctx context.Context) ([]*domain.Live, error) {
 	return m.getAllFn(ctx)
+}
+func (m *mockLiveUsecase) GetCurrentLive(ctx context.Context) (*domain.Live, error) {
+	if m.getCurrentLiveFn != nil {
+		return m.getCurrentLiveFn(ctx)
+	}
+	return nil, nil
 }
 
 func TestLiveHandler_Create(t *testing.T) {

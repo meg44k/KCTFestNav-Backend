@@ -83,3 +83,8 @@ func (u *LiveUsecase) GetAll(ctx context.Context) ([]*domain.Live, error) {
 	lives, err := u.liveRepo.GetAll(ctx)
 	return lives, err
 }
+
+func (u *LiveUsecase) GetCurrentLive(ctx context.Context) (*domain.Live, error) {
+	live, err := u.liveRepo.GetCurrentLive(ctx)
+	return live, err
+}

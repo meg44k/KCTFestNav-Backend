@@ -7,10 +7,24 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
+
+// setupRedis はテスト用のRedisクライアントを作成します
+func setupRedis(t *testing.T) *redis.Client {
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "127.0.0.1:6379",
+	})
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		t.Skipf("テスト用Redisが起動していないためスキップします: %v", err)
+	}
+	// テストの独立性を保つため、開始時に current などのキーを消しておく
+	rdb.Del(context.Background(), "lives:current")
+	return rdb
+}
 
 func TestLiveRepository_Create(t *testing.T) {
 	// テスト用DBのDSN（※ご自身の環境のパスワードやDB名に合わせて変更してください）
@@ -26,11 +40,10 @@ func TestLiveRepository_Create(t *testing.T) {
 		t.Skipf("テスト用DBが起動していないためスキップします: %v", err)
 	}
 
-	// 毎回テスト前に lives テーブルを空にして、まっさらな状態からテストする
 	_, _ = db.Exec("TRUNCATE TABLE lives")
-
-	// リポジトリの初期化（Redisは今回は使わないので nil）
-	repo := NewLiveRepository(db, nil)
+	rdb := setupRedis(t)
+	defer rdb.Close()
+	repo := NewLiveRepository(db, rdb)
 	ctx := context.Background()
 
 	t.Run("正常にライブイベントを保存できる", func(t *testing.T) {
@@ -73,7 +86,9 @@ func TestLiveRepository_GetByID(t *testing.T) {
 	}
 
 	_, _ = db.Exec("TRUNCATE TABLE lives")
-	repo := NewLiveRepository(db, nil)
+	rdb := setupRedis(t)
+	defer rdb.Close()
+	repo := NewLiveRepository(db, rdb)
 	ctx := context.Background()
 
 	t.Run("存在するIDを指定した場合、正常に取得できる", func(t *testing.T) {
@@ -128,7 +143,9 @@ func TestLiveRepository_GetAll(t *testing.T) {
 	}
 
 	_, _ = db.Exec("TRUNCATE TABLE lives")
-	repo := NewLiveRepository(db, nil)
+	rdb := setupRedis(t)
+	defer rdb.Close()
+	repo := NewLiveRepository(db, rdb)
 	ctx := context.Background()
 
 	t.Run("複数件のデータが正常に取得できること", func(t *testing.T) {
@@ -199,7 +216,9 @@ func TestLiveRepository_Update(t *testing.T) {
 	}
 
 	_, _ = db.Exec("TRUNCATE TABLE lives")
-	repo := NewLiveRepository(db, nil)
+	rdb := setupRedis(t)
+	defer rdb.Close()
+	repo := NewLiveRepository(db, rdb)
 	ctx := context.Background()
 
 	t.Run("正常にデータを更新できること", func(t *testing.T) {
@@ -255,7 +274,9 @@ func TestLiveRepository_Delete(t *testing.T) {
 	}
 
 	_, _ = db.Exec("TRUNCATE TABLE lives")
-	repo := NewLiveRepository(db, nil)
+	rdb := setupRedis(t)
+	defer rdb.Close()
+	repo := NewLiveRepository(db, rdb)
 	ctx := context.Background()
 
 	t.Run("正常にデータを削除できること", func(t *testing.T) {
@@ -290,3 +311,57 @@ func TestLiveRepository_Delete(t *testing.T) {
 		assert.Nil(t, deletedLive, "削除されたデータは取得できないこと")
 	})
 }
+
+func TestLiveRepository_GetCurrentLive(t *testing.T) {
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatalf("DBの初期化エラー: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		t.Skipf("テスト用DBが起動していないためスキップします: %v", err)
+	}
+
+	_, _ = db.Exec("TRUNCATE TABLE lives")
+	rdb := setupRedis(t)
+	defer rdb.Close()
+	repo := NewLiveRepository(db, rdb)
+	ctx := context.Background()
+
+	t.Run("進行中のライブが1件取得できること", func(t *testing.T) {
+		_, _ = db.Exec("TRUNCATE TABLE lives")
+
+		// 1. ダミーデータを2件用意（Create時は全て未開催ステータスになる想定）
+		live1, _ := domain.NewLive("終わったライブ", "詳細", "", time.Now(), time.Now(), 1)
+		live2, _ := domain.NewLive("進行中ライブ", "詳細", "", time.Now(), time.Now(), 2)
+		
+		_ = repo.Create(ctx, live1)
+		_ = repo.Create(ctx, live2)
+
+		// 2. 進行中のもの（live2）だけ、テスト用DB上でステータスを直接進行中（1）に書き換える
+		_, err = db.Exec("UPDATE lives SET status = 1 WHERE name = '進行中ライブ'")
+		assert.NoError(t, err)
+
+		// 3. GetCurrentLive を実行
+		currentLive, err := repo.GetCurrentLive(ctx)
+
+		// 4. 検証
+		assert.NoError(t, err)
+		if assert.NotNil(t, currentLive) {
+			assert.Equal(t, "進行中ライブ", currentLive.Name)
+			assert.Equal(t, int8(1), int8(currentLive.Status()))
+		}
+	})
+
+	t.Run("進行中のライブがない場合はエラーになること", func(t *testing.T) {
+		_, _ = db.Exec("TRUNCATE TABLE lives")
+		// データが空の状態で取得を試みる
+		currentLive, err := repo.GetCurrentLive(ctx)
+
+		assert.Error(t, err)
+		assert.Nil(t, currentLive)
+	})
+}
+
