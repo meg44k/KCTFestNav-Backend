@@ -10,9 +10,11 @@ SELECT * FROM lives WHERE id = ?;
 -- name: GetAllLives :many
 SELECT * FROM lives;
 
--- name: GetCurrentLives :many
+-- name: GetCurrentLive :one
 -- statusの値は仮ですが、例えば1を「進行中」とした場合
-SELECT * FROM lives WHERE status = 1;
+SELECT * FROM lives 
+WHERE status = 1
+LIMIT 1;
 
 -- name: CreateLive :exec
 INSERT INTO lives (
@@ -24,6 +26,11 @@ name, detail, thumbnailURL, start_time, end_time, session_number, status
 -- name: UpdateLive :exec
 UPDATE lives
 SET name = ?, detail = ?, thumbnailURL = ?, start_time = ?, end_time = ?, session_number = ?, status = ?
+WHERE id = ?;
+
+-- name: UpdateLiveStatus :exec
+UPDATE lives
+SET status = ?
 WHERE id = ?;
 
 -- name: DeleteLive :exec

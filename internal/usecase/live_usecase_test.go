@@ -19,6 +19,7 @@ type mockLiveRepository struct {
 	getByIDFn func(ctx context.Context, id int) (*domain.Live, error)
 	getAllFn  func(ctx context.Context) ([]*domain.Live, error)
 	getCurrentLiveFn func(ctx context.Context) (*domain.Live, error)
+	updateLiveStatusFn func(ctx context.Context, id int, status domain.LiveStatus) error
 }
 
 func (m *mockLiveRepository) Create(ctx context.Context, live *domain.Live) error {
@@ -46,6 +47,10 @@ func (m *mockLiveRepository) GetCurrentLive(ctx context.Context) (*domain.Live, 
 		return m.getCurrentLiveFn(ctx)
 	}
 	return nil, nil
+}
+
+func (m *mockLiveRepository) UpdateLiveStatus(ctx context.Context, id int, status domain.LiveStatus) error {
+	return m.updateLiveStatusFn(ctx, id, status)
 }
 
 // context に Role を詰めるヘルパー

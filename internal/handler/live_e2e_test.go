@@ -138,6 +138,7 @@ func TestLiveE2E(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, insertedLiveID, res.ID)
+		assert.Equal(t, domain.LiveStatus(0), res.Status)
 		assert.Equal(t, "E2Eテストライブ", res.Name)
 	})
 
@@ -187,7 +188,7 @@ func TestLiveE2E(t *testing.T) {
 		// さっき更新した「E2E更新済みライブ」が進行中として取得できること
 		assert.Equal(t, insertedLiveID, res.ID)
 		assert.Equal(t, "E2E更新済みライブ", res.Name)
-		assert.Equal(t, int8(1), res.Status)
+		assert.Equal(t, domain.LiveStatus(1), res.Status)
 	})
 
 	t.Run("DELETE /manage/lives/:id - ライブの削除", func(t *testing.T) {

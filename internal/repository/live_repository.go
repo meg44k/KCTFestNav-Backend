@@ -12,6 +12,8 @@ import (
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
 
+var currentLiveKey string = "lives:current"
+
 type liveRepository struct {
 	db    *database.Queries
 	cache *redis.Client
@@ -105,14 +107,36 @@ func (lr *liveRepository) GetAll(ctx context.Context) ([]*domain.Live, error) {
 }
 
 func (lr *liveRepository) GetCurrentLive(ctx context.Context) (*domain.Live, error) {
-	currentLiveKey := "lives:current"
-	val, err := lr.cache.Get(ctx, currentLiveKey).Result()
-	if err != nil {
-		return nil, err
-	}
-	// Redis型をリポジトリ層内で隠蔽するために、DTOに一回展開。
 	var liveDTO currentLiveDTO
-	json.Unmarshal([]byte(val), &liveDTO)
+	val, err := lr.cache.Get(ctx, currentLiveKey).Result()
+	if err == redis.Nil { // キャッシュヒットしなかった時
+		dbLive, err := lr.db.GetCurrentLive(ctx) // MySQLから開催中のライブを取ってくる(1つ)
+		if err != nil {
+			return nil, err
+		}
+		liveDTO = currentLiveDTO{
+			int(dbLive.ID),
+			dbLive.Name,
+			dbLive.Detail.String,
+			dbLive.Thumbnailurl.String,
+			dbLive.StartTime,
+			dbLive.EndTime,
+			int8(dbLive.SessionNumber.Int16),
+			domain.LiveStatus(dbLive.Status),
+		}
+		jsonData, err := json.Marshal(liveDTO)
+		if err != nil {
+			return nil, err
+		}
+		lr.cache.Set(ctx, currentLiveKey, jsonData, 0) // キャッシュに登録する
+	} else if err != nil {
+		return nil, err
+	} else { // キャッシュヒットした時
+		// Redis型をリポジトリ層内に隠蔽するために、DTOに一回展開。
+		if err := json.Unmarshal([]byte(val), &liveDTO); err != nil {
+			return nil, err
+		}
+	}
 	// live型へ
 	live, err := domain.ReconstructLive(
 		liveDTO.ID,
@@ -127,6 +151,7 @@ func (lr *liveRepository) GetCurrentLive(ctx context.Context) (*domain.Live, err
 	if err != nil {
 		return nil, err
 	}
+
 	return live, nil
 }
 
@@ -150,17 +175,30 @@ func (lr *liveRepository) Update(ctx context.Context, l *domain.Live) error {
 		Status: int8(l.Status()),
 		ID:     int32(l.ID),
 	}
-	err := lr.db.UpdateLive(ctx, arg)
-	if err != nil {
+	if err := lr.db.UpdateLive(ctx, arg); err != nil {
 		return err
 	}
-	return nil
+	return lr.cache.Del(ctx, currentLiveKey).Err()
+}
+
+func (lr *liveRepository) UpdateLiveStatus(ctx context.Context, id int, status domain.LiveStatus) error {
+	// mysqlのliveステータスを変更する
+	arg := database.UpdateLiveStatusParams{
+		Status: int8(status),
+		ID:     int32(id),
+	}
+	if err := lr.db.UpdateLiveStatus(ctx, arg); err != nil {
+		return err
+	}
+
+	// redisの現在のライブ情報を削除する
+	return lr.cache.Del(ctx, currentLiveKey).Err()
 }
 
 func (lr *liveRepository) Delete(ctx context.Context, id int) error {
-	err := lr.db.DeleteLive(ctx, int32(id))
-	if err != nil {
+	if err := lr.db.DeleteLive(ctx, int32(id)); err != nil {
 		return err
 	}
-	return nil
+	// キャッシュ削除
+	return lr.cache.Del(ctx, currentLiveKey).Err()
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -41,7 +42,11 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 	case errors.Is(err, usecase.ErrForbidden):
 		code = http.StatusForbidden
 		message = err.Error()
+	case errors.Is(err, sql.ErrNoRows):
+		code = http.StatusNotFound
+		message = "not found"
 	}
 	c.Logger().Error("HTTP error occurred", "error", err)
 	c.JSON(code, map[string]string{"error": message})
+
 }

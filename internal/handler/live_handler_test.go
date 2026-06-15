@@ -22,6 +22,7 @@ type mockLiveUsecase struct {
 	getByIDFn func(ctx context.Context, id int) (*domain.Live, error)
 	getAllFn  func(ctx context.Context) ([]*domain.Live, error)
 	getCurrentLiveFn func(ctx context.Context) (*domain.Live, error)
+	updateLiveStatusFn func(ctx context.Context, id int, status domain.LiveStatus) error
 }
 
 func (m *mockLiveUsecase) Create(ctx context.Context, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8) error {
@@ -44,6 +45,9 @@ func (m *mockLiveUsecase) GetCurrentLive(ctx context.Context) (*domain.Live, err
 		return m.getCurrentLiveFn(ctx)
 	}
 	return nil, nil
+}
+func (m *mockLiveUsecase) UpdateLiveStatus(ctx context.Context, id int, status domain.LiveStatus) error {
+	return m.updateLiveStatusFn(ctx, id, status)
 }
 
 func TestLiveHandler_Create(t *testing.T) {

@@ -41,5 +41,6 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 
 	manage.POST("/lives", h.Live.Create)
 	manage.PUT("/lives/:id", h.Live.Update)
+	manage.PATCH("/lives/:id/status", h.Live.UpdateLiveStatus)
 	manage.DELETE("/lives/:id", h.Live.Delete)
 }

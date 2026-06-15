@@ -44,6 +44,10 @@ type GetAllLivesResponse struct {
 	Lives []LiveResponse `json:"lives"`
 }
 
+type UpdateLiveStatusRequest struct {
+	Status domain.Live `json:"status"`
+}
+
 type LiveUsecase interface {
 	Create(
 		ctx context.Context,
@@ -65,6 +69,7 @@ type LiveUsecase interface {
 		sessionNumber int8,
 		status domain.LiveStatus,
 	) error
+	UpdateLiveStatus(ctx context.Context, id int, status domain.LiveStatus) error
 	Delete(ctx context.Context, id int) error
 	GetByID(ctx context.Context, id int) (*domain.Live, error)
 	GetAll(ctx context.Context) ([]*domain.Live, error)
@@ -132,6 +137,19 @@ func (h *LiveHandler) Update(c *echo.Context) error {
 		return err // エラーはCustomErrorHandlerで振り分けされる
 	}
 	return c.NoContent(http.StatusNoContent)
+}
+
+func (h *LiveHandler) UpdateLiveStatus(c *echo.Context) error {
+	id, err := getIDParam(c)
+	if err != nil {
+		return err
+	}
+	var req UpdateLiveRequest
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	h.liveUsecase.UpdateLiveStatus(c.Request().Context(), id, req.Status)
+	return nil
 }
 
 func (h *LiveHandler) GetByID(c *echo.Context) error {

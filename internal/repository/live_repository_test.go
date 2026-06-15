@@ -334,8 +334,8 @@ func TestLiveRepository_GetCurrentLive(t *testing.T) {
 		_, _ = db.Exec("TRUNCATE TABLE lives")
 
 		// 1. ダミーデータを2件用意（Create時は全て未開催ステータスになる想定）
-		live1, _ := domain.NewLive("終わったライブ", "詳細", "", time.Now(), time.Now(), 1)
-		live2, _ := domain.NewLive("進行中ライブ", "詳細", "", time.Now(), time.Now(), 2)
+		live1, _ := domain.NewLive("終わったライブ", "詳細", "", time.Now(), time.Now().Add(time.Hour), 1)
+		live2, _ := domain.NewLive("進行中ライブ", "詳細", "", time.Now().Add(time.Hour), time.Now().Add(2*time.Hour), 2)
 		
 		_ = repo.Create(ctx, live1)
 		_ = repo.Create(ctx, live2)
@@ -357,6 +357,7 @@ func TestLiveRepository_GetCurrentLive(t *testing.T) {
 
 	t.Run("進行中のライブがない場合はエラーになること", func(t *testing.T) {
 		_, _ = db.Exec("TRUNCATE TABLE lives")
+		rdb.Del(ctx, "lives:current") // キャッシュもクリアする
 		// データが空の状態で取得を試みる
 		currentLive, err := repo.GetCurrentLive(ctx)
 
@@ -365,3 +366,45 @@ func TestLiveRepository_GetCurrentLive(t *testing.T) {
 	})
 }
 
+func TestLiveRepository_UpdateLiveStatus(t *testing.T) {
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		t.Fatalf("DBの初期化エラー: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		t.Skipf("テスト用DBが起動していないためスキップします: %v", err)
+	}
+
+	_, _ = db.Exec("TRUNCATE TABLE lives")
+	rdb := setupRedis(t)
+	defer rdb.Close()
+	repo := NewLiveRepository(db, rdb)
+	ctx := context.Background()
+
+	t.Run("ステータスのみを正常に更新し、Redisキャッシュを削除できる", func(t *testing.T) {
+		live, _ := domain.ReconstructLive(0, "ステータス変更用", "詳細", "url", time.Now(), time.Now().Add(time.Hour), 1, 0)
+		err := repo.Create(ctx, live)
+		assert.NoError(t, err)
+
+		var id int
+		err = db.QueryRow("SELECT id FROM lives LIMIT 1").Scan(&id)
+		assert.NoError(t, err)
+
+		rdb.Set(ctx, "lives:current", "dummy_data", 0)
+
+		err = repo.UpdateLiveStatus(ctx, id, domain.LiveStatus(1))
+		assert.NoError(t, err)
+
+		var newStatus int
+		err = db.QueryRow("SELECT status FROM lives WHERE id = ?", id).Scan(&newStatus)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, newStatus)
+
+		val, err := rdb.Get(ctx, "lives:current").Result()
+		assert.Equal(t, redis.Nil, err)
+		assert.Empty(t, val)
+	})
+}

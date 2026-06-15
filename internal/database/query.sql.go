@@ -256,41 +256,27 @@ func (q *Queries) GetBoothByID(ctx context.Context, id int32) (Booth, error) {
 	return i, err
 }
 
-const getCurrentLives = `-- name: GetCurrentLives :many
-SELECT id, name, detail, thumbnailurl, start_time, end_time, session_number, status FROM lives WHERE status = 1
+const getCurrentLive = `-- name: GetCurrentLive :one
+SELECT id, name, detail, thumbnailurl, start_time, end_time, session_number, status FROM lives 
+WHERE status = 1
+LIMIT 1
 `
 
 // statusの値は仮ですが、例えば1を「進行中」とした場合
-func (q *Queries) GetCurrentLives(ctx context.Context) ([]Live, error) {
-	rows, err := q.db.QueryContext(ctx, getCurrentLives)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Live
-	for rows.Next() {
-		var i Live
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Detail,
-			&i.Thumbnailurl,
-			&i.StartTime,
-			&i.EndTime,
-			&i.SessionNumber,
-			&i.Status,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetCurrentLive(ctx context.Context) (Live, error) {
+	row := q.db.QueryRowContext(ctx, getCurrentLive)
+	var i Live
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Detail,
+		&i.Thumbnailurl,
+		&i.StartTime,
+		&i.EndTime,
+		&i.SessionNumber,
+		&i.Status,
+	)
+	return i, err
 }
 
 const getLiveByID = `-- name: GetLiveByID :one
@@ -399,5 +385,21 @@ func (q *Queries) UpdateLive(ctx context.Context, arg UpdateLiveParams) error {
 		arg.Status,
 		arg.ID,
 	)
+	return err
+}
+
+const updateLiveStatus = `-- name: UpdateLiveStatus :exec
+UPDATE lives
+SET status = ?
+WHERE id = ?
+`
+
+type UpdateLiveStatusParams struct {
+	Status int8
+	ID     int32
+}
+
+func (q *Queries) UpdateLiveStatus(ctx context.Context, arg UpdateLiveStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateLiveStatus, arg.Status, arg.ID)
 	return err
 }

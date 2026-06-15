@@ -82,6 +82,7 @@ func ReconstructLive(
 type LiveRepository interface {
 	Create(ctx context.Context, live *Live) error
 	Update(ctx context.Context, live *Live) error
+	UpdateLiveStatus(ctx context.Context, id int, status LiveStatus) error
 	Delete(ctx context.Context, id int) error
 	GetByID(ctx context.Context, id int) (*Live, error)
 	GetAll(ctx context.Context) ([]*Live, error)
