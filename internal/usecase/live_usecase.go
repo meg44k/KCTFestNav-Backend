@@ -63,15 +63,22 @@ func (u *LiveUsecase) Update(
 	return u.liveRepo.Update(ctx, live)
 }
 
+func (u *LiveUsecase) UpdateLiveStatus(ctx context.Context, id int, status domain.LiveStatus) error {
+	// 権限チェック
+	role, ok := ctx.Value(domain.UserRoleKey).(domain.Role)
+	if !ok || role != domain.RoleAdmin && role != domain.RoleGakuseikai { // Adminと学生会以外不可
+		return ErrForbidden
+	}
+	return u.liveRepo.UpdateLiveStatus(ctx, id, status)
+}
+
 func (u *LiveUsecase) Delete(ctx context.Context, id int) error {
 	// 権限チェック: Admin以外不可
 	role, ok := ctx.Value(domain.UserRoleKey).(domain.Role)
 	if !ok || role != domain.RoleAdmin {
 		return ErrForbidden
 	}
-
-	err := u.liveRepo.Delete(ctx, id)
-	return err
+	return u.liveRepo.Delete(ctx, id)
 }
 
 func (u *LiveUsecase) GetByID(ctx context.Context, id int) (*domain.Live, error) {
@@ -82,4 +89,9 @@ func (u *LiveUsecase) GetByID(ctx context.Context, id int) (*domain.Live, error)
 func (u *LiveUsecase) GetAll(ctx context.Context) ([]*domain.Live, error) {
 	lives, err := u.liveRepo.GetAll(ctx)
 	return lives, err
+}
+
+func (u *LiveUsecase) GetCurrentLive(ctx context.Context) (*domain.Live, error) {
+	live, err := u.liveRepo.GetCurrentLive(ctx)
+	return live, err
 }

@@ -44,6 +44,10 @@ type GetAllLivesResponse struct {
 	Lives []LiveResponse `json:"lives"`
 }
 
+type UpdateLiveStatusRequest struct {
+	Status domain.Live `json:"status"`
+}
+
 type LiveUsecase interface {
 	Create(
 		ctx context.Context,
@@ -65,22 +69,24 @@ type LiveUsecase interface {
 		sessionNumber int8,
 		status domain.LiveStatus,
 	) error
+	UpdateLiveStatus(ctx context.Context, id int, status domain.LiveStatus) error
 	Delete(ctx context.Context, id int) error
 	GetByID(ctx context.Context, id int) (*domain.Live, error)
 	GetAll(ctx context.Context) ([]*domain.Live, error)
+	GetCurrentLive(ctx context.Context) (*domain.Live, error)
 }
 
-type liveHandler struct {
+type LiveHandler struct {
 	liveUsecase LiveUsecase
 }
 
-func NewLiveHandler(uc LiveUsecase) *liveHandler {
-	return &liveHandler{
+func NewLiveHandler(uc LiveUsecase) *LiveHandler {
+	return &LiveHandler{
 		liveUsecase: uc,
 	}
 }
 
-func (h *liveHandler) Create(c *echo.Context) error {
+func (h *LiveHandler) Create(c *echo.Context) error {
 	var req CreateLiveRequest
 	// リクエストをJSONから型にバインドする
 	if err := c.Bind(&req); err != nil {
@@ -102,16 +108,23 @@ func (h *liveHandler) Create(c *echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-func (h *liveHandler) Update(c *echo.Context) error {
+func (h *LiveHandler) Update(c *echo.Context) error {
 	var req UpdateLiveRequest
 
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
+	// Bindすると、IDがReqParamになった後に、BodyのJSON内のIDが割り当てられるため、IDがJSONの初期値のID=0で上書きされてしまう。
+	// そのため、Paramから手動でIDを取り出している。
+	id, err := getIDParam(c)
+	if err != nil {
+		return err
+	}
+
 	ctx := c.Request().Context()
-	err := h.liveUsecase.Update(
+	err = h.liveUsecase.Update(
 		ctx,
-		req.ID,
+		id,
 		req.Name,
 		req.Detail,
 		req.ThumbnailURL,
@@ -126,7 +139,20 @@ func (h *liveHandler) Update(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (h *liveHandler) GetByID(c *echo.Context) error {
+func (h *LiveHandler) UpdateLiveStatus(c *echo.Context) error {
+	id, err := getIDParam(c)
+	if err != nil {
+		return err
+	}
+	var req UpdateLiveRequest
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	h.liveUsecase.UpdateLiveStatus(c.Request().Context(), id, req.Status)
+	return nil
+}
+
+func (h *LiveHandler) GetByID(c *echo.Context) error {
 	id, err := getIDParam(c)
 	if err != nil {
 		return err
@@ -150,23 +176,24 @@ func (h *liveHandler) GetByID(c *echo.Context) error {
 	return c.JSON(http.StatusOK, res)
 }
 
-func (h *liveHandler) GetAll(c *echo.Context) error {
+func (h *LiveHandler) GetAll(c *echo.Context) error {
 	lives, err := h.liveUsecase.GetAll(c.Request().Context())
 	if err != nil {
 		return err
 	}
-	res := make([]LiveResponse, 0, len(lives)) // cap指定
-	for _, live := range lives {
-		res = append(res, LiveResponse{
-			ID:            live.ID,
-			Name:          live.Name,
-			Detail:        live.Detail,
-			ThumbnailURL:  live.ThumbnailURL,
-			StartTime:     live.StartTime,
-			EndTime:       live.EndTime,
-			SessionNumber: live.SessionNumber(),
-			Status:        live.Status(),
-		})
+	res := make([]LiveResponse, len(lives))
+	for i, l := range lives {
+		resLive := LiveResponse{
+			ID:            l.ID,
+			Name:          l.Name,
+			Detail:        l.Detail,
+			ThumbnailURL:  l.ThumbnailURL,
+			StartTime:     l.StartTime,
+			EndTime:       l.EndTime,
+			SessionNumber: l.SessionNumber(),
+			Status:        l.Status(),
+		}
+		res[i] = resLive
 	}
 
 	return c.JSON(http.StatusOK, GetAllLivesResponse{
@@ -174,7 +201,27 @@ func (h *liveHandler) GetAll(c *echo.Context) error {
 	})
 }
 
-func (h *liveHandler) Delete(c *echo.Context) error {
+func (h *LiveHandler) GetCurrentLive(c *echo.Context) error {
+	live, err := h.liveUsecase.GetCurrentLive(c.Request().Context())
+	if err != nil {
+		return err
+	}
+
+	res := LiveResponse{
+		ID:            live.ID,
+		Name:          live.Name,
+		Detail:        live.Detail,
+		ThumbnailURL:  live.ThumbnailURL,
+		StartTime:     live.StartTime,
+		EndTime:       live.EndTime,
+		SessionNumber: live.SessionNumber(),
+		Status:        live.Status(),
+	}
+
+	return c.JSON(http.StatusOK, res)
+}
+
+func (h *LiveHandler) Delete(c *echo.Context) error {
 	id, err := getIDParam(c)
 	if err != nil {
 		return err
