@@ -16,8 +16,8 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	auth.GET("/me", handler.OK)     // ログイン中のユーザ情報取得
 
 	// ブース情報
-	e.GET("/booth", handler.OK)           // 全ブースの情報を取得
-	e.GET("/booths/:boothId", handler.OK) // 特定のブースIDの情報を取得
+	e.GET("/booths", h.Booth.GetAll)      // 全ブースの情報を取得
+	e.GET("/booths/:id", h.Booth.GetByID) // 特定のブースIDの情報を取得
 
 	// ライブイベント
 	e.GET("/lives", h.Live.GetAll)                 // 全ライブイベントの情報を取得

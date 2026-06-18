@@ -12,7 +12,8 @@ import (
 )
 
 type Handlers struct {
-	Live *LiveHandler
+	Live  *LiveHandler
+	Booth *BoothHandler
 }
 
 func OK(c *echo.Context) error {
