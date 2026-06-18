@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const createBooth = `-- name: CreateBooth :execresult
+const createBooth = `-- name: CreateBooth :exec
 INSERT INTO booths (
 name, organizer, detail, congestion_status, x, y, z
 ) VALUES (
@@ -29,8 +29,8 @@ type CreateBoothParams struct {
 	Z                float64
 }
 
-func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, createBooth,
+func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) error {
+	_, err := q.db.ExecContext(ctx, createBooth,
 		arg.Name,
 		arg.Organizer,
 		arg.Detail,
@@ -39,6 +39,7 @@ func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) (sql.R
 		arg.Y,
 		arg.Z,
 	)
+	return err
 }
 
 const createLive = `-- name: CreateLive :exec

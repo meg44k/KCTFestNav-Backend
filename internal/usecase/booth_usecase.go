@@ -16,8 +16,25 @@ func NewBoothUsecase(repo domain.BoothRepository) *BoothUsecase {
 	}
 }
 
-func (u *BoothUsecase) Create(ctx context.Context, b *domain.Booth) error {
-	return u.boothRepo.Create(ctx, b)
+func (u *BoothUsecase) Create(
+	ctx context.Context,
+	name string,
+	organizer string,
+	detail string,
+	congestionStatus int8,
+	x float32,
+	y float32,
+	z float32,
+) error {
+	role, ok := ctx.Value(domain.ContextUserRoleKey).(domain.Role)
+	if !ok || role != domain.RoleAdmin {
+		return ErrForbidden
+	}
+	booth, err := domain.NewBooth(name, organizer, detail, x, y, z)
+	if err != nil {
+		return err
+	}
+	return u.boothRepo.Create(ctx, booth)
 }
 
 func (u *BoothUsecase) Update(ctx context.Context, b *domain.Booth) error {

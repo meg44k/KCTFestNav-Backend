@@ -22,7 +22,19 @@ func NewBoothRepository(db *sql.DB, rdb *redis.Client) domain.BoothRepository {
 }
 
 func (br *boothRepository) Create(ctx context.Context, b *domain.Booth) error {
-	// TODO: 実際の実装を行う
+	arg := database.CreateBoothParams{
+		Name:             b.Name,
+		Organizer:        b.Organizer,
+		Detail:           b.Detail,
+		CongestionStatus: b.CongestionStatus(),
+		X:                float64(b.X),
+		Y:                float64(b.Y),
+		Z:                float64(b.Z),
+	}
+	err := br.db.CreateBooth(ctx, arg)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

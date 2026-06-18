@@ -13,12 +13,12 @@ import (
 
 // LiveRepository インターフェースを満たすモック
 type mockLiveRepository struct {
-	createFn  func(ctx context.Context, live *domain.Live) error
-	updateFn  func(ctx context.Context, live *domain.Live) error
-	deleteFn  func(ctx context.Context, id int) error
-	getByIDFn func(ctx context.Context, id int) (*domain.Live, error)
-	getAllFn  func(ctx context.Context) ([]*domain.Live, error)
-	getCurrentLiveFn func(ctx context.Context) (*domain.Live, error)
+	createFn           func(ctx context.Context, live *domain.Live) error
+	updateFn           func(ctx context.Context, live *domain.Live) error
+	deleteFn           func(ctx context.Context, id int) error
+	getByIDFn          func(ctx context.Context, id int) (*domain.Live, error)
+	getAllFn           func(ctx context.Context) ([]*domain.Live, error)
+	getCurrentLiveFn   func(ctx context.Context) (*domain.Live, error)
 	updateLiveStatusFn func(ctx context.Context, id int, status domain.LiveStatus) error
 }
 
@@ -55,7 +55,7 @@ func (m *mockLiveRepository) UpdateLiveStatus(ctx context.Context, id int, statu
 
 // context に Role を詰めるヘルパー
 func ctxWithRole(role domain.Role) context.Context {
-	return context.WithValue(context.Background(), domain.UserRoleKey, role)
+	return context.WithValue(context.Background(), domain.ContextUserRoleKey, role)
 }
 
 func TestLiveUsecase_Create(t *testing.T) {
@@ -94,7 +94,7 @@ func TestLiveUsecase_Create(t *testing.T) {
 			inputEnd:      baseTime.Add(1 * time.Hour),
 			sessionNumber: 1,
 			repoErr:       nil,
-			expectedErr:   domain.ErrLiveNameRequired,
+			expectedErr:   domain.ErrNameRequired,
 		},
 		{
 			name:          "異常系: 終了時間が開始時間より前",
@@ -234,7 +234,7 @@ func TestLiveUsecase_Update(t *testing.T) {
 			sessionNumber: 1,
 			status:        domain.LiveStatusUpcoming,
 			repoErr:       nil,
-			expectedErr:   domain.ErrLiveNameRequired,
+			expectedErr:   domain.ErrNameRequired,
 		},
 		{
 			name:          "異常系: 終了時間が開始時間より前",

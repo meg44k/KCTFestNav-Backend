@@ -27,7 +27,8 @@ type Role string
 // contextにJWTから読み取ったRoleを入れるためのキー
 // contextはkey-valueで入ってる
 type contextKey string
-const UserRoleKey contextKey = "userRole"
+
+const ContextUserRoleKey contextKey = "userRole"
 
 const (
 	RoleAdmin      Role = "Admin"

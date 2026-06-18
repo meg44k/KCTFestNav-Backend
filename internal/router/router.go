@@ -31,7 +31,7 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	// 管理者系
 	manage := e.Group("/manage")
 
-	manage.POST("/booths", handler.OK)            // ブースの追加
+	manage.POST("/booths", h.Booth.Create)        // ブースの追加
 	manage.PUT("/booths/:boothId", handler.OK)    // ブースの更新
 	manage.DELETE("/booths/:boothId", handler.OK) // ブースの削除
 

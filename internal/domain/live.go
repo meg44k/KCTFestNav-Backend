@@ -95,7 +95,7 @@ func validateLive(
 	endTime time.Time,
 	sessionNumber int8) error {
 	if strings.TrimSpace(name) == "" {
-		return ErrLiveNameRequired
+		return ErrNameRequired
 	}
 
 	if !endTime.After(startTime) {

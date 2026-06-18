@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
@@ -93,5 +94,62 @@ func TestBoothUsecase_GetAll(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, booths, 1)
 		assert.Equal(t, expectedBooth, booths[0])
+	})
+}
+
+func boothCtxWithRole(role domain.Role) context.Context {
+	return context.WithValue(context.Background(), domain.ContextUserRoleKey, role)
+}
+
+func TestBoothUsecase_Create(t *testing.T) {
+	t.Run("正常系: ブースを作成できる(Admin)", func(t *testing.T) {
+		ctx := boothCtxWithRole(domain.RoleAdmin)
+
+		repo := &mockBoothRepository{
+			createFn: func(ctx context.Context, booth *domain.Booth) error {
+				assert.Equal(t, "ブースA", booth.Name)
+				assert.Equal(t, float32(10.5), booth.X)
+				return nil
+			},
+		}
+
+		uc := NewBoothUsecase(repo)
+		err := uc.Create(ctx, "ブースA", "主催A", "詳細", 0, 10.5, 20.5, 0.0)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("異常系: 権限不足(Gakuseikai)", func(t *testing.T) {
+		ctx := boothCtxWithRole(domain.RoleGakuseikai)
+		uc := NewBoothUsecase(&mockBoothRepository{})
+		
+		err := uc.Create(ctx, "ブースA", "主催A", "詳細", 0, 10.5, 20.5, 0.0)
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrForbidden)
+	})
+
+	t.Run("異常系: DB保存に失敗した場合はエラーが返る", func(t *testing.T) {
+		ctx := boothCtxWithRole(domain.RoleAdmin)
+		repo := &mockBoothRepository{
+			createFn: func(ctx context.Context, booth *domain.Booth) error {
+				return errors.New("db error")
+			},
+		}
+
+		uc := NewBoothUsecase(repo)
+		err := uc.Create(ctx, "ブースA", "主催A", "詳細", 0, 10.5, 20.5, 0.0)
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "db error")
+	})
+
+	t.Run("異常系: 空の名前はドメイン生成のバリデーションエラーになる", func(t *testing.T) {
+		ctx := boothCtxWithRole(domain.RoleAdmin)
+		uc := NewBoothUsecase(&mockBoothRepository{})
+		
+		err := uc.Create(ctx, "", "主催A", "詳細", 0, 10.5, 20.5, 0.0)
+
+		require.Error(t, err)
 	})
 }

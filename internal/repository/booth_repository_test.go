@@ -8,6 +8,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
 
 func setupBoothTestDB(t *testing.T) (*sql.DB, *redis.Client) {
@@ -124,5 +126,38 @@ func TestBoothRepository_GetAll(t *testing.T) {
 
 		assert.Equal(t, "ブースB", booths[1].Name)
 		assert.Equal(t, int8(2), booths[1].CongestionStatus())
+	})
+}
+
+func TestBoothRepository_Create(t *testing.T) {
+	db, rdb := setupBoothTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+
+	repo := NewBoothRepository(db, rdb)
+	ctx := context.Background()
+
+	t.Run("正常系: 新規ブースを作成できる", func(t *testing.T) {
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
+		_, err := db.Exec("TRUNCATE TABLE booths")
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		assert.NoError(t, err)
+
+		booth, _ := domain.NewBooth("新規ブース", "学生会", "詳細", 10.5, 20.5, 30.5)
+
+		err = repo.Create(ctx, booth)
+		assert.NoError(t, err)
+
+		// 実際にDBに保存されたか検証
+		var count int
+		err = db.QueryRow("SELECT COUNT(*) FROM booths").Scan(&count)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, count)
+
+		var name, organizer string
+		err = db.QueryRow("SELECT name, organizer FROM booths LIMIT 1").Scan(&name, &organizer)
+		assert.NoError(t, err)
+		assert.Equal(t, "新規ブース", name)
+		assert.Equal(t, "学生会", organizer)
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v5"
@@ -18,6 +19,7 @@ import (
 type mockBoothUsecase struct {
 	mockGetByID func(ctx context.Context, id int) (*domain.Booth, error)
 	mockGetAll  func(ctx context.Context) ([]*domain.Booth, error)
+	mockCreate  func(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error
 }
 
 func (m *mockBoothUsecase) GetByID(ctx context.Context, id int) (*domain.Booth, error) {
@@ -32,6 +34,13 @@ func (m *mockBoothUsecase) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 		return m.mockGetAll(ctx)
 	}
 	return nil, nil
+}
+
+func (m *mockBoothUsecase) Create(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error {
+	if m.mockCreate != nil {
+		return m.mockCreate(ctx, name, organizer, detail, congestionStatus, x, y, z)
+	}
+	return nil
 }
 
 func TestBoothHandler_GetByID(t *testing.T) {
@@ -148,6 +157,66 @@ func TestBoothHandler_GetAll(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/booths", nil)
 		rec := httptest.NewRecorder()
 
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
+func TestBoothHandler_Create(t *testing.T) {
+	t.Run("正常系: リクエストボディが正しければ 201 Created が返ること", func(t *testing.T) {
+		e := echo.New()
+		mockUC := &mockBoothUsecase{
+			mockCreate: func(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error {
+				assert.Equal(t, "新ブース", name)
+				assert.Equal(t, "主催X", organizer)
+				assert.Equal(t, float32(1.5), x)
+				return nil
+			},
+		}
+		h := handler.NewBoothHandler(mockUC)
+
+		reqBody := `{"name":"新ブース", "organizer":"主催X", "detail":"詳細X", "congestionStatus":0, "x":1.5, "y":2.5, "z":3.5}`
+		req := httptest.NewRequest(http.MethodPost, "/manage/booths", strings.NewReader(reqBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.POST("/manage/booths", h.Create)
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusCreated, rec.Code)
+	})
+
+	t.Run("異常系: 不正なJSONの場合は 400 Bad Request が返ること", func(t *testing.T) {
+		e := echo.New()
+		h := handler.NewBoothHandler(&mockBoothUsecase{})
+
+		reqBody := `{"name":12345}` // nameが文字列じゃない
+		req := httptest.NewRequest(http.MethodPost, "/manage/booths", strings.NewReader(reqBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.POST("/manage/booths", h.Create)
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("異常系: Usecase層でエラーが起きた場合はそのままエラーが返ること", func(t *testing.T) {
+		e := echo.New()
+		mockUC := &mockBoothUsecase{
+			mockCreate: func(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error {
+				return errors.New("usecase error")
+			},
+		}
+		h := handler.NewBoothHandler(mockUC)
+
+		reqBody := `{"name":"新ブース", "organizer":"主催X", "detail":"詳細X", "congestionStatus":0, "x":1.5, "y":2.5, "z":3.5}`
+		req := httptest.NewRequest(http.MethodPost, "/manage/booths", strings.NewReader(reqBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.POST("/manage/booths", h.Create)
 		e.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)

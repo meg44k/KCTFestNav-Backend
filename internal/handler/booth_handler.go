@@ -11,6 +11,16 @@ import (
 type BoothUsecase interface {
 	GetByID(ctx context.Context, id int) (*domain.Booth, error)
 	GetAll(ctx context.Context) ([]*domain.Booth, error)
+	Create(
+		ctx context.Context,
+		name string,
+		organizer string,
+		detail string,
+		congestionStatus int8,
+		x float32,
+		y float32,
+		z float32,
+	) error
 }
 
 type BoothHandler struct {
@@ -83,4 +93,34 @@ func (h *BoothHandler) GetAll(c *echo.Context) error {
 	return c.JSON(http.StatusOK, GetAllBoothsResponse{
 		Booths: res,
 	})
+}
+
+type CreateBoothRequest struct {
+	Name             string  `json:"name"`
+	Organizer        string  `json:"organizer"`
+	Detail           string  `json:"detail"`
+	CongestionStatus int8    `json:"congestionStatus"`
+	X                float32 `json:"x"`
+	Y                float32 `json:"y"`
+	Z                float32 `json:"z"`
+}
+
+func (h *BoothHandler) Create(c *echo.Context) error {
+	var req CreateBoothRequest
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+	if err := h.boothUsecase.Create(
+		c.Request().Context(),
+		req.Name,
+		req.Organizer,
+		req.Detail,
+		req.CongestionStatus,
+		req.X,
+		req.Y,
+		req.Z,
+	); err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusCreated)
 }

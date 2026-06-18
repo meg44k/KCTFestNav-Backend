@@ -5,6 +5,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"strings"
 )
 
 // クラス展示、部活の出店などをあらわす型。
@@ -31,6 +32,10 @@ func NewBooth(
 	Z float32,
 
 ) (*Booth, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, ErrNameRequired
+
+	}
 	return &Booth{
 		ID:               0,
 		Name:             name,
