@@ -144,6 +144,7 @@ func (br *boothRepository) Delete(ctx context.Context, id int) error {
 	if err := br.db.DeleteBooth(ctx, int32(id)); err != nil {
 		return err
 	}
+	br.cache.Del(ctx, formatRedisCongestionStatusKey(id))
 	return nil
 }
 

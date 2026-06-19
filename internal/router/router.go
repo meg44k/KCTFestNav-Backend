@@ -31,10 +31,10 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	// 管理者系
 	manage := e.Group("/manage")
 
-	manage.POST("/booths", h.Booth.Create)       // ブースの追加
-	manage.PUT("/booths/:id", handler.OK)        // ブースの更新
-	manage.DELETE("/booths/:id", h.Booth.Delete) // ブースの削除
-	manage.PATCH("/booths/:id", handler.OK)      // ブースの削除
+	manage.POST("/booths", h.Booth.Create)                           // ブースの追加
+	manage.PUT("/booths/:id", h.Booth.Update)                        // ブースの更新
+	manage.PATCH("/booths/:id/congestion", h.Booth.UpdateCongestion) // ブースの混雑度の変更
+	manage.DELETE("/booths/:id", h.Booth.Delete)                     // ブースの削除
 
 	manage.GET("/users", handler.OK)            // 全ユーザの取得
 	manage.POST("/users", handler.OK)           // ユーザの追加
