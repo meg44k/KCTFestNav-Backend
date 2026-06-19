@@ -13,12 +13,12 @@ import (
 
 // LiveRepository インターフェースを満たすモック
 type mockLiveRepository struct {
-	createFn  func(ctx context.Context, live *domain.Live) error
-	updateFn  func(ctx context.Context, live *domain.Live) error
-	deleteFn  func(ctx context.Context, id int) error
-	getByIDFn func(ctx context.Context, id int) (*domain.Live, error)
-	getAllFn  func(ctx context.Context) ([]*domain.Live, error)
-	getCurrentLiveFn func(ctx context.Context) (*domain.Live, error)
+	createFn           func(ctx context.Context, live *domain.Live) error
+	updateFn           func(ctx context.Context, live *domain.Live) error
+	deleteFn           func(ctx context.Context, id int) error
+	getByIDFn          func(ctx context.Context, id int) (*domain.Live, error)
+	getAllFn           func(ctx context.Context) ([]*domain.Live, error)
+	getCurrentLiveFn   func(ctx context.Context) (*domain.Live, error)
 	updateLiveStatusFn func(ctx context.Context, id int, status domain.LiveStatus) error
 }
 
@@ -55,7 +55,7 @@ func (m *mockLiveRepository) UpdateLiveStatus(ctx context.Context, id int, statu
 
 // context に Role を詰めるヘルパー
 func ctxWithRole(role domain.Role) context.Context {
-	return context.WithValue(context.Background(), domain.UserRoleKey, role)
+	return context.WithValue(context.Background(), ContextUserRoleKey, role)
 }
 
 func TestLiveUsecase_Create(t *testing.T) {
@@ -94,7 +94,7 @@ func TestLiveUsecase_Create(t *testing.T) {
 			inputEnd:      baseTime.Add(1 * time.Hour),
 			sessionNumber: 1,
 			repoErr:       nil,
-			expectedErr:   domain.ErrLiveNameRequired,
+			expectedErr:   domain.ErrNameRequired,
 		},
 		{
 			name:          "異常系: 終了時間が開始時間より前",
@@ -234,7 +234,7 @@ func TestLiveUsecase_Update(t *testing.T) {
 			sessionNumber: 1,
 			status:        domain.LiveStatusUpcoming,
 			repoErr:       nil,
-			expectedErr:   domain.ErrLiveNameRequired,
+			expectedErr:   domain.ErrNameRequired,
 		},
 		{
 			name:          "異常系: 終了時間が開始時間より前",
@@ -474,5 +474,82 @@ func TestLiveUsecase_Delete(t *testing.T) {
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrForbidden)
+	})
+}
+
+func TestLiveUsecase_GetCurrentLive(t *testing.T) {
+	t.Run("正常系: 進行中のライブを取得できる", func(t *testing.T) {
+		baseTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
+		expectedLive, _ := domain.ReconstructLive(1, "テスト", "詳細", "url", baseTime, baseTime.Add(time.Hour), 1, domain.LiveStatus(1))
+
+		repo := &mockLiveRepository{
+			getCurrentLiveFn: func(ctx context.Context) (*domain.Live, error) {
+				return expectedLive, nil
+			},
+		}
+
+		uc := NewLiveUsecase(repo)
+		live, err := uc.GetCurrentLive(context.Background())
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedLive, live)
+	})
+
+	t.Run("異常系: リポジトリがエラーを返す", func(t *testing.T) {
+		repo := &mockLiveRepository{
+			getCurrentLiveFn: func(ctx context.Context) (*domain.Live, error) {
+				return nil, errors.New("db error")
+			},
+		}
+
+		uc := NewLiveUsecase(repo)
+		live, err := uc.GetCurrentLive(context.Background())
+
+		require.Error(t, err)
+		assert.Nil(t, live)
+		assert.EqualError(t, err, "db error")
+	})
+}
+
+func TestLiveUsecase_UpdateLiveStatus(t *testing.T) {
+	t.Run("正常系: 進行中ステータスに更新できる(Admin)", func(t *testing.T) {
+		ctx := ctxWithRole(domain.RoleAdmin)
+
+		repo := &mockLiveRepository{
+			updateLiveStatusFn: func(ctx context.Context, id int, status domain.LiveStatus) error {
+				assert.Equal(t, 1, id)
+				assert.Equal(t, domain.LiveStatus(1), status)
+				return nil
+			},
+		}
+
+		uc := NewLiveUsecase(repo)
+		err := uc.UpdateLiveStatus(ctx, 1, domain.LiveStatus(1))
+
+		require.NoError(t, err)
+	})
+
+	t.Run("異常系: 権限不足(Student)", func(t *testing.T) {
+		ctx := ctxWithRole(domain.RoleStudent)
+		uc := NewLiveUsecase(&mockLiveRepository{})
+		err := uc.UpdateLiveStatus(ctx, 1, domain.LiveStatus(1))
+
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrForbidden)
+	})
+
+	t.Run("異常系: リポジトリがエラーを返す", func(t *testing.T) {
+		ctx := ctxWithRole(domain.RoleAdmin)
+		repo := &mockLiveRepository{
+			updateLiveStatusFn: func(ctx context.Context, id int, status domain.LiveStatus) error {
+				return errors.New("db error")
+			},
+		}
+
+		uc := NewLiveUsecase(repo)
+		err := uc.UpdateLiveStatus(ctx, 1, domain.LiveStatus(1))
+
+		require.Error(t, err)
+		assert.EqualError(t, err, "db error")
 	})
 }

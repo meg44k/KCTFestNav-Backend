@@ -11,34 +11,33 @@ import (
 	"time"
 )
 
-const createBooth = `-- name: CreateBooth :execresult
+const createBooth = `-- name: CreateBooth :exec
 INSERT INTO booths (
-name, organizer, detail, congestion_status, x, y, z
+name, organizer, detail,  x, y, z
 ) VALUES (
-?, ?, ?, ?, ?, ?, ?
+?, ?, ?, ?, ?, ?
 )
 `
 
 type CreateBoothParams struct {
-	Name             string
-	Organizer        string
-	Detail           string
-	CongestionStatus int8
-	X                float64
-	Y                float64
-	Z                float64
+	Name      string
+	Organizer string
+	Detail    string
+	X         float64
+	Y         float64
+	Z         float64
 }
 
-func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) (sql.Result, error) {
-	return q.db.ExecContext(ctx, createBooth,
+func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) error {
+	_, err := q.db.ExecContext(ctx, createBooth,
 		arg.Name,
 		arg.Organizer,
 		arg.Detail,
-		arg.CongestionStatus,
 		arg.X,
 		arg.Y,
 		arg.Z,
 	)
+	return err
 }
 
 const createLive = `-- name: CreateLive :exec
@@ -128,7 +127,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 }
 
 const getAllBooths = `-- name: GetAllBooths :many
-SELECT id, name, organizer, detail, congestion_status, x, y, z FROM booths
+SELECT id, name, organizer, detail, x, y, z FROM booths
 `
 
 func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
@@ -145,7 +144,6 @@ func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
 			&i.Name,
 			&i.Organizer,
 			&i.Detail,
-			&i.CongestionStatus,
 			&i.X,
 			&i.Y,
 			&i.Z,
@@ -234,7 +232,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 
 const getBoothByID = `-- name: GetBoothByID :one
 
-SELECT id, name, organizer, detail, congestion_status, x, y, z FROM booths WHERE id = ?
+SELECT id, name, organizer, detail, x, y, z FROM booths WHERE id = ?
 `
 
 // ==========================================
@@ -248,7 +246,6 @@ func (q *Queries) GetBoothByID(ctx context.Context, id int32) (Booth, error) {
 		&i.Name,
 		&i.Organizer,
 		&i.Detail,
-		&i.CongestionStatus,
 		&i.X,
 		&i.Y,
 		&i.Z,
@@ -328,19 +325,18 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 
 const updateBooth = `-- name: UpdateBooth :exec
 UPDATE booths
-SET name = ?, organizer = ?, detail = ?, congestion_status = ?, x = ?, y = ?, z = ?
+SET name = ?, organizer = ?, detail = ?, x = ?, y = ?, z = ?
 WHERE id = ?
 `
 
 type UpdateBoothParams struct {
-	Name             string
-	Organizer        string
-	Detail           string
-	CongestionStatus int8
-	X                float64
-	Y                float64
-	Z                float64
-	ID               int32
+	Name      string
+	Organizer string
+	Detail    string
+	X         float64
+	Y         float64
+	Z         float64
+	ID        int32
 }
 
 func (q *Queries) UpdateBooth(ctx context.Context, arg UpdateBoothParams) error {
@@ -348,7 +344,6 @@ func (q *Queries) UpdateBooth(ctx context.Context, arg UpdateBoothParams) error 
 		arg.Name,
 		arg.Organizer,
 		arg.Detail,
-		arg.CongestionStatus,
 		arg.X,
 		arg.Y,
 		arg.Z,

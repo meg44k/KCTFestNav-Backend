@@ -58,7 +58,7 @@ func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			// context.ContextにUserRoleKeyをセットする
-			ctx := context.WithValue(c.Request().Context(), domain.UserRoleKey, domain.RoleAdmin)
+			ctx := context.WithValue(c.Request().Context(), usecase.ContextUserRoleKey, domain.RoleAdmin)
 			c.SetRequest(c.Request().WithContext(ctx))
 			return next(c)
 		}
@@ -219,4 +219,3 @@ func TestLiveE2E(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 	})
 }
-

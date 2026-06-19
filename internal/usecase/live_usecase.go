@@ -27,7 +27,7 @@ func (u *LiveUsecase) Create(
 	sessionNumber int8,
 ) error {
 	// 権限チェック: Admin以外不可
-	role, ok := ctx.Value(domain.UserRoleKey).(domain.Role)
+	role, ok := ctx.Value(ContextUserRoleKey).(domain.Role)
 	if !ok || role != domain.RoleAdmin {
 		return ErrForbidden
 	}
@@ -51,7 +51,7 @@ func (u *LiveUsecase) Update(
 	status domain.LiveStatus,
 ) error {
 	// 権限チェック: 学生会員以上の権限がないと不可
-	role, ok := ctx.Value(domain.UserRoleKey).(domain.Role)
+	role, ok := ctx.Value(ContextUserRoleKey).(domain.Role)
 	if !ok || (role != domain.RoleAdmin && role != domain.RoleGakuseikai) {
 		return ErrForbidden
 	}
@@ -65,7 +65,7 @@ func (u *LiveUsecase) Update(
 
 func (u *LiveUsecase) UpdateLiveStatus(ctx context.Context, id int, status domain.LiveStatus) error {
 	// 権限チェック
-	role, ok := ctx.Value(domain.UserRoleKey).(domain.Role)
+	role, ok := ctx.Value(ContextUserRoleKey).(domain.Role)
 	if !ok || role != domain.RoleAdmin && role != domain.RoleGakuseikai { // Adminと学生会以外不可
 		return ErrForbidden
 	}
@@ -74,7 +74,7 @@ func (u *LiveUsecase) UpdateLiveStatus(ctx context.Context, id int, status domai
 
 func (u *LiveUsecase) Delete(ctx context.Context, id int) error {
 	// 権限チェック: Admin以外不可
-	role, ok := ctx.Value(domain.UserRoleKey).(domain.Role)
+	role, ok := ctx.Value(ContextUserRoleKey).(domain.Role)
 	if !ok || role != domain.RoleAdmin {
 		return ErrForbidden
 	}
