@@ -15,7 +15,6 @@ type UserUsecase struct {
 // contextはkey-valueで入ってる
 type contextKey string
 
-const ContextUserRoleKey contextKey = "userRole"
 const ContextRequestUserKey contextKey = "requestUser"
 
 type RequestUser struct {

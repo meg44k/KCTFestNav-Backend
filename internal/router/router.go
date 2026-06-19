@@ -1,9 +1,12 @@
 package router
 
 import (
+	"os"
+
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 	"github.com/meg44k/KCTFestNav-Backend/internal/handler"
+	mv "github.com/meg44k/KCTFestNav-Backend/internal/middleware"
 )
 
 func InitRoutes(e *echo.Echo, h *handler.Handlers) {
@@ -29,7 +32,9 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	e.GET("/announcements/current", handler.OK) // 現在のお知らせを表示
 
 	// 管理者系
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 	manage := e.Group("/manage")
+	manage.Use(mv.JWTAuth(jwtSecret))
 
 	manage.POST("/booths", h.Booth.Create)                           // ブースの追加
 	manage.PUT("/booths/:id", h.Booth.Update)                        // ブースの更新
