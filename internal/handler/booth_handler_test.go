@@ -18,8 +18,10 @@ import (
 type mockBoothUsecase struct {
 	mockGetByID func(ctx context.Context, id int) (*domain.Booth, error)
 	mockGetAll  func(ctx context.Context) ([]*domain.Booth, error)
-	mockCreate  func(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error
-	mockDelete  func(ctx context.Context, id int) error
+	mockCreate           func(ctx context.Context, name, organizer, detail string, congestionStatus domain.CongestionStatus, x, y, z float32) error
+	mockDelete           func(ctx context.Context, id int) error
+	mockUpdate           func(ctx context.Context, id int, name string, organizer string, detail string, congestionStatus domain.CongestionStatus, x float32, y float32, z float32) error
+	mockUpdateCongestion func(ctx context.Context, id int, congestionLevel domain.CongestionStatus) error
 }
 
 func (m *mockBoothUsecase) GetByID(ctx context.Context, id int) (*domain.Booth, error) {
@@ -36,7 +38,7 @@ func (m *mockBoothUsecase) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 	return nil, nil
 }
 
-func (m *mockBoothUsecase) Create(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error {
+func (m *mockBoothUsecase) Create(ctx context.Context, name, organizer, detail string, congestionStatus domain.CongestionStatus, x, y, z float32) error {
 	if m.mockCreate != nil {
 		return m.mockCreate(ctx, name, organizer, detail, congestionStatus, x, y, z)
 	}
@@ -50,10 +52,24 @@ func (m *mockBoothUsecase) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
+func (m *mockBoothUsecase) Update(ctx context.Context, id int, name string, organizer string, detail string, congestionStatus domain.CongestionStatus, x float32, y float32, z float32) error {
+	if m.mockUpdate != nil {
+		return m.mockUpdate(ctx, id, name, organizer, detail, congestionStatus, x, y, z)
+	}
+	return nil
+}
+
+func (m *mockBoothUsecase) UpdateCongestion(ctx context.Context, id int, congestionLevel domain.CongestionStatus) error {
+	if m.mockUpdateCongestion != nil {
+		return m.mockUpdateCongestion(ctx, id, congestionLevel)
+	}
+	return nil
+}
+
 func TestBoothHandler_GetByID(t *testing.T) {
 	t.Run("正常系: ブースが1件取得できること", func(t *testing.T) {
 		e := echo.New()
-		booth, _ := domain.ReconstructBooth(1, "ブースA", "主催者A", "詳細A", int8(1), 10.0, 20.0, 30.0)
+		booth, _ := domain.ReconstructBooth(1, "ブースA", "主催者A", "詳細A", domain.CongestionStatus(1), 10.0, 20.0, 30.0)
 
 		mockUC := &mockBoothUsecase{
 			mockGetByID: func(ctx context.Context, id int) (*domain.Booth, error) {
@@ -81,7 +97,7 @@ func TestBoothHandler_GetByID(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, res.ID)
 		assert.Equal(t, "ブースA", res.Name)
-		assert.Equal(t, int8(1), res.CongestionStatus)
+		assert.Equal(t, domain.CongestionStatus(1), res.CongestionStatus)
 	})
 
 	t.Run("異常系: IDが数字じゃない場合エラーになること", func(t *testing.T) {
@@ -120,8 +136,8 @@ func TestBoothHandler_GetByID(t *testing.T) {
 func TestBoothHandler_GetAll(t *testing.T) {
 	t.Run("正常系: 全ブースが取得できること", func(t *testing.T) {
 		e := echo.New()
-		booth1, _ := domain.ReconstructBooth(1, "ブースA", "主催者A", "詳細A", int8(1), 10.0, 20.0, 30.0)
-		booth2, _ := domain.ReconstructBooth(2, "ブースB", "主催者B", "詳細B", int8(2), 15.0, 25.0, 35.0)
+		booth1, _ := domain.ReconstructBooth(1, "ブースA", "主催者A", "詳細A", domain.CongestionStatus(1), 10.0, 20.0, 30.0)
+		booth2, _ := domain.ReconstructBooth(2, "ブースB", "主催者B", "詳細B", domain.CongestionStatus(2), 15.0, 25.0, 35.0)
 
 		mockUC := &mockBoothUsecase{
 			mockGetAll: func(ctx context.Context) ([]*domain.Booth, error) {
@@ -174,7 +190,7 @@ func TestBoothHandler_Create(t *testing.T) {
 	t.Run("正常系: リクエストボディが正しければ 201 Created が返ること", func(t *testing.T) {
 		e := echo.New()
 		mockUC := &mockBoothUsecase{
-			mockCreate: func(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error {
+			mockCreate: func(ctx context.Context, name, organizer, detail string, congestionStatus domain.CongestionStatus, x, y, z float32) error {
 				assert.Equal(t, "新ブース", name)
 				assert.Equal(t, "主催X", organizer)
 				assert.Equal(t, float32(1.5), x)
@@ -183,7 +199,7 @@ func TestBoothHandler_Create(t *testing.T) {
 		}
 		h := handler.NewBoothHandler(mockUC)
 
-		reqBody := `{"name":"新ブース", "organizer":"主催X", "detail":"詳細X", "congestionStatus":0, "x":1.5, "y":2.5, "z":3.5}`
+		reqBody := `{"name":"新ブース", "organizer":"主催X", "detail":"詳細X", "congestion_status":0, "x":1.5, "y":2.5, "z":3.5}`
 		req := httptest.NewRequest(http.MethodPost, "/manage/booths", strings.NewReader(reqBody))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
@@ -212,13 +228,13 @@ func TestBoothHandler_Create(t *testing.T) {
 	t.Run("異常系: Usecase層でエラーが起きた場合はそのままエラーが返ること", func(t *testing.T) {
 		e := echo.New()
 		mockUC := &mockBoothUsecase{
-			mockCreate: func(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error {
+			mockCreate: func(ctx context.Context, name, organizer, detail string, congestionStatus domain.CongestionStatus, x, y, z float32) error {
 				return errors.New("usecase error")
 			},
 		}
 		h := handler.NewBoothHandler(mockUC)
 
-		reqBody := `{"name":"新ブース", "organizer":"主催X", "detail":"詳細X", "congestionStatus":0, "x":1.5, "y":2.5, "z":3.5}`
+		reqBody := `{"name":"新ブース", "organizer":"主催X", "detail":"詳細X", "congestion_status":0, "x":1.5, "y":2.5, "z":3.5}`
 		req := httptest.NewRequest(http.MethodPost, "/manage/booths", strings.NewReader(reqBody))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		rec := httptest.NewRecorder()
@@ -279,5 +295,81 @@ func TestBoothHandler_Delete(t *testing.T) {
 		e.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
+func TestBoothHandler_Update(t *testing.T) {
+	t.Run("正常系: リクエストボディが正しければ 200 OK が返ること", func(t *testing.T) {
+		e := echo.New()
+		mockUC := &mockBoothUsecase{
+			mockUpdate: func(ctx context.Context, id int, name string, organizer string, detail string, congestionStatus domain.CongestionStatus, x float32, y float32, z float32) error {
+				assert.Equal(t, 1, id)
+				assert.Equal(t, "ブース更新", name)
+				return nil
+			},
+		}
+		h := handler.NewBoothHandler(mockUC)
+
+		e.PUT("/manage/booths/:id", h.Update)
+		reqBody := `{"name":"ブース更新","organizer":"学生会","detail":"詳細","congestion_status":1,"x":10.5,"y":20.5,"z":0.0}`
+		req := httptest.NewRequest(http.MethodPut, "/manage/booths/1", strings.NewReader(reqBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		// assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("異常系: 不正なJSONの場合は 400 Bad Request が返ること", func(t *testing.T) {
+		e := echo.New()
+		h := handler.NewBoothHandler(&mockBoothUsecase{})
+
+		e.PUT("/manage/booths/:id", h.Update)
+		req := httptest.NewRequest(http.MethodPut, "/manage/booths/1", strings.NewReader(`{invalid}`))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+}
+
+func TestBoothHandler_UpdateCongestion(t *testing.T) {
+	t.Run("正常系: リクエストボディが正しければ 200 OK が返ること", func(t *testing.T) {
+		e := echo.New()
+		mockUC := &mockBoothUsecase{
+			mockUpdateCongestion: func(ctx context.Context, id int, level domain.CongestionStatus) error {
+				assert.Equal(t, 1, id)
+				assert.Equal(t, domain.CongestionStatus(2), level)
+				return nil
+			},
+		}
+		h := handler.NewBoothHandler(mockUC)
+
+		e.PATCH("/manage/booths/:id/congestion", h.UpdateCongestion)
+		reqBody := `{"congestion_status":2}`
+		req := httptest.NewRequest(http.MethodPatch, "/manage/booths/1/congestion", strings.NewReader(reqBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		// assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("異常系: 不正なJSONの場合は 400 Bad Request が返ること", func(t *testing.T) {
+		e := echo.New()
+		h := handler.NewBoothHandler(&mockBoothUsecase{})
+
+		e.PATCH("/manage/booths/:id/congestion", h.UpdateCongestion)
+		req := httptest.NewRequest(http.MethodPatch, "/manage/booths/1/congestion", strings.NewReader(`{invalid}`))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 }

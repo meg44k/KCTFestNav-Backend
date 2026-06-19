@@ -3,7 +3,6 @@ CREATE TABLE booths(
   name VARCHAR(255) NOT NULL,
   organizer VARCHAR(255) NOT NULL,
   detail TEXT NOT NULL,
-  congestion_status TINYINT NOT NULL DEFAULT 0,
   x FLOAT NOT NULL,
   y FLOAT NOT NULL,
   z FLOAT NOT NULL

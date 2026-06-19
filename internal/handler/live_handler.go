@@ -9,45 +9,6 @@ import (
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
 
-type CreateLiveRequest struct {
-	Name          string    `json:"name"`
-	Detail        string    `json:"detail"`
-	ThumbnailURL  string    `json:"thumbnail_url"`
-	StartTime     time.Time `json:"start_time"`
-	EndTime       time.Time `json:"end_time"`
-	SessionNumber int8      `json:"session_number"`
-}
-
-type UpdateLiveRequest struct {
-	ID            int               `param:"id"`
-	Name          string            `json:"name"`
-	Detail        string            `json:"detail"`
-	ThumbnailURL  string            `json:"thumbnail_url"`
-	StartTime     time.Time         `json:"start_time"`
-	EndTime       time.Time         `json:"end_time"`
-	SessionNumber int8              `json:"session_number"`
-	Status        domain.LiveStatus `json:"status"`
-}
-
-type LiveResponse struct {
-	ID            int               `json:"id"`
-	Name          string            `json:"name"`
-	Detail        string            `json:"detail"`
-	ThumbnailURL  string            `json:"thumbnail_url"`
-	StartTime     time.Time         `json:"start_time"`
-	EndTime       time.Time         `json:"end_time"`
-	SessionNumber int8              `json:"session_number"`
-	Status        domain.LiveStatus `json:"status"`
-}
-
-type GetAllLivesResponse struct {
-	Lives []LiveResponse `json:"lives"`
-}
-
-type UpdateLiveStatusRequest struct {
-	Status domain.Live `json:"status"`
-}
-
 type LiveUsecase interface {
 	Create(
 		ctx context.Context,
@@ -86,6 +47,15 @@ func NewLiveHandler(uc LiveUsecase) *LiveHandler {
 	}
 }
 
+type CreateLiveRequest struct {
+	Name          string    `json:"name"`
+	Detail        string    `json:"detail"`
+	ThumbnailURL  string    `json:"thumbnail_url"`
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time"`
+	SessionNumber int8      `json:"session_number"`
+}
+
 func (h *LiveHandler) Create(c *echo.Context) error {
 	var req CreateLiveRequest
 	// リクエストをJSONから型にバインドする
@@ -106,6 +76,17 @@ func (h *LiveHandler) Create(c *echo.Context) error {
 		return err // エラーはCustomErrorHandlerで振り分けされる
 	}
 	return c.NoContent(http.StatusCreated)
+}
+
+type UpdateLiveRequest struct {
+	ID            int               `param:"id"`
+	Name          string            `json:"name"`
+	Detail        string            `json:"detail"`
+	ThumbnailURL  string            `json:"thumbnail_url"`
+	StartTime     time.Time         `json:"start_time"`
+	EndTime       time.Time         `json:"end_time"`
+	SessionNumber int8              `json:"session_number"`
+	Status        domain.LiveStatus `json:"status"`
 }
 
 func (h *LiveHandler) Update(c *echo.Context) error {
@@ -139,6 +120,10 @@ func (h *LiveHandler) Update(c *echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+type UpdateLiveStatusRequest struct {
+	Status domain.Live `json:"status"`
+}
+
 func (h *LiveHandler) UpdateLiveStatus(c *echo.Context) error {
 	id, err := getIDParam(c)
 	if err != nil {
@@ -150,6 +135,17 @@ func (h *LiveHandler) UpdateLiveStatus(c *echo.Context) error {
 	}
 	h.liveUsecase.UpdateLiveStatus(c.Request().Context(), id, req.Status)
 	return nil
+}
+
+type LiveResponse struct {
+	ID            int               `json:"id"`
+	Name          string            `json:"name"`
+	Detail        string            `json:"detail"`
+	ThumbnailURL  string            `json:"thumbnail_url"`
+	StartTime     time.Time         `json:"start_time"`
+	EndTime       time.Time         `json:"end_time"`
+	SessionNumber int8              `json:"session_number"`
+	Status        domain.LiveStatus `json:"status"`
 }
 
 func (h *LiveHandler) GetByID(c *echo.Context) error {
@@ -174,6 +170,10 @@ func (h *LiveHandler) GetByID(c *echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, res)
+}
+
+type GetAllLivesResponse struct {
+	Lives []LiveResponse `json:"lives"`
 }
 
 func (h *LiveHandler) GetAll(c *echo.Context) error {

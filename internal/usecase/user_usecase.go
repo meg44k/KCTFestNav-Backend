@@ -16,6 +16,13 @@ type UserUsecase struct {
 type contextKey string
 
 const ContextUserRoleKey contextKey = "userRole"
+const ContextRequestUserKey contextKey = "requestUser"
+
+type RequestUser struct {
+	ID              uuid.UUID
+	Role            domain.Role
+	AssignedBoothID int
+}
 
 func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 	return &UserUsecase{

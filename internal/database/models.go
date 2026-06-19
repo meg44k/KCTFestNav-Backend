@@ -10,14 +10,13 @@ import (
 )
 
 type Booth struct {
-	ID               int32
-	Name             string
-	Organizer        string
-	Detail           string
-	CongestionStatus int8
-	X                float64
-	Y                float64
-	Z                float64
+	ID        int32
+	Name      string
+	Organizer string
+	Detail    string
+	X         float64
+	Y         float64
+	Z         float64
 }
 
 type Live struct {

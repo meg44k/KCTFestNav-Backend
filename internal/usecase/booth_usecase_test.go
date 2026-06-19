@@ -16,7 +16,7 @@ type mockBoothRepository struct {
 	deleteFn           func(ctx context.Context, id int) error
 	getByIDFn          func(ctx context.Context, id int) (*domain.Booth, error)
 	getAllFn           func(ctx context.Context) ([]*domain.Booth, error)
-	updateCongestionFn func(ctx context.Context, id int, congestionLevel int8) error
+	updateCongestionFn func(ctx context.Context, id int, congestionLevel domain.CongestionStatus) error
 }
 
 func (m *mockBoothRepository) Create(ctx context.Context, booth *domain.Booth) error {
@@ -54,7 +54,7 @@ func (m *mockBoothRepository) GetAll(ctx context.Context) ([]*domain.Booth, erro
 	return nil, nil
 }
 
-func (m *mockBoothRepository) UpdateCongestion(ctx context.Context, id int, congestionLevel int8) error {
+func (m *mockBoothRepository) UpdateCongestion(ctx context.Context, id int, congestionLevel domain.CongestionStatus) error {
 	if m.updateCongestionFn != nil {
 		return m.updateCongestionFn(ctx, id, congestionLevel)
 	}
@@ -62,14 +62,19 @@ func (m *mockBoothRepository) UpdateCongestion(ctx context.Context, id int, cong
 }
 
 // 権限チェック用のヘルパーは live_usecase_test.go の ctxWithRole を利用できるが、
-// テストファイルごとに独立させるため再定義しておく
-func boothCtxWithRole(role domain.Role) context.Context {
-	return context.WithValue(context.Background(), ContextUserRoleKey, role)
+
+
+func boothCtxWithRequestUser(role domain.Role, assignedBoothID int) context.Context {
+	reqUser := RequestUser{
+		Role:            role,
+		AssignedBoothID: assignedBoothID,
+	}
+	return context.WithValue(context.Background(), ContextRequestUserKey, reqUser)
 }
 
 func TestBoothUsecase_Create(t *testing.T) {
 	t.Run("正常系: ブースを作成できる(Admin)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleAdmin)
+		ctx := boothCtxWithRequestUser(domain.RoleAdmin, 0)
 
 		repo := &mockBoothRepository{
 			createFn: func(ctx context.Context, booth *domain.Booth) error {
@@ -86,7 +91,7 @@ func TestBoothUsecase_Create(t *testing.T) {
 	})
 
 	t.Run("異常系: 権限不足(Gakuseikai)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleGakuseikai)
+		ctx := boothCtxWithRequestUser(domain.RoleGakuseikai, 0)
 		uc := NewBoothUsecase(&mockBoothRepository{})
 
 		err := uc.Create(ctx, "ブースA", "1-1", "詳細", 0, 10.5, 20.5, 0.0)
@@ -96,7 +101,7 @@ func TestBoothUsecase_Create(t *testing.T) {
 	})
 
 	t.Run("異常系: DB保存に失敗", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleAdmin)
+		ctx := boothCtxWithRequestUser(domain.RoleAdmin, 0)
 		repo := &mockBoothRepository{
 			createFn: func(ctx context.Context, booth *domain.Booth) error {
 				return errors.New("db error")
@@ -112,9 +117,8 @@ func TestBoothUsecase_Create(t *testing.T) {
 }
 
 func TestBoothUsecase_Update(t *testing.T) {
-	t.Skip("Updateの実装は次コミットで行うためスキップします")
 	t.Run("正常系: ブースを更新できる(Gakuseikai)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleGakuseikai)
+		ctx := boothCtxWithRequestUser(domain.RoleGakuseikai, 1)
 
 		repo := &mockBoothRepository{
 			updateFn: func(ctx context.Context, booth *domain.Booth) error {
@@ -125,18 +129,16 @@ func TestBoothUsecase_Update(t *testing.T) {
 		}
 
 		uc := NewBoothUsecase(repo)
-		booth, _ := domain.ReconstructBooth(1, "ブース更新", "1-1", "詳細", 1, 10.5, 20.5, 0.0)
-		err := uc.Update(ctx, booth)
+		err := uc.Update(ctx, 1, "ブース更新", "1-1", "詳細", 1, 10.5, 20.5, 0.0)
 
 		require.NoError(t, err)
 	})
 
 	t.Run("異常系: 権限不足(Student)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleStudent)
+		ctx := boothCtxWithRequestUser(domain.RoleStudent, 2) // assignされているIDと更新対象(1)が違うのでエラーになる
 		uc := NewBoothUsecase(&mockBoothRepository{})
 
-		booth, _ := domain.ReconstructBooth(1, "ブース更新", "1-1", "詳細", 1, 10.5, 20.5, 0.0)
-		err := uc.Update(ctx, booth)
+		err := uc.Update(ctx, 1, "ブース更新", "1-1", "詳細", 1, 10.5, 20.5, 0.0)
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrForbidden)
@@ -145,7 +147,7 @@ func TestBoothUsecase_Update(t *testing.T) {
 
 func TestBoothUsecase_Delete(t *testing.T) {
 	t.Run("正常系: ブースを削除できる(Admin)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleAdmin)
+		ctx := boothCtxWithRequestUser(domain.RoleAdmin, 0)
 
 		repo := &mockBoothRepository{
 			deleteFn: func(ctx context.Context, id int) error {
@@ -161,7 +163,7 @@ func TestBoothUsecase_Delete(t *testing.T) {
 	})
 
 	t.Run("異常系: 権限不足(Gakuseikai)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleGakuseikai)
+		ctx := boothCtxWithRequestUser(domain.RoleGakuseikai, 0)
 		uc := NewBoothUsecase(&mockBoothRepository{})
 
 		err := uc.Delete(ctx, 1)
@@ -207,12 +209,12 @@ func TestBoothUsecase_GetAll(t *testing.T) {
 
 func TestBoothUsecase_UpdateCongestion(t *testing.T) {
 	t.Run("正常系: 混雑状況を更新できる(Gakuseikai)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleGakuseikai)
+		ctx := boothCtxWithRequestUser(domain.RoleGakuseikai, 1)
 
 		repo := &mockBoothRepository{
-			updateCongestionFn: func(ctx context.Context, id int, level int8) error {
+			updateCongestionFn: func(ctx context.Context, id int, level domain.CongestionStatus) error {
 				assert.Equal(t, 1, id)
-				assert.Equal(t, int8(2), level)
+				assert.Equal(t, domain.CongestionStatus(2), level)
 				return nil
 			},
 		}
@@ -224,7 +226,7 @@ func TestBoothUsecase_UpdateCongestion(t *testing.T) {
 	})
 
 	t.Run("異常系: 不正な混雑度(3)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleGakuseikai)
+		ctx := boothCtxWithRequestUser(domain.RoleGakuseikai, 1)
 		uc := NewBoothUsecase(&mockBoothRepository{})
 
 		err := uc.UpdateCongestion(ctx, 1, 3)
@@ -234,12 +236,12 @@ func TestBoothUsecase_UpdateCongestion(t *testing.T) {
 	})
 
 	t.Run("正常系: 混雑状況を更新できる(Student)", func(t *testing.T) {
-		ctx := boothCtxWithRole(domain.RoleStudent)
+		ctx := boothCtxWithRequestUser(domain.RoleStudent, 1) // assignされているIDと更新対象(1)が一致するのでOK
 
 		repo := &mockBoothRepository{
-			updateCongestionFn: func(ctx context.Context, id int, level int8) error {
+			updateCongestionFn: func(ctx context.Context, id int, level domain.CongestionStatus) error {
 				assert.Equal(t, 1, id)
-				assert.Equal(t, int8(1), level)
+				assert.Equal(t, domain.CongestionStatus(1), level)
 				return nil
 			},
 		}

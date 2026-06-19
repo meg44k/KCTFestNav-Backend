@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -109,7 +110,7 @@ func (lr *liveRepository) GetAll(ctx context.Context) ([]*domain.Live, error) {
 func (lr *liveRepository) GetCurrentLive(ctx context.Context) (*domain.Live, error) {
 	var liveDTO currentLiveDTO
 	val, err := lr.cache.Get(ctx, currentLiveKey).Result()
-	if err == redis.Nil { // キャッシュヒットしなかった時
+	if errors.Is(err, redis.Nil) { // キャッシュヒットしなかった時
 		dbLive, err := lr.db.GetCurrentLive(ctx) // MySQLから開催中のライブを取ってくる(1つ)
 		if err != nil {
 			return nil, err
@@ -128,7 +129,9 @@ func (lr *liveRepository) GetCurrentLive(ctx context.Context) (*domain.Live, err
 		if err != nil {
 			return nil, err
 		}
-		lr.cache.Set(ctx, currentLiveKey, jsonData, 0) // キャッシュに登録する
+		if err := lr.cache.Set(ctx, currentLiveKey, jsonData, NoExpiration).Err(); err != nil {
+			return nil, err
+		} // キャッシュに登録する
 	} else if err != nil {
 		return nil, err
 	} else { // キャッシュヒットした時

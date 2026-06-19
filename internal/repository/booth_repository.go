@@ -3,11 +3,16 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
+	"time"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/database"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/redis/go-redis/v9"
 )
+
+const NoExpiration time.Duration = 0
 
 type boothRepository struct {
 	db    *database.Queries
@@ -23,13 +28,12 @@ func NewBoothRepository(db *sql.DB, rdb *redis.Client) domain.BoothRepository {
 
 func (br *boothRepository) Create(ctx context.Context, b *domain.Booth) error {
 	arg := database.CreateBoothParams{
-		Name:             b.Name,
-		Organizer:        b.Organizer,
-		Detail:           b.Detail,
-		CongestionStatus: b.CongestionStatus(),
-		X:                float64(b.X),
-		Y:                float64(b.Y),
-		Z:                float64(b.Z),
+		Name:      b.Name,
+		Organizer: b.Organizer,
+		Detail:    b.Detail,
+		X:         float64(b.X),
+		Y:         float64(b.Y),
+		Z:         float64(b.Z),
 	}
 	err := br.db.CreateBooth(ctx, arg)
 	if err != nil {
@@ -44,12 +48,25 @@ func (br *boothRepository) GetByID(ctx context.Context, id int) (*domain.Booth, 
 		return nil, err
 	}
 
+	// Redisから混雑状況を取ってくる
+	rawStatus, err := br.cache.Get(ctx, formatRedisCongestionStatusKey(id)).Int()
+	var congestionStatus domain.CongestionStatus
+	if err != nil {
+		if errors.Is(err, redis.Nil) { // congestionStatusが登録されていなかった時、空きにする
+			congestionStatus = domain.BoothCongestionEmpty
+		} else {
+			return nil, err
+		}
+	} else {
+		congestionStatus = domain.CongestionStatus(rawStatus)
+	}
+
 	booth, err := domain.ReconstructBooth(
 		int(dbBooth.ID),
 		dbBooth.Name,
 		dbBooth.Organizer,
 		dbBooth.Detail,
-		dbBooth.CongestionStatus,
+		congestionStatus,
 		float32(dbBooth.X),
 		float32(dbBooth.Y),
 		float32(dbBooth.Z),
@@ -67,12 +84,25 @@ func (br *boothRepository) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 	}
 	booths := make([]*domain.Booth, len(dbBooths))
 	for i, b := range dbBooths {
+		// Redisから混雑状況を取ってくる
+		rawStatus, err := br.cache.Get(ctx, formatRedisCongestionStatusKey(int(b.ID))).Int()
+		var congestionStatus domain.CongestionStatus
+		if err != nil {
+			if errors.Is(err, redis.Nil) { // congestionStatusが登録されていなかった時、空きにする
+				congestionStatus = domain.BoothCongestionEmpty
+			} else {
+				return nil, err
+			}
+		} else {
+			congestionStatus = domain.CongestionStatus(rawStatus)
+		}
+
 		booth, err := domain.ReconstructBooth(
 			int(b.ID),
 			b.Name,
 			b.Organizer,
 			b.Detail,
-			b.CongestionStatus,
+			congestionStatus,
 			float32(b.X),
 			float32(b.Y),
 			float32(b.Z),
@@ -87,12 +117,26 @@ func (br *boothRepository) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 }
 
 func (br *boothRepository) Update(ctx context.Context, b *domain.Booth) error {
-	// TODO: 実装を行う
+	arg := database.UpdateBoothParams{
+		Name:      b.Name,
+		Organizer: b.Organizer,
+		Detail:    b.Detail,
+		X:         float64(b.X),
+		Y:         float64(b.Y),
+		Z:         float64(b.Z),
+		ID:        int32(b.ID),
+	}
+
+	if err := br.db.UpdateBooth(ctx, arg); err != nil {
+		return err
+	}
 	return nil
 }
 
-func (br *boothRepository) UpdateCongestion(ctx context.Context, id int, congestionLevel int8) error {
-	// TODO: 実装を行う
+func (br *boothRepository) UpdateCongestion(ctx context.Context, id int, congestionStatus domain.CongestionStatus) error {
+	if err := br.cache.Set(ctx, formatRedisCongestionStatusKey(id), int(congestionStatus), NoExpiration).Err(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -101,4 +145,10 @@ func (br *boothRepository) Delete(ctx context.Context, id int) error {
 		return err
 	}
 	return nil
+}
+
+// Redisの混雑度のキーをフォーマットするヘルパー関数。
+// "congestion_status:{id}"がstring型で返される
+func formatRedisCongestionStatusKey(id int) string {
+	return fmt.Sprintf("congestion_status:%d", id)
 }

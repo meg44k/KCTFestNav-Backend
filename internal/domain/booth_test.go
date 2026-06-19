@@ -8,8 +8,8 @@ func TestBoothCongestionStatus(t *testing.T) {
 	booth, _ := NewBooth("テストブース", "1-1", "テストブースです", 0, 0, 0)
 	t.Run("正常値のセットチェック", func(t *testing.T) {
 		booth.SetCongestionStatus(1)
-		result := booth.congestionStatus
-		expected := int8(1)
+		result := booth.CongestionStatus()
+		expected := CongestionStatus(1)
 		if result != expected {
 			t.Error("混雑度が正しくセットできてないよ")
 		}

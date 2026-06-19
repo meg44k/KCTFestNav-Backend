@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -38,6 +39,11 @@ func setupBoothTestDB(t *testing.T) (*sql.DB, *redis.Client) {
 		t.Fatalf("Failed to truncate booths table: %v", err)
 	}
 
+	// Redis初期化
+	if err := rdb.FlushDB(context.Background()).Err(); err != nil {
+		t.Fatalf("Failed to flush redis: %v", err)
+	}
+
 	return db, rdb
 }
 
@@ -59,6 +65,10 @@ func TestBoothRepository_GetByID(t *testing.T) {
 	insertedID, err := res.LastInsertId()
 	assert.NoError(t, err)
 
+	// Redisに混雑度をセットしておく
+	err = rdb.Set(ctx, fmt.Sprintf("congestion_status:%d", insertedID), 1, 0).Err()
+	assert.NoError(t, err)
+
 	t.Run("正常系: 存在するIDでブースを取得できる", func(t *testing.T) {
 		booth, err := repo.GetByID(ctx, int(insertedID))
 
@@ -68,7 +78,7 @@ func TestBoothRepository_GetByID(t *testing.T) {
 		assert.Equal(t, "テストブース", booth.Name)
 		assert.Equal(t, "学生会", booth.Organizer)
 		assert.Equal(t, "詳細テキスト", booth.Detail)
-		assert.Equal(t, int8(1), booth.CongestionStatus())
+		assert.Equal(t, domain.CongestionStatus(1), booth.CongestionStatus())
 		assert.Equal(t, float32(10.5), booth.X)
 	})
 
@@ -106,7 +116,7 @@ func TestBoothRepository_GetAll(t *testing.T) {
 		assert.NoError(t, err)
 
 		// 2件INSERT
-		_, err = db.ExecContext(ctx, `
+		res, err := db.ExecContext(ctx, `
 			INSERT INTO booths (name, organizer, detail, congestion_status, x, y, z)
 			VALUES 
 			(?, ?, ?, ?, ?, ?, ?),
@@ -117,6 +127,11 @@ func TestBoothRepository_GetAll(t *testing.T) {
 		)
 		assert.NoError(t, err)
 
+		firstID, _ := res.LastInsertId()
+		// Redisにもセットする
+		rdb.Set(ctx, fmt.Sprintf("congestion_status:%d", firstID), 0, 0)
+		rdb.Set(ctx, fmt.Sprintf("congestion_status:%d", firstID+1), 2, 0)
+
 		booths, err := repo.GetAll(ctx)
 		assert.NoError(t, err)
 		assert.Len(t, booths, 2)
@@ -125,7 +140,7 @@ func TestBoothRepository_GetAll(t *testing.T) {
 		assert.Equal(t, "主催A", booths[0].Organizer)
 
 		assert.Equal(t, "ブースB", booths[1].Name)
-		assert.Equal(t, int8(2), booths[1].CongestionStatus())
+		assert.Equal(t, domain.CongestionStatus(2), booths[1].CongestionStatus())
 	})
 }
 
@@ -159,5 +174,69 @@ func TestBoothRepository_Create(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "新規ブース", name)
 		assert.Equal(t, "学生会", organizer)
+	})
+}
+
+func TestBoothRepository_Update(t *testing.T) {
+	db, rdb := setupBoothTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+
+	repo := NewBoothRepository(db, rdb)
+	ctx := context.Background()
+
+	t.Run("正常系: ブースを更新できる", func(t *testing.T) {
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
+		_, err := db.Exec("TRUNCATE TABLE booths")
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		assert.NoError(t, err)
+
+		// 初期データを挿入
+		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, congestion_status, x, y, z) VALUES (?, ?, ?, ?, ?, ?, ?)", "古いブース", "主催者", "詳細", 0, 1.0, 2.0, 3.0)
+		assert.NoError(t, err)
+		id, err := res.LastInsertId()
+		assert.NoError(t, err)
+
+		booth, _ := domain.ReconstructBooth(int(id), "新しいブース", "新主催者", "新詳細", 1, 10.0, 20.0, 30.0)
+
+		err = repo.Update(ctx, booth)
+		assert.NoError(t, err)
+
+		// DBの値が更新されているか確認
+		var name, organizer string
+		err = db.QueryRow("SELECT name, organizer FROM booths WHERE id = ?", id).Scan(&name, &organizer)
+		assert.NoError(t, err)
+		assert.Equal(t, "新しいブース", name)
+		assert.Equal(t, "新主催者", organizer)
+	})
+}
+
+func TestBoothRepository_UpdateCongestion(t *testing.T) {
+	db, rdb := setupBoothTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+
+	repo := NewBoothRepository(db, rdb)
+	ctx := context.Background()
+
+	t.Run("正常系: 混雑状況を更新できる", func(t *testing.T) {
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
+		_, err := db.Exec("TRUNCATE TABLE booths")
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		assert.NoError(t, err)
+
+		// 初期データを挿入
+		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, congestion_status, x, y, z) VALUES (?, ?, ?, ?, ?, ?, ?)", "ブースA", "主催", "詳細", 0, 1.0, 2.0, 3.0)
+		assert.NoError(t, err)
+		id, err := res.LastInsertId()
+		assert.NoError(t, err)
+
+		err = repo.UpdateCongestion(ctx, int(id), 2)
+		assert.NoError(t, err)
+
+		// Redisの値が更新されているか確認
+		val, err := rdb.Get(ctx, fmt.Sprintf("congestion_status:%d", id)).Int()
+		assert.NoError(t, err)
+		assert.Equal(t, 2, val)
 	})
 }
