@@ -26,7 +26,7 @@ func (u *BoothUsecase) Create(
 	y float32,
 	z float32,
 ) error {
-	role, ok := ctx.Value(domain.ContextUserRoleKey).(domain.Role)
+	role, ok := ctx.Value(ContextUserRoleKey).(domain.Role)
 	if !ok || role != domain.RoleAdmin {
 		return ErrForbidden
 	}
@@ -53,9 +53,21 @@ func (u *BoothUsecase) GetAll(ctx context.Context) ([]*domain.Booth, error) {
 
 // REF: これBooth.CogestionStatusをカプセル化した意味がなくなっちゃってる。Redisで管理したいけど、どうするのがベストなんだろう...
 func (u *BoothUsecase) UpdateCongestion(ctx context.Context, id int, congestionLevel int8) error {
+	role, ok := ctx.Value(ContextUserRoleKey).(domain.Role)
+	if !ok || role != domain.RoleAdmin && role != domain.RoleGakuseikai && role != domain.RoleStudent { // TODO: 所属するクラスと同じだった時に変更できるようにする
+		return ErrForbidden
+	}
 	if err := domain.ValidateCongestionLevel(congestionLevel); err != nil {
 		return err
 	}
 	u.boothRepo.UpdateCongestion(ctx, id, congestionLevel)
 	return nil
+}
+
+func (u *BoothUsecase) Delete(ctx context.Context, id int) error {
+	role, ok := ctx.Value(ContextUserRoleKey).(domain.Role)
+	if !ok || role != domain.RoleAdmin {
+		return ErrForbidden
+	}
+	return u.boothRepo.Delete(ctx, id)
 }

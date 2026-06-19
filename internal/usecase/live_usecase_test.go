@@ -55,7 +55,7 @@ func (m *mockLiveRepository) UpdateLiveStatus(ctx context.Context, id int, statu
 
 // context に Role を詰めるヘルパー
 func ctxWithRole(role domain.Role) context.Context {
-	return context.WithValue(context.Background(), domain.ContextUserRoleKey, role)
+	return context.WithValue(context.Background(), ContextUserRoleKey, role)
 }
 
 func TestLiveUsecase_Create(t *testing.T) {

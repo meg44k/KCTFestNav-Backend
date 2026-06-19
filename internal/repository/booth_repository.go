@@ -95,3 +95,10 @@ func (br *boothRepository) UpdateCongestion(ctx context.Context, id int, congest
 	// TODO: 実装を行う
 	return nil
 }
+
+func (br *boothRepository) Delete(ctx context.Context, id int) error {
+	if err := br.db.DeleteBooth(ctx, int32(id)); err != nil {
+		return err
+	}
+	return nil
+}

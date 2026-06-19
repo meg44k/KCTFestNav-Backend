@@ -15,11 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// モック用のBoothUsecase
 type mockBoothUsecase struct {
 	mockGetByID func(ctx context.Context, id int) (*domain.Booth, error)
 	mockGetAll  func(ctx context.Context) ([]*domain.Booth, error)
 	mockCreate  func(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error
+	mockDelete  func(ctx context.Context, id int) error
 }
 
 func (m *mockBoothUsecase) GetByID(ctx context.Context, id int) (*domain.Booth, error) {
@@ -39,6 +39,13 @@ func (m *mockBoothUsecase) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 func (m *mockBoothUsecase) Create(ctx context.Context, name, organizer, detail string, congestionStatus int8, x, y, z float32) error {
 	if m.mockCreate != nil {
 		return m.mockCreate(ctx, name, organizer, detail, congestionStatus, x, y, z)
+	}
+	return nil
+}
+
+func (m *mockBoothUsecase) Delete(ctx context.Context, id int) error {
+	if m.mockDelete != nil {
+		return m.mockDelete(ctx, id)
 	}
 	return nil
 }
@@ -217,6 +224,58 @@ func TestBoothHandler_Create(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		e.POST("/manage/booths", h.Create)
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
+}
+
+func TestBoothHandler_Delete(t *testing.T) {
+	t.Run("正常系: ブースを削除できること", func(t *testing.T) {
+		e := echo.New()
+		mockUC := &mockBoothUsecase{
+			mockDelete: func(ctx context.Context, id int) error {
+				assert.Equal(t, 1, id)
+				return nil
+			},
+		}
+		h := handler.NewBoothHandler(mockUC)
+
+		e.DELETE("/manage/booths/:id", h.Delete)
+		req := httptest.NewRequest(http.MethodDelete, "/manage/booths/1", nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+	})
+
+	t.Run("異常系: IDが数字じゃない場合エラーになること", func(t *testing.T) {
+		e := echo.New()
+		h := handler.NewBoothHandler(&mockBoothUsecase{})
+
+		e.DELETE("/manage/booths/:id", h.Delete)
+		req := httptest.NewRequest(http.MethodDelete, "/manage/booths/abc", nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
+
+	t.Run("異常系: Usecase層でエラーが起きた場合はそのままエラーが返ること", func(t *testing.T) {
+		e := echo.New()
+		mockUC := &mockBoothUsecase{
+			mockDelete: func(ctx context.Context, id int) error {
+				return errors.New("usecase error")
+			},
+		}
+		h := handler.NewBoothHandler(mockUC)
+
+		e.DELETE("/manage/booths/:id", h.Delete)
+		req := httptest.NewRequest(http.MethodDelete, "/manage/booths/1", nil)
+		rec := httptest.NewRecorder()
+
 		e.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)

@@ -79,6 +79,7 @@ type BoothRepository interface {
 	Update(ctx context.Context, booth *Booth) error
 	UpdateCongestion(ctx context.Context, id int, congestionLevel int8) error
 	GetAll(ctx context.Context) ([]*Booth, error)
+	Delete(ctx context.Context, id int) error
 }
 
 func (b *Booth) CongestionStatus() int8 {

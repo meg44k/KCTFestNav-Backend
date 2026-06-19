@@ -21,6 +21,7 @@ type BoothUsecase interface {
 		y float32,
 		z float32,
 	) error
+	Delete(ctx context.Context, id int) error
 }
 
 type BoothHandler struct {
@@ -123,4 +124,15 @@ func (h *BoothHandler) Create(c *echo.Context) error {
 		return err
 	}
 	return c.NoContent(http.StatusCreated)
+}
+
+func (h *BoothHandler) Delete(c *echo.Context) error {
+	id, err := getIDParam(c)
+	if err != nil {
+		return err
+	}
+	if err := h.boothUsecase.Delete(c.Request().Context(), id); err != nil {
+		return err
+	}
+	return nil
 }
