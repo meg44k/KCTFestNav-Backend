@@ -49,9 +49,14 @@ func main() {
 	liveUsecase := usecase.NewLiveUsecase(liveRepo)
 	liveHandler := handler.NewLiveHandler(liveUsecase)
 
+	boothRepo := repository.NewBoothRepository(db, rdb)
+	boothUsecase := usecase.NewBoothUsecase(boothRepo)
+	boothHandler := handler.NewBoothHandler(boothUsecase)
+
 	// ハンドラをまとめてルーターに渡す(ここもっと良くなるかも)
 	handlers := &handler.Handlers{
-		Live: liveHandler,
+		Live:  liveHandler,
+		Booth: boothHandler,
 	}
 
 	router.InitRoutes(e, handlers)
