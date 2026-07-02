@@ -73,24 +73,25 @@ func (q *Queries) CreateLive(ctx context.Context, arg CreateLiveParams) error {
 
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (
-id, name, assigned_booth_id, password, role
+id, login_id, name, assigned_booth_id, password, role
 ) VALUES (
-?, ?, ?, ?, ?
+?, ?, ?, ?, ?, ?
 )
 `
 
 type CreateUserParams struct {
 	ID              string
+	LoginID         string
 	Name            string
 	AssignedBoothID sql.NullInt32
 	Password        string
 	Role            string
 }
 
-// usersテーブルはIDがUUID(VARCHAR)の指定だったため、挿入時にIDも受け取ります
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.ExecContext(ctx, createUser,
 		arg.ID,
+		arg.LoginID,
 		arg.Name,
 		arg.AssignedBoothID,
 		arg.Password,
@@ -198,7 +199,7 @@ func (q *Queries) GetAllLives(ctx context.Context) ([]Live, error) {
 }
 
 const getAllUsers = `-- name: GetAllUsers :many
-SELECT id, name, assigned_booth_id, password, role FROM users
+SELECT id, login_id, name, assigned_booth_id, password, role FROM users
 `
 
 func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
@@ -212,6 +213,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 		var i User
 		if err := rows.Scan(
 			&i.ID,
+			&i.LoginID,
 			&i.Name,
 			&i.AssignedBoothID,
 			&i.Password,
@@ -304,7 +306,7 @@ func (q *Queries) GetLiveByID(ctx context.Context, id int32) (Live, error) {
 
 const getUserByID = `-- name: GetUserByID :one
 
-SELECT id, name, assigned_booth_id, password, role FROM users WHERE id = ?
+SELECT id, login_id, name, assigned_booth_id, password, role FROM users WHERE id = ?
 `
 
 // ==========================================
@@ -315,6 +317,25 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.LoginID,
+		&i.Name,
+		&i.AssignedBoothID,
+		&i.Password,
+		&i.Role,
+	)
+	return i, err
+}
+
+const getUserByLoginID = `-- name: GetUserByLoginID :one
+SELECT id, login_id, name, assigned_booth_id, password, role FROM users WHERE login_id = ?
+`
+
+func (q *Queries) GetUserByLoginID(ctx context.Context, loginID string) (User, error) {
+	row := q.db.QueryRowContext(ctx, getUserByLoginID, loginID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.LoginID,
 		&i.Name,
 		&i.AssignedBoothID,
 		&i.Password,

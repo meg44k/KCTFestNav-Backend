@@ -9,11 +9,13 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Handlers struct {
 	Live  *LiveHandler
 	Booth *BoothHandler
+	User  *UserHandler
 }
 
 func OK(c *echo.Context) error {
@@ -46,6 +48,14 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 	case errors.Is(err, sql.ErrNoRows):
 		code = http.StatusNotFound
 		message = "not found"
+	case errors.Is(err, usecase.ErrUnauthorized):
+		code = http.StatusUnauthorized
+		message = "unauthorized"
+
+	// パスワード系
+	case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):
+		code = http.StatusUnauthorized
+		message = "invalid ID or password"
 	}
 	c.Logger().Error("HTTP error occurred", "error", err)
 	c.JSON(code, map[string]string{"error": message})

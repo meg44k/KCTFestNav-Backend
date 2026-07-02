@@ -11,20 +11,22 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/meg44k/KCTFestNav-Backend/internal/auth"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/meg44k/KCTFestNav-Backend/internal/handler"
+	"github.com/meg44k/KCTFestNav-Backend/internal/middleware"
 	"github.com/meg44k/KCTFestNav-Backend/internal/repository"
-	"github.com/meg44k/KCTFestNav-Backend/internal/router"
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
 	"github.com/redis/go-redis/v9"
 )
 
 // setupE2ETest はテスト用のDBとEchoルーターを初期化して返します
-func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
+func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client, []byte) {
 	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -54,29 +56,37 @@ func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 
 	e := echo.New()
 
-	// Usecase側で必要になる「管理者権限（RoleAdmin）」をコンテキストに強制注入するモックミドルウェア
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			// context.ContextにUserRoleKeyをセットする
-			ctx := context.WithValue(c.Request().Context(), usecase.ContextUserRoleKey, domain.RoleAdmin)
-			c.SetRequest(c.Request().WithContext(ctx))
-			return next(c)
-		}
-	})
-
 	// カスタムエラーハンドラを設定
 	e.HTTPErrorHandler = handler.CustomHTTPErrorHandler
 
-	// ルーティングの登録
-	router.InitRoutes(e, &handler.Handlers{Live: liveHandler})
+	// テスト用のJWTシークレット
+	jwtSecret := []byte("e2e-test-secret")
 
-	return e, db, rdb
+	// ルーティングの登録。ここを本物のルーター初期化と同等にする。
+	manage := e.Group("/manage")
+	// ★ ここで本物のミドルウェアを適用！
+	manage.Use(middleware.JWTAuth(jwtSecret))
+	
+	manage.POST("/lives", liveHandler.Create)
+	manage.PUT("/lives/:id", liveHandler.Update)
+	manage.PATCH("/lives/:id/status", liveHandler.UpdateLiveStatus)
+	manage.DELETE("/lives/:id", liveHandler.Delete)
+
+	e.GET("/lives", liveHandler.GetAll)
+	e.GET("/lives/:id", liveHandler.GetByID)
+	e.GET("/lives/current", liveHandler.GetCurrentLive)
+
+	return e, db, rdb, jwtSecret
 }
 
 func TestLiveE2E(t *testing.T) {
-	e, db, rdb := setupE2ETest(t)
+	e, db, rdb, jwtSecret := setupE2ETest(t)
 	defer db.Close()
 	defer rdb.Close()
+
+	// Admin権限のJWTトークンを生成
+	adminToken, _ := auth.GenerateToken(uuid.New(), domain.RoleAdmin, 1, jwtSecret)
+	authHeaderValue := "Bearer " + adminToken
 
 	// テスト間でデータを共有するためにIDを保持
 	var insertedLiveID int
@@ -94,6 +104,9 @@ func TestLiveE2E(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/manage/lives", bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		// ★ 生成した本物のトークンをヘッダーにセット
+		req.Header.Set("Authorization", authHeaderValue)
+		
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -157,6 +170,7 @@ func TestLiveE2E(t *testing.T) {
 		path := fmt.Sprintf("/manage/lives/%d", insertedLiveID)
 		req := httptest.NewRequest(http.MethodPut, path, bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set("Authorization", authHeaderValue)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -194,6 +208,7 @@ func TestLiveE2E(t *testing.T) {
 	t.Run("DELETE /manage/lives/:id - ライブの削除", func(t *testing.T) {
 		path := fmt.Sprintf("/manage/lives/%d", insertedLiveID)
 		req := httptest.NewRequest(http.MethodDelete, path, nil)
+		req.Header.Set("Authorization", authHeaderValue)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)

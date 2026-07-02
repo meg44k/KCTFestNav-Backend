@@ -32,6 +32,7 @@ type Live struct {
 
 type User struct {
 	ID              string
+	LoginID         string
 	Name            string
 	AssignedBoothID sql.NullInt32
 	Password        string

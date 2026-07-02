@@ -10,21 +10,23 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/meg44k/KCTFestNav-Backend/internal/auth"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/meg44k/KCTFestNav-Backend/internal/handler"
+	"github.com/meg44k/KCTFestNav-Backend/internal/middleware"
 	"github.com/meg44k/KCTFestNav-Backend/internal/repository"
-	"github.com/meg44k/KCTFestNav-Backend/internal/router"
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
 	"github.com/redis/go-redis/v9"
 )
 
 // setupBoothE2ETest はテスト用のDBとEchoルーターを初期化して返します
-func setupBoothE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
+func setupBoothE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client, []byte) {
 	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	require.NoError(t, err, "DBの初期化エラー")
@@ -55,50 +57,33 @@ func setupBoothE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 
 	e := echo.New()
 
-	// モックミドルウェア: ヘッダーからRoleとAssignedBoothIDを読み取り、RequestUser を Context に詰める
-	// E2Eテスト側でヘッダーを操作することで、異なる権限のテストを可能にする
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c *echo.Context) error {
-			roleStr := c.Request().Header.Get("X-Mock-Role")
-			if roleStr == "" {
-				roleStr = "Admin" // デフォルトはAdminにしておく
-			}
-			
-			var role domain.Role
-			switch roleStr {
-			case "Gakuseikai":
-				role = domain.RoleGakuseikai
-			case "Student":
-				role = domain.RoleStudent
-			default:
-				role = domain.RoleAdmin
-			}
-
-			assignedBoothID := 0
-			fmt.Sscanf(c.Request().Header.Get("X-Mock-Assigned-Booth"), "%d", &assignedBoothID)
-
-			reqUser := usecase.RequestUser{
-				Role:            role,
-				AssignedBoothID: assignedBoothID,
-			}
-			ctx := context.WithValue(c.Request().Context(), usecase.ContextRequestUserKey, reqUser)
-			c.SetRequest(c.Request().WithContext(ctx))
-			return next(c)
-		}
-	})
-
 	e.HTTPErrorHandler = handler.CustomHTTPErrorHandler
 
-	// ルーティングの登録
-	router.InitRoutes(e, &handler.Handlers{Booth: boothHandler})
+	jwtSecret := []byte("booth-e2e-secret")
 
-	return e, db, rdb
+	// ルーティングの手動登録
+	manage := e.Group("/manage")
+	manage.Use(middleware.JWTAuth(jwtSecret))
+
+	manage.POST("/booths", boothHandler.Create)
+	manage.PUT("/booths/:id", boothHandler.Update)
+	manage.PATCH("/booths/:id/congestion", boothHandler.UpdateCongestion)
+	manage.DELETE("/booths/:id", boothHandler.Delete)
+
+	e.GET("/booths", boothHandler.GetAll)
+	e.GET("/booths/:id", boothHandler.GetByID)
+
+	return e, db, rdb, jwtSecret
 }
 
 func TestBoothE2E(t *testing.T) {
-	e, db, rdb := setupBoothE2ETest(t)
+	e, db, rdb, jwtSecret := setupBoothE2ETest(t)
 	defer db.Close()
 	defer rdb.Close()
+
+	// Adminのトークン
+	adminTokenStr, _ := auth.GenerateToken(uuid.New(), domain.RoleAdmin, 0, jwtSecret)
+	adminAuthHeader := "Bearer " + adminTokenStr
 
 	var insertedBoothID int
 
@@ -115,6 +100,7 @@ func TestBoothE2E(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/manage/booths", bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set("Authorization", adminAuthHeader)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -135,6 +121,7 @@ func TestBoothE2E(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/manage/booths", bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set("Authorization", adminAuthHeader)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -191,6 +178,7 @@ func TestBoothE2E(t *testing.T) {
 		path := fmt.Sprintf("/manage/booths/%d", insertedBoothID)
 		req := httptest.NewRequest(http.MethodPut, path, bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set("Authorization", adminAuthHeader)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -213,6 +201,7 @@ func TestBoothE2E(t *testing.T) {
 		path := fmt.Sprintf("/manage/booths/%d/congestion", insertedBoothID)
 		req := httptest.NewRequest(http.MethodPatch, path, bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set("Authorization", adminAuthHeader)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -235,9 +224,10 @@ func TestBoothE2E(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPatch, path, bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		
-		// 権限をStudentにし、アサイン先をこのブースIDに一致させる！
-		req.Header.Set("X-Mock-Role", "Student")
-		req.Header.Set("X-Mock-Assigned-Booth", fmt.Sprintf("%d", insertedBoothID))
+		// 権限をStudentにし、アサイン先をこのブースIDに一致させるJWTトークンを発行！
+		studentToken, _ := auth.GenerateToken(uuid.New(), domain.RoleStudent, insertedBoothID, jwtSecret)
+		req.Header.Set("Authorization", "Bearer "+studentToken)
+		
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -259,9 +249,11 @@ func TestBoothE2E(t *testing.T) {
 		path := fmt.Sprintf("/manage/booths/%d/congestion", insertedBoothID)
 		req := httptest.NewRequest(http.MethodPatch, path, bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		// 権限をStudentにし、アサイン先を別のブースID(9999)にする
-		req.Header.Set("X-Mock-Role", "Student")
-		req.Header.Set("X-Mock-Assigned-Booth", "9999")
+		
+		// 権限をStudentにし、アサイン先を別のブースID(9999)にするJWTトークン
+		wrongStudentToken, _ := auth.GenerateToken(uuid.New(), domain.RoleStudent, 9999, jwtSecret)
+		req.Header.Set("Authorization", "Bearer "+wrongStudentToken)
+		
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -290,8 +282,11 @@ func TestBoothE2E(t *testing.T) {
 	t.Run("異常系: DELETE /manage/booths/:id - 一般学生は削除できない(403)", func(t *testing.T) {
 		path := fmt.Sprintf("/manage/booths/%d", insertedBoothID)
 		req := httptest.NewRequest(http.MethodDelete, path, nil)
-		// 権限をStudentに偽装
-		req.Header.Set("X-Mock-Role", "Student")
+		
+		// 権限をStudentにしたJWTトークン
+		studentToken, _ := auth.GenerateToken(uuid.New(), domain.RoleStudent, insertedBoothID, jwtSecret)
+		req.Header.Set("Authorization", "Bearer "+studentToken)
+		
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -303,7 +298,7 @@ func TestBoothE2E(t *testing.T) {
 	t.Run("DELETE /manage/booths/:id - ブースの削除(Admin)", func(t *testing.T) {
 		path := fmt.Sprintf("/manage/booths/%d", insertedBoothID)
 		req := httptest.NewRequest(http.MethodDelete, path, nil)
-		req.Header.Set("X-Mock-Role", "Admin") // 明示的にAdmin
+		req.Header.Set("Authorization", adminAuthHeader) // 明示的にAdmin
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)

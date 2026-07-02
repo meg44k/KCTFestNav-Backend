@@ -70,15 +70,17 @@ DELETE FROM booths WHERE id = ?;
 -- name: GetUserByID :one
 SELECT * FROM users WHERE id = ?;
 
+-- name: GetUserByLoginID :one
+SELECT * FROM users WHERE login_id = ?;
+
 -- name: GetAllUsers :many
 SELECT * FROM users;
 
 -- name: CreateUser :exec
--- usersテーブルはIDがUUID(VARCHAR)の指定だったため、挿入時にIDも受け取ります
 INSERT INTO users (
-id, name, assigned_booth_id, password, role
+id, login_id, name, assigned_booth_id, password, role
 ) VALUES (
-?, ?, ?, ?, ?
+?, ?, ?, ?, ?, ?
 );
 
 -- name: DeleteUser :exec
