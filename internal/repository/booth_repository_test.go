@@ -57,9 +57,9 @@ func TestBoothRepository_GetByID(t *testing.T) {
 
 	// 事前にデータを1件INSERTしておく
 	res, err := db.ExecContext(ctx, `
-		INSERT INTO booths (name, organizer, detail, congestion_status, x, y, z)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, "テストブース", "学生会", "詳細テキスト", 1, 10.5, 20.5, 30.5)
+		INSERT INTO booths (name, organizer, detail, x, y, z)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, "テストブース", "学生会", "詳細テキスト", 10.5, 20.5, 30.5)
 	assert.NoError(t, err)
 
 	insertedID, err := res.LastInsertId()
@@ -117,13 +117,13 @@ func TestBoothRepository_GetAll(t *testing.T) {
 
 		// 2件INSERT
 		res, err := db.ExecContext(ctx, `
-			INSERT INTO booths (name, organizer, detail, congestion_status, x, y, z)
+			INSERT INTO booths (name, organizer, detail, x, y, z)
 			VALUES 
-			(?, ?, ?, ?, ?, ?, ?),
-			(?, ?, ?, ?, ?, ?, ?)
+			(?, ?, ?, ?, ?, ?),
+			(?, ?, ?, ?, ?, ?)
 		`,
-			"ブースA", "主催A", "詳細A", 0, 1.0, 2.0, 3.0,
-			"ブースB", "主催B", "詳細B", 2, 4.0, 5.0, 6.0,
+			"ブースA", "主催A", "詳細A", 1.0, 2.0, 3.0,
+			"ブースB", "主催B", "詳細B", 4.0, 5.0, 6.0,
 		)
 		assert.NoError(t, err)
 
@@ -192,7 +192,7 @@ func TestBoothRepository_Update(t *testing.T) {
 		assert.NoError(t, err)
 
 		// 初期データを挿入
-		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, congestion_status, x, y, z) VALUES (?, ?, ?, ?, ?, ?, ?)", "古いブース", "主催者", "詳細", 0, 1.0, 2.0, 3.0)
+		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, x, y, z) VALUES (?, ?, ?, ?, ?, ?)", "古いブース", "主催者", "詳細", 1.0, 2.0, 3.0)
 		assert.NoError(t, err)
 		id, err := res.LastInsertId()
 		assert.NoError(t, err)
@@ -226,7 +226,7 @@ func TestBoothRepository_UpdateCongestion(t *testing.T) {
 		assert.NoError(t, err)
 
 		// 初期データを挿入
-		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, congestion_status, x, y, z) VALUES (?, ?, ?, ?, ?, ?, ?)", "ブースA", "主催", "詳細", 0, 1.0, 2.0, 3.0)
+		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, x, y, z) VALUES (?, ?, ?, ?, ?, ?)", "ブースA", "主催", "詳細", 1.0, 2.0, 3.0)
 		assert.NoError(t, err)
 		id, err := res.LastInsertId()
 		assert.NoError(t, err)

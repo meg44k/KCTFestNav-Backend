@@ -12,8 +12,9 @@ import (
 type User struct {
 	ID              uuid.UUID // UserのID UUIDv4
 	Name            string    // ユーザー名
+	LoginID         string    // ログインに用いる文字列
+	Password        []byte    // パスワード
 	AssignedBoothID int       // 配属されたブースのID(1-1の人ならID:1-1など)
-	Password        string    // パスワード
 	Role            Role      // 役職 (Admin / Gakuseikai / Student / Member)
 }
 
@@ -31,7 +32,7 @@ const (
 	RoleMember     Role = "Member"
 )
 
-func NewUser(name string, assignedBoothID int, password string, role Role) (*User, error) {
+func NewUser(name string, loginID string, password []byte, assignedBoothID int, role Role) (*User, error) {
 	// Roleのバリデーション
 	if !role.IsValid() {
 		return nil, errors.New("Role should be Admin, Gakuseikai, Student or Member")
@@ -41,8 +42,20 @@ func NewUser(name string, assignedBoothID int, password string, role Role) (*Use
 	return &User{
 		ID:              UUID,
 		Name:            name,
-		AssignedBoothID: assignedBoothID,
+		LoginID:         loginID,
 		Password:        password,
+		AssignedBoothID: assignedBoothID,
+		Role:            role,
+	}, nil
+}
+
+func ReconstructUser(id uuid.UUID, name string, loginID string, password []byte, assignedBoothID int, role Role) (*User, error) {
+	return &User{
+		ID:              id,
+		Name:            name,
+		LoginID:         loginID,
+		Password:        password,
+		AssignedBoothID: assignedBoothID,
 		Role:            role,
 	}, nil
 }
@@ -53,6 +66,7 @@ type UserRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetAll(ctx context.Context) ([]*User, error)
+	GetByLoginID(ctx context.Context, loginID string) (*User, error)
 }
 
 // Roleのバリデーション

@@ -10,11 +10,12 @@ CREATE TABLE booths(
 
 CREATE TABLE users(
   id VARCHAR(36) PRIMARY KEY, /*UUID*/  
+  login_id VARCHAR(255) NOT NULL UNIQUE,
   name VARCHAR(255) NOT NULL,
   assigned_booth_id INT,
   password TEXT NOT NULL,
   role VARCHAR(20) NOT NULL,
-  FOREIGN KEY (assigned_booth_id) REFERENCES booths(id)
+  FOREIGN KEY (assigned_booth_id) REFERENCES booths(id) ON DELETE SET NULL
 );
 
 

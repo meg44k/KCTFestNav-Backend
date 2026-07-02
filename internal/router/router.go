@@ -15,8 +15,8 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	// 認証系
 	auth := e.Group("/auth")
 
-	auth.POST("/login", handler.OK) // ログイン用API
-	auth.GET("/me", handler.OK)     // ログイン中のユーザ情報取得
+	auth.POST("/login", h.User.Login) // ログイン用API
+	auth.GET("/me", handler.OK)       // ログイン中のユーザ情報取得
 
 	// ブース情報
 	e.GET("/booths", h.Booth.GetAll)      // 全ブースの情報を取得
@@ -42,7 +42,7 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	manage.DELETE("/booths/:id", h.Booth.Delete)                     // ブースの削除
 
 	manage.GET("/users", handler.OK)            // 全ユーザの取得
-	manage.POST("/users", handler.OK)           // ユーザの追加
+	manage.POST("/users", h.User.Create)        // ユーザの追加
 	manage.DELETE("/users/:userId", handler.OK) // ユーザの削除
 
 	manage.POST("/lives", h.Live.Create)
