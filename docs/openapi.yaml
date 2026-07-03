@@ -168,7 +168,7 @@ paths:
 
   /announcements:
     get:
-      summary: お知らせ一覧の取得
+      summary: 現在のお知らせの取得
       tags:
         - Announcements
       responses:
@@ -177,12 +177,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Announcement'
-    post:
-      summary: お知らせの作成
-      description: 運営委員のみ実行可能。
+                $ref: '#/components/schemas/Announcement'
+
+  /manage/announcements:
+    put:
+      summary: お知らせの更新
+      description: 管理者または学生会のみ実行可能。
       tags:
         - Announcements
       security:
@@ -194,26 +194,8 @@ paths:
             schema:
               $ref: '#/components/schemas/NewAnnouncement'
       responses:
-        '201':
-          description: 作成成功
-
-  /announcements/{announcementId}:
-    delete:
-      summary: お知らせの削除
-      description: 運営委員のみ実行可能。
-      tags:
-        - Announcements
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: announcementId
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
         '204':
-          description: 削除成功
+          description: 更新成功
 
   /admin/spots:
     post:
