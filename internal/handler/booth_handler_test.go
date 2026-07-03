@@ -92,7 +92,7 @@ func TestBoothHandler_GetByID(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 
 		// レスポンスのJSONの中身が正しいか
-		var res handler.BoothResponse
+		var res handler.GetBoothResponse
 		err = json.Unmarshal(rec.Body.Bytes(), &res)
 		assert.NoError(t, err)
 		assert.Equal(t, 1, res.ID)

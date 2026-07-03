@@ -17,6 +17,7 @@ import (
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/meg44k/KCTFestNav-Backend/internal/handler"
+	mv "github.com/meg44k/KCTFestNav-Backend/internal/middleware"
 	"github.com/meg44k/KCTFestNav-Backend/internal/repository"
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
 )
@@ -68,6 +69,7 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 
 	authGroup := e.Group("/auth")
 	authGroup.POST("/login", userHandler.Login)
+	authGroup.GET("/me", userHandler.GetMe, mv.JWTAuth(jwtSecret))
 
 	return e, db, rdb
 }
@@ -76,6 +78,8 @@ func TestUserE2E(t *testing.T) {
 	e, db, rdb := setupUserE2ETest(t)
 	defer db.Close()
 	defer rdb.Close()
+
+	var loginToken string
 
 	t.Run("POST /manage/users - ユーザーの作成", func(t *testing.T) {
 		reqBody := handler.CreateRequest{
@@ -131,6 +135,7 @@ func TestUserE2E(t *testing.T) {
 
 		// トークンが空ではなく、正しく返ってきていること
 		assert.NotEmpty(t, res.Token)
+		loginToken = res.Token
 	})
 
 	t.Run("POST /auth/login - ログイン失敗（間違ったパスワード）", func(t *testing.T) {
@@ -164,6 +169,35 @@ func TestUserE2E(t *testing.T) {
 		e.ServeHTTP(rec, req)
 
 		// こちらも同じく 401 Unauthorized が返ってくること
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
+	t.Run("GET /auth/me - 自身の情報を取得できること", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+loginToken)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		if !assert.Equal(t, http.StatusOK, rec.Code) {
+			t.Logf("Response body: %s", rec.Body.String())
+		}
+
+		var res handler.GetUserResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &res)
+		assert.NoError(t, err)
+
+		assert.Equal(t, "E2Eテストユーザー", res.Name)
+		assert.Equal(t, "e2e_test_user", res.LoginID)
+		assert.Equal(t, domain.RoleStudent, res.Role)
+	})
+
+	t.Run("GET /auth/me - トークンがない場合はエラーになること", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 }

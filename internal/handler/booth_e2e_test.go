@@ -156,7 +156,7 @@ func TestBoothE2E(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 
-		var res handler.BoothResponse
+		var res handler.GetBoothResponse
 		err := json.Unmarshal(rec.Body.Bytes(), &res)
 		assert.NoError(t, err)
 
@@ -271,7 +271,7 @@ func TestBoothE2E(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 
-		var res handler.BoothResponse
+		var res handler.GetBoothResponse
 		err := json.Unmarshal(rec.Body.Bytes(), &res)
 		assert.NoError(t, err)
 

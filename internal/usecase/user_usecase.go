@@ -69,6 +69,19 @@ func (uu *UserUsecase) Delete(ctx context.Context, id uuid.UUID) error {
 	return uu.userRepo.Delete(ctx, id)
 }
 
+func (uu *UserUsecase) GetMe(ctx context.Context) (*domain.User, error) {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok {
+		return nil, ErrUnauthorized
+	}
+	id := reqUser.ID
+	user, err := uu.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	if user, err := uu.userRepo.GetByID(ctx, id); err != nil {
 		return user, nil

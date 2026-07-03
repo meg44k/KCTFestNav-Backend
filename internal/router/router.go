@@ -10,13 +10,14 @@ import (
 )
 
 func InitRoutes(e *echo.Echo, h *handler.Handlers) {
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 	e.Use(middleware.RequestLogger())
 
 	// 認証系
 	auth := e.Group("/auth")
 
-	auth.POST("/login", h.User.Login) // ログイン用API
-	auth.GET("/me", handler.OK)       // ログイン中のユーザ情報取得
+	auth.POST("/login", h.User.Login)                    // ログイン用API
+	auth.GET("/me", h.User.GetMe, mv.JWTAuth(jwtSecret)) // ログイン中のユーザ情報取得
 
 	// ブース情報
 	e.GET("/booths", h.Booth.GetAll)      // 全ブースの情報を取得
@@ -32,7 +33,6 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	e.GET("/announcements/current", handler.OK) // 現在のお知らせを表示
 
 	// 管理者系
-	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 	manage := e.Group("/manage")
 	manage.Use(mv.JWTAuth(jwtSecret))
 

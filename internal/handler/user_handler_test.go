@@ -22,6 +22,7 @@ import (
 type mockUserUsecase struct {
 	mockCreate       func(ctx context.Context, name string, loginID string, password []byte, assignedID int, role domain.Role) error
 	mockAuthenticate func(ctx context.Context, loginID string, password []byte) (*domain.User, error)
+	mockGetMe        func(ctx context.Context) (*domain.User, error)
 }
 
 func (m *mockUserUsecase) Create(ctx context.Context, name string, loginID string, password []byte, assignedID int, role domain.Role) error {
@@ -34,6 +35,13 @@ func (m *mockUserUsecase) Create(ctx context.Context, name string, loginID strin
 func (m *mockUserUsecase) Authenticate(ctx context.Context, loginID string, password []byte) (*domain.User, error) {
 	if m.mockAuthenticate != nil {
 		return m.mockAuthenticate(ctx, loginID, password)
+	}
+	return nil, nil
+}
+
+func (m *mockUserUsecase) GetMe(ctx context.Context) (*domain.User, error) {
+	if m.mockGetMe != nil {
+		return m.mockGetMe(ctx)
 	}
 	return nil, nil
 }
@@ -194,6 +202,59 @@ func TestUserHandler_Login(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		e.POST("/auth/login", h.Login)
+		e.ServeHTTP(rec, req)
+
+		assert.NotEqual(t, http.StatusOK, rec.Code)
+	})
+}
+
+func TestUserHandler_GetMe(t *testing.T) {
+	t.Run("正常系: 自身の情報が取得できること", func(t *testing.T) {
+		e := echo.New()
+
+		dummyID := uuid.New()
+		dummyUser, _ := domain.ReconstructUser(dummyID, "テストユーザー", "test_user", []byte("hashed_password"), 1, domain.RoleStudent)
+
+		mockUC := &mockUserUsecase{
+			mockGetMe: func(ctx context.Context) (*domain.User, error) {
+				return dummyUser, nil
+			},
+		}
+		h := handler.NewUserHandler(mockUC, []byte("unit-test-secret"))
+
+		req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+		rec := httptest.NewRecorder()
+
+		e.GET("/auth/me", h.GetMe)
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var res handler.GetUserResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &res)
+		assert.NoError(t, err)
+
+		assert.Equal(t, dummyID, res.ID)
+		assert.Equal(t, "テストユーザー", res.Name)
+		assert.Equal(t, "test_user", res.LoginID)
+		assert.Equal(t, 1, res.AssignedBoothID)
+		assert.Equal(t, domain.RoleStudent, res.Role)
+	})
+
+	t.Run("異常系: Usecase層でエラーが起きた場合はエラーが返ること", func(t *testing.T) {
+		e := echo.New()
+
+		mockUC := &mockUserUsecase{
+			mockGetMe: func(ctx context.Context) (*domain.User, error) {
+				return nil, errors.New("database error")
+			},
+		}
+		h := handler.NewUserHandler(mockUC, []byte("unit-test-secret"))
+
+		req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+		rec := httptest.NewRecorder()
+
+		e.GET("/auth/me", h.GetMe)
 		e.ServeHTTP(rec, req)
 
 		assert.NotEqual(t, http.StatusOK, rec.Code)

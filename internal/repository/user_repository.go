@@ -49,8 +49,26 @@ func (ur *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func (ur *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	// TODO: 実際の処理を書く
-	return nil, nil
+	dbUser, err := ur.db.GetUserByID(ctx, id.String())
+	if err != nil {
+		return nil, err
+	}
+	parsedID, err := uuid.Parse(dbUser.ID)
+	if err != nil {
+		return nil, err
+	}
+	user, err := domain.ReconstructUser(
+		parsedID,
+		dbUser.Name,
+		dbUser.LoginID,
+		[]byte(dbUser.Password),
+		int(dbUser.AssignedBoothID.Int32),
+		domain.Role(dbUser.Role),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func (ur *userRepository) GetAll(ctx context.Context) ([]*domain.User, error) {

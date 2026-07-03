@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/meg44k/KCTFestNav-Backend/internal/auth"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
@@ -19,6 +20,7 @@ type UserUsecase interface {
 		role domain.Role,
 	) error
 	Authenticate(ctx context.Context, LoginID string, Password []byte) (*domain.User, error)
+	GetMe(ctx context.Context) (*domain.User, error)
 }
 
 type UserHandler struct {
@@ -78,4 +80,28 @@ func (h *UserHandler) Login(c *echo.Context) error {
 	return c.JSON(http.StatusOK, LoginResponse{
 		Token: tokenString,
 	})
+}
+
+type GetUserResponse struct {
+	ID              uuid.UUID   `json:"id"`
+	Name            string      `json:"name"`
+	LoginID         string      `json:"login_id"`
+	AssignedBoothID int         `json:"assigned_booth_id"`
+	Role            domain.Role `json:"role"`
+}
+
+func (h *UserHandler) GetMe(c *echo.Context) error {
+	user, err := h.userUsecase.GetMe(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	res := GetUserResponse{
+		ID:              user.ID,
+		Name:            user.Name,
+		LoginID:         user.LoginID,
+		AssignedBoothID: user.AssignedBoothID,
+		Role:            user.Role,
+	}
+
+	return c.JSON(http.StatusOK, res)
 }
