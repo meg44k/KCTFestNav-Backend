@@ -102,9 +102,8 @@ func (h *LiveHandler) Update(c *echo.Context) error {
 		return err
 	}
 
-	ctx := c.Request().Context()
 	err = h.liveUsecase.Update(
-		ctx,
+		c.Request().Context(),
 		id,
 		req.Name,
 		req.Detail,

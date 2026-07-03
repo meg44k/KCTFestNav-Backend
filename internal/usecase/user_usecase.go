@@ -32,12 +32,12 @@ func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 	}
 }
 
-func (uu *UserUsecase) Create(ctx context.Context, name string, loginID string, inputPassword []byte, assignedID int, role domain.Role) error {
+func (uu *UserUsecase) Create(ctx context.Context, name string, loginID string, inputPassword []byte, assignedBoothID int, role domain.Role) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword(inputPassword, bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-	user, err := domain.NewUser(name, loginID, hashedPassword, assignedID, role)
+	user, err := domain.NewUser(name, loginID, hashedPassword, assignedBoothID, role)
 	if err != nil {
 		return err
 	}
@@ -61,24 +61,58 @@ func (uu *UserUsecase) Authenticate(ctx context.Context, loginID string, inputPa
 	return user, nil
 }
 
-func (uu *UserUsecase) Update(ctx context.Context, user *domain.User) error {
+func (uu *UserUsecase) Update(
+	ctx context.Context,
+	id uuid.UUID,
+	name string,
+	loginID string,
+	password []byte,
+	assignedBoothID int,
+	role domain.Role) error {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return ErrForbidden
+	}
+	user, err := domain.ReconstructUser(id, name, loginID, password, assignedBoothID, role)
+	if err != nil {
+		return err
+	}
 	return uu.userRepo.Update(ctx, user)
 }
 
 func (uu *UserUsecase) Delete(ctx context.Context, id uuid.UUID) error {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return ErrForbidden
+	}
 	return uu.userRepo.Delete(ctx, id)
 }
 
-func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	if user, err := uu.userRepo.GetByID(ctx, id); err != nil {
-		return user, nil
+func (uu *UserUsecase) GetMe(ctx context.Context) (*domain.User, error) {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok {
+		return nil, ErrUnauthorized
 	}
-	return nil, nil
+	id := reqUser.ID
+	user, err := uu.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	user, err := uu.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 func (uu *UserUsecase) GetAll(ctx context.Context) ([]*domain.User, error) {
-	if users, err := uu.userRepo.GetAll(ctx); err != nil {
-		return users, nil
+	users, err := uu.userRepo.GetAll(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	return users, nil
 }

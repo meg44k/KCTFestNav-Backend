@@ -50,7 +50,7 @@ func NewBoothHandler(uc BoothUsecase) *BoothHandler {
 	}
 }
 
-type BoothResponse struct {
+type GetBoothResponse struct {
 	ID               int                     `json:"id"`
 	Name             string                  `json:"name"`
 	Organizer        string                  `json:"organizer"`
@@ -70,7 +70,7 @@ func (h *BoothHandler) GetByID(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	res := BoothResponse{
+	res := GetBoothResponse{
 		ID:               b.ID,
 		Name:             b.Name,
 		Organizer:        b.Organizer,
@@ -85,7 +85,7 @@ func (h *BoothHandler) GetByID(c *echo.Context) error {
 }
 
 type GetAllBoothsResponse struct {
-	Booths []BoothResponse `json:"booths"`
+	Booths []GetBoothResponse `json:"booths"`
 }
 
 func (h *BoothHandler) GetAll(c *echo.Context) error {
@@ -94,9 +94,9 @@ func (h *BoothHandler) GetAll(c *echo.Context) error {
 		return err
 	}
 
-	res := make([]BoothResponse, len(booths))
+	res := make([]GetBoothResponse, len(booths))
 	for i, b := range booths {
-		res[i] = BoothResponse{
+		res[i] = GetBoothResponse{
 			ID:               b.ID,
 			Name:             b.Name,
 			Organizer:        b.Organizer,
@@ -150,7 +150,7 @@ func (h *BoothHandler) Delete(c *echo.Context) error {
 	if err := h.boothUsecase.Delete(c.Request().Context(), id); err != nil {
 		return err
 	}
-	return nil
+	return c.NoContent(http.StatusNoContent)
 }
 
 type UpdateBoothRequest struct {

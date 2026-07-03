@@ -10,13 +10,14 @@ import (
 )
 
 func InitRoutes(e *echo.Echo, h *handler.Handlers) {
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 	e.Use(middleware.RequestLogger())
 
 	// 認証系
 	auth := e.Group("/auth")
 
-	auth.POST("/login", h.User.Login) // ログイン用API
-	auth.GET("/me", handler.OK)       // ログイン中のユーザ情報取得
+	auth.POST("/login", h.User.Login)                    // ログイン用API
+	auth.GET("/me", h.User.GetMe, mv.JWTAuth(jwtSecret)) // ログイン中のユーザ情報取得
 
 	// ブース情報
 	e.GET("/booths", h.Booth.GetAll)      // 全ブースの情報を取得
@@ -32,7 +33,6 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	e.GET("/announcements/current", handler.OK) // 現在のお知らせを表示
 
 	// 管理者系
-	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 	manage := e.Group("/manage")
 	manage.Use(mv.JWTAuth(jwtSecret))
 
@@ -41,9 +41,11 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	manage.PATCH("/booths/:id/congestion", h.Booth.UpdateCongestion) // ブースの混雑度の変更
 	manage.DELETE("/booths/:id", h.Booth.Delete)                     // ブースの削除
 
-	manage.GET("/users", handler.OK)            // 全ユーザの取得
-	manage.POST("/users", h.User.Create)        // ユーザの追加
-	manage.DELETE("/users/:userId", handler.OK) // ユーザの削除
+	manage.GET("/users/:id", h.User.GetByID)   // 特定ユーザの取得
+	manage.GET("/users", h.User.GetAll)        // 全ユーザの取得
+	manage.POST("/users", h.User.Create)       // ユーザの追加
+	manage.PUT("/users/:id", h.User.Update)    // ユーザの更新
+	manage.DELETE("/users/:id", h.User.Delete) // ユーザの削除
 
 	manage.POST("/lives", h.Live.Create)
 	manage.PUT("/lives/:id", h.Live.Update)

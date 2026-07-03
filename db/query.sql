@@ -85,3 +85,13 @@ id, login_id, name, assigned_booth_id, password, role
 
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = ?;
+
+-- name: UpdateUser :exec
+UPDATE users
+SET
+    login_id = ?,
+    name = ?,
+    assigned_booth_id = ?,
+    password = ?,
+    role = ?
+WHERE id = ?;
