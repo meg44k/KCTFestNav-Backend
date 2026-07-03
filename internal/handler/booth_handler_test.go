@@ -263,7 +263,7 @@ func TestBoothHandler_Delete(t *testing.T) {
 
 		e.ServeHTTP(rec, req)
 
-		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, http.StatusNoContent, rec.Code)
 	})
 
 	t.Run("異常系: IDが数字じゃない場合エラーになること", func(t *testing.T) {

@@ -303,7 +303,7 @@ func TestBoothE2E(t *testing.T) {
 
 		e.ServeHTTP(rec, req)
 
-		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, http.StatusNoContent, rec.Code)
 
 		// DBから消えていること
 		var count int
