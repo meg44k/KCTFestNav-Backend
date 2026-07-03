@@ -33,6 +33,11 @@ func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 }
 
 func (uu *UserUsecase) Create(ctx context.Context, name string, loginID string, inputPassword []byte, assignedBoothID int, role domain.Role) error {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return ErrForbidden
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword(inputPassword, bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -110,6 +115,11 @@ func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User,
 }
 
 func (uu *UserUsecase) GetAll(ctx context.Context) ([]*domain.User, error) {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return nil, ErrForbidden
+	}
+
 	users, err := uu.userRepo.GetAll(ctx)
 	if err != nil {
 		return nil, err
