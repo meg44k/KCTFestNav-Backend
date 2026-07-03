@@ -13,9 +13,10 @@ import (
 )
 
 type Handlers struct {
-	Live  *LiveHandler
-	Booth *BoothHandler
-	User  *UserHandler
+	Live         *LiveHandler
+	Booth        *BoothHandler
+	User         *UserHandler
+	Announcement *AnnouncementHandler
 }
 
 func OK(c *echo.Context) error {

@@ -438,27 +438,12 @@ components:
     Announcement:
       type: object
       properties:
-        id:
-          type: string
-        title:
-          type: string
         content:
           type: string
-        type:
-          type: string
-          enum: [info, warning, urgent]
-        createdAt:
-          type: string
-          format: date-time
 
     NewAnnouncement:
       type: object
-      required: [title, content, type]
+      required: [content]
       properties:
-        title:
-          type: string
         content:
           type: string
-        type:
-          type: string
-          enum: [info, warning, urgent]

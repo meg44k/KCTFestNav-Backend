@@ -29,8 +29,7 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	e.GET("/lives/current", h.Live.GetCurrentLive) // 現在進行中のライブ情報を取得
 
 	// アナウンス
-	e.GET("/announcements", handler.OK)         // お知らせの一覧を表示
-	e.GET("/announcements/current", handler.OK) // 現在のお知らせを表示
+	e.GET("/announcements", h.Announcement.Get) // 現在のお知らせを表示
 
 	// 管理者系
 	manage := e.Group("/manage")
@@ -40,6 +39,8 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	manage.PUT("/booths/:id", h.Booth.Update)                        // ブースの更新
 	manage.PATCH("/booths/:id/congestion", h.Booth.UpdateCongestion) // ブースの混雑度の変更
 	manage.DELETE("/booths/:id", h.Booth.Delete)                     // ブースの削除
+
+	manage.PUT("/announcements", h.Announcement.Update) // アナウンスの更新
 
 	manage.GET("/users/:id", h.User.GetByID)   // 特定ユーザの取得
 	manage.GET("/users", h.User.GetAll)        // 全ユーザの取得

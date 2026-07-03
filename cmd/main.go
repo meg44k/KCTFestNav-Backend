@@ -56,11 +56,16 @@ func main() {
 	userRepo := repository.NewUserRepository(db, rdb)
 	userUsecase := usecase.NewUserUsecase(userRepo)
 	userHandler := handler.NewUserHandler(userUsecase, []byte(os.Getenv("jwtSecret")))
+	announceRepo := repository.NewAnnouncementRepository()
+	announceUsecase := usecase.NewAnnouncementUsecase(announceRepo)
+	announceHandler := handler.NewAnnouncementHandler(announceUsecase)
+
 	// ハンドラをまとめてルーターに渡す(ここもっと良くなるかも)
 	handlers := &handler.Handlers{
-		Live:  liveHandler,
-		Booth: boothHandler,
-		User:  userHandler,
+		Live:         liveHandler,
+		Booth:        boothHandler,
+		User:         userHandler,
+		Announcement: announceHandler,
 	}
 
 	router.InitRoutes(e, handlers)
