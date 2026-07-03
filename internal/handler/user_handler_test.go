@@ -24,6 +24,7 @@ type mockUserUsecase struct {
 	mockAuthenticate func(ctx context.Context, loginID string, password []byte) (*domain.User, error)
 	mockGetMe        func(ctx context.Context) (*domain.User, error)
 	mockGetByID      func(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	mockGetAll       func(ctx context.Context) ([]*domain.User, error)
 }
 
 func (m *mockUserUsecase) Create(ctx context.Context, name string, loginID string, password []byte, assignedID int, role domain.Role) error {
@@ -50,6 +51,13 @@ func (m *mockUserUsecase) GetMe(ctx context.Context) (*domain.User, error) {
 func (m *mockUserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	if m.mockGetByID != nil {
 		return m.mockGetByID(ctx, id)
+	}
+	return nil, nil
+}
+
+func (m *mockUserUsecase) GetAll(ctx context.Context) ([]*domain.User, error) {
+	if m.mockGetAll != nil {
+		return m.mockGetAll(ctx)
 	}
 	return nil, nil
 }
@@ -331,6 +339,57 @@ func TestUserHandler_GetByID(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		e.GET("/users/:id", h.GetByID)
+		e.ServeHTTP(rec, req)
+
+		assert.NotEqual(t, http.StatusOK, rec.Code)
+	})
+}
+
+func TestUserHandler_GetAll(t *testing.T) {
+	t.Run("正常系: 全ユーザーのリストが200で返ること", func(t *testing.T) {
+		e := echo.New()
+
+		user1, _ := domain.ReconstructUser(uuid.New(), "テスト1", "test1", []byte("hash"), 1, domain.RoleStudent)
+		user2, _ := domain.ReconstructUser(uuid.New(), "テスト2", "test2", []byte("hash"), 2, domain.RoleAdmin)
+
+		mockUC := &mockUserUsecase{
+			mockGetAll: func(ctx context.Context) ([]*domain.User, error) {
+				return []*domain.User{user1, user2}, nil
+			},
+		}
+		h := handler.NewUserHandler(mockUC, []byte("unit-test-secret"))
+
+		req := httptest.NewRequest(http.MethodGet, "/users", nil)
+		rec := httptest.NewRecorder()
+
+		e.GET("/users", h.GetAll)
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var res handler.GetAllUsersResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &res)
+		assert.NoError(t, err)
+
+		assert.Len(t, res.Users, 2)
+		assert.Equal(t, "テスト1", res.Users[0].Name)
+		assert.Equal(t, "テスト2", res.Users[1].Name)
+	})
+
+	t.Run("異常系: Usecaseでエラーが起きた場合はそのままエラーが返ること", func(t *testing.T) {
+		e := echo.New()
+
+		mockUC := &mockUserUsecase{
+			mockGetAll: func(ctx context.Context) ([]*domain.User, error) {
+				return nil, errors.New("db connection failed")
+			},
+		}
+		h := handler.NewUserHandler(mockUC, []byte("unit-test-secret"))
+
+		req := httptest.NewRequest(http.MethodGet, "/users", nil)
+		rec := httptest.NewRecorder()
+
+		e.GET("/users", h.GetAll)
 		e.ServeHTTP(rec, req)
 
 		assert.NotEqual(t, http.StatusOK, rec.Code)

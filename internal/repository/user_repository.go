@@ -72,8 +72,31 @@ func (ur *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Us
 }
 
 func (ur *userRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
-	// TODO: 実際の処理を書く
-	return nil, nil
+	dbUsers, err := ur.db.GetAllUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	users := make([]*domain.User, len(dbUsers))
+	for i, u := range dbUsers {
+		parsedID, err := uuid.Parse(u.ID)
+		if err != nil {
+			return nil, err
+		}
+		user, err := domain.ReconstructUser(
+			parsedID,
+			u.Name,
+			u.LoginID,
+			[]byte(u.Password),
+			int(u.AssignedBoothID.Int32),
+			domain.Role(u.Role),
+		)
+		if err != nil {
+			return nil, err
+		}
+		users[i] = user
+	}
+
+	return users, nil
 }
 
 func (ur *userRepository) GetByLoginID(ctx context.Context, loginID string) (*domain.User, error) {

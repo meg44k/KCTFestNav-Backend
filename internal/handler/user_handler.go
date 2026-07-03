@@ -22,6 +22,7 @@ type UserUsecase interface {
 	Authenticate(ctx context.Context, LoginID string, Password []byte) (*domain.User, error)
 	GetMe(ctx context.Context) (*domain.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	GetAll(ctx context.Context) ([]*domain.User, error)
 }
 
 type UserHandler struct {
@@ -124,4 +125,29 @@ func (h *UserHandler) GetByID(c *echo.Context) error {
 		Role:            user.Role,
 	}
 	return c.JSON(http.StatusOK, res)
+}
+
+type GetAllUsersResponse struct {
+	Users []GetUserResponse `json:"users"`
+}
+
+func (h *UserHandler) GetAll(c *echo.Context) error {
+	users, err := h.userUsecase.GetAll(c.Request().Context())
+	if err != nil {
+		return err
+	}
+
+	res := make([]GetUserResponse, len(users))
+	for i, u := range users {
+		res[i] = GetUserResponse{
+			ID:              u.ID,
+			Name:            u.Name,
+			LoginID:         u.LoginID,
+			AssignedBoothID: u.AssignedBoothID,
+			Role:            u.Role,
+		}
+	}
+	return c.JSON(http.StatusOK, GetAllUsersResponse{
+		Users: res,
+	})
 }

@@ -83,15 +83,17 @@ func (uu *UserUsecase) GetMe(ctx context.Context) (*domain.User, error) {
 }
 
 func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
-	if user, err := uu.userRepo.GetByID(ctx, id); err != nil {
-		return user, nil
+	user, err := uu.userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	return user, nil
 }
 
 func (uu *UserUsecase) GetAll(ctx context.Context) ([]*domain.User, error) {
-	if users, err := uu.userRepo.GetAll(ctx); err != nil {
-		return users, nil
+	users, err := uu.userRepo.GetAll(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return nil, nil
+	return users, nil
 }

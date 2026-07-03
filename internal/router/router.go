@@ -42,7 +42,7 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	manage.DELETE("/booths/:id", h.Booth.Delete)                     // ブースの削除
 
 	manage.GET("/users/:id", h.User.GetByID)    // 特定ユーザの取得
-	manage.GET("/users", handler.OK)            // 全ユーザの取得
+	manage.GET("/users", h.User.GetAll)         // 全ユーザの取得
 	manage.POST("/users", h.User.Create)        // ユーザの追加
 	manage.DELETE("/users/:userId", handler.OK) // ユーザの削除
 

@@ -66,10 +66,15 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	// ルーティングの登録
 	manage := e.Group("/manage")
 	manage.POST("/users", userHandler.Create)
+	manage.GET("/users/:id", userHandler.GetByID)
+	manage.GET("/users", userHandler.GetAll)
 
 	authGroup := e.Group("/auth")
 	authGroup.POST("/login", userHandler.Login)
 	authGroup.GET("/me", userHandler.GetMe, mv.JWTAuth(jwtSecret))
+	
+	// パス確認用（パブリックな取得想定）
+	e.GET("/users/:id", userHandler.GetByID)
 
 	return e, db, rdb
 }
@@ -80,6 +85,7 @@ func TestUserE2E(t *testing.T) {
 	defer rdb.Close()
 
 	var loginToken string
+	var createdUserID string
 
 	t.Run("POST /manage/users - ユーザーの作成", func(t *testing.T) {
 		reqBody := handler.CreateRequest{
@@ -103,10 +109,13 @@ func TestUserE2E(t *testing.T) {
 		}
 
 		// 実際にDBに登録されたか、パスワードがハッシュ化されているかを確認
+		var dbID string
 		var dbName, dbPassword string
-		err := db.QueryRow("SELECT name, password FROM users WHERE login_id = ?", "e2e_test_user").Scan(&dbName, &dbPassword)
+		err := db.QueryRow("SELECT id, name, password FROM users WHERE login_id = ?", "e2e_test_user").Scan(&dbID, &dbName, &dbPassword)
 		assert.NoError(t, err)
 		assert.Equal(t, "E2Eテストユーザー", dbName)
+		
+		createdUserID = dbID
 		// 生のパスワードのまま保存されていないことを確認！
 		assert.NotEqual(t, "my_secure_password", dbPassword)
 	})
@@ -199,5 +208,66 @@ func TestUserE2E(t *testing.T) {
 		e.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+	t.Run("GET /users/:id - ユーザー情報をIDで取得できること", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/users/"+createdUserID, nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		if !assert.Equal(t, http.StatusOK, rec.Code) {
+			t.Logf("Response body: %s", rec.Body.String())
+		}
+
+		var res handler.GetUserResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &res)
+		assert.NoError(t, err)
+
+		assert.Equal(t, createdUserID, res.ID.String())
+		assert.Equal(t, "E2Eテストユーザー", res.Name)
+		assert.Equal(t, "e2e_test_user", res.LoginID)
+		assert.Equal(t, domain.RoleStudent, res.Role)
+	})
+
+	t.Run("GET /users/:id - 存在しないUUIDの場合は404エラーになること", func(t *testing.T) {
+		// ランダムなUUIDを生成
+		randomID := "123e4567-e89b-12d3-a456-426614174000"
+		req := httptest.NewRequest(http.MethodGet, "/users/"+randomID, nil)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("GET /manage/users - ユーザー一覧を取得できること", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/manage/users", nil)
+		// manage グループは JWT 認証が必要（※E2EのsetupUserE2ETestではmanageにJWTをかけていないが、一応付けておく）
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+loginToken)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		if !assert.Equal(t, http.StatusOK, rec.Code) {
+			t.Logf("Response body: %s", rec.Body.String())
+		}
+
+		var res handler.GetAllUsersResponse
+		err := json.Unmarshal(rec.Body.Bytes(), &res)
+		assert.NoError(t, err)
+
+		// さきほど作成したE2Eテストユーザーが最低1人は含まれているはず
+		assert.GreaterOrEqual(t, len(res.Users), 1)
+		
+		var found bool
+		for _, u := range res.Users {
+			if u.LoginID == "e2e_test_user" {
+				assert.Equal(t, "E2Eテストユーザー", u.Name)
+				assert.Equal(t, domain.RoleStudent, u.Role)
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "作成したテストユーザーが一覧に含まれていません")
 	})
 }
