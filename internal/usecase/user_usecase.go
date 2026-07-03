@@ -81,6 +81,10 @@ func (uu *UserUsecase) Update(
 }
 
 func (uu *UserUsecase) Delete(ctx context.Context, id uuid.UUID) error {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return ErrForbidden
+	}
 	return uu.userRepo.Delete(ctx, id)
 }
 

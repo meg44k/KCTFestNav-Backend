@@ -150,7 +150,7 @@ func (h *BoothHandler) Delete(c *echo.Context) error {
 	if err := h.boothUsecase.Delete(c.Request().Context(), id); err != nil {
 		return err
 	}
-	return nil
+	return c.NoContent(http.StatusNoContent)
 }
 
 type UpdateBoothRequest struct {

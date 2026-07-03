@@ -255,3 +255,47 @@ func TestUserUsecase_Update(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestUserUsecase_Delete(t *testing.T) {
+	t.Run("正常系: Admin権限であれば削除できること", func(t *testing.T) {
+		targetID := uuid.New()
+		mockRepo := &mockUserRepository{
+			mockDelete: func(ctx context.Context, id uuid.UUID) error {
+				assert.Equal(t, targetID, id)
+				return nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Delete(ctx, targetID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("異常系: Admin権限でない場合は ErrForbidden が返ること", func(t *testing.T) {
+		uc := usecase.NewUserUsecase(&mockUserRepository{})
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleStudent, AssignedBoothID: 1}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Delete(ctx, uuid.New())
+		assert.ErrorIs(t, err, usecase.ErrForbidden)
+	})
+
+	t.Run("異常系: リポジトリがエラーを返した場合はそのままエラーを返すこと", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			mockDelete: func(ctx context.Context, id uuid.UUID) error {
+				return errors.New("db error")
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Delete(ctx, uuid.New())
+		assert.Error(t, err)
+	})
+}

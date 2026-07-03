@@ -41,11 +41,11 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	manage.PATCH("/booths/:id/congestion", h.Booth.UpdateCongestion) // ブースの混雑度の変更
 	manage.DELETE("/booths/:id", h.Booth.Delete)                     // ブースの削除
 
-	manage.GET("/users/:id", h.User.GetByID) // 特定ユーザの取得
-	manage.GET("/users", h.User.GetAll)      // 全ユーザの取得
-	manage.POST("/users", h.User.Create)     // ユーザの追加
-	manage.PUT("/users/:id", h.User.Update)  // ユーザの更新
-	manage.DELETE("/users/:id", handler.OK)  // ユーザの削除
+	manage.GET("/users/:id", h.User.GetByID)   // 特定ユーザの取得
+	manage.GET("/users", h.User.GetAll)        // 全ユーザの取得
+	manage.POST("/users", h.User.Create)       // ユーザの追加
+	manage.PUT("/users/:id", h.User.Update)    // ユーザの更新
+	manage.DELETE("/users/:id", h.User.Delete) // ユーザの削除
 
 	manage.POST("/lives", h.Live.Create)
 	manage.PUT("/lives/:id", h.Live.Update)

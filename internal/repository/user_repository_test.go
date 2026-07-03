@@ -229,3 +229,30 @@ func TestUserRepository_Update(t *testing.T) {
 		assert.Equal(t, 999, fetchedUser.AssignedBoothID)
 	})
 }
+
+func TestUserRepository_Delete(t *testing.T) {
+	db, rdb := setupUserTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+	repo := repository.NewUserRepository(db, rdb)
+	ctx := context.Background()
+
+	t.Run("正常系: ユーザーを削除できること", func(t *testing.T) {
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
+		_, _ = db.Exec("TRUNCATE TABLE users")
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+
+		targetID := uuid.New()
+		user, _ := domain.ReconstructUser(targetID, "削除されるユーザー", "delete_user", []byte("hash"), 0, domain.RoleStudent)
+
+		err := repo.Create(ctx, user)
+		assert.NoError(t, err)
+
+		err = repo.Delete(ctx, targetID)
+		assert.NoError(t, err)
+
+		// 削除されているか確認
+		_, err = repo.GetByID(ctx, targetID)
+		assert.Error(t, err) // 取得できないためエラーになるはず
+	})
+}

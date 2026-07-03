@@ -54,8 +54,7 @@ func (ur *userRepository) Update(ctx context.Context, u *domain.User) error {
 }
 
 func (ur *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	// TODO: 実際の処理を書く
-	return nil
+	return ur.db.DeleteUser(ctx, id.String())
 }
 
 func (ur *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {

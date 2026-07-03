@@ -32,6 +32,10 @@ type UserUsecase interface {
 		assignedBoothID int,
 		role domain.Role,
 	) error
+	Delete(
+		ctx context.Context,
+		id uuid.UUID,
+	) error
 }
 
 type UserHandler struct {
@@ -193,5 +197,16 @@ func (h *UserHandler) Update(c *echo.Context) error {
 		return err
 	}
 
+	return c.NoContent(http.StatusNoContent)
+}
+
+func (h *UserHandler) Delete(c *echo.Context) error {
+	id, err := getUUIDParam(c)
+	if err != nil {
+		return err
+	}
+	if err := h.userUsecase.Delete(c.Request().Context(), id); err != nil {
+		return err
+	}
 	return c.NoContent(http.StatusNoContent)
 }

@@ -53,10 +53,14 @@ func main() {
 	boothUsecase := usecase.NewBoothUsecase(boothRepo)
 	boothHandler := handler.NewBoothHandler(boothUsecase)
 
+	userRepo := repository.NewUserRepository(db, rdb)
+	userUsecase := usecase.NewUserUsecase(userRepo)
+	userHandler := handler.NewUserHandler(userUsecase, []byte(os.Getenv("jwtSecret")))
 	// ハンドラをまとめてルーターに渡す(ここもっと良くなるかも)
 	handlers := &handler.Handlers{
 		Live:  liveHandler,
 		Booth: boothHandler,
+		User:  userHandler,
 	}
 
 	router.InitRoutes(e, handlers)

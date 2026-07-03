@@ -69,6 +69,7 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	manage.GET("/users/:id", userHandler.GetByID)
 	manage.GET("/users", userHandler.GetAll)
 	manage.PUT("/users/:id", userHandler.Update, mv.JWTAuth(jwtSecret))
+	manage.DELETE("/users/:id", userHandler.Delete, mv.JWTAuth(jwtSecret))
 
 	authGroup := e.Group("/auth")
 	authGroup.POST("/login", userHandler.Login)
@@ -335,5 +336,39 @@ func TestUserE2E(t *testing.T) {
 		assert.Equal(t, string(domain.RoleMember), dbRole)
 		assert.True(t, dbBoothID.Valid)
 		assert.Equal(t, int32(999), dbBoothID.Int32)
+	})
+
+	t.Run("DELETE /manage/users/:id - ユーザーを削除できること(Admin権限)", func(t *testing.T) {
+		// Adminユーザーでログインしてトークンを取得
+		loginReq := handler.LoginRequest{
+			LoginID:  "admin_user",
+			Password: "admin_pass",
+		}
+		loginBody, _ := json.Marshal(loginReq)
+		reqLogin := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(loginBody))
+		reqLogin.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		recLogin := httptest.NewRecorder()
+		e.ServeHTTP(recLogin, reqLogin)
+		assert.Equal(t, http.StatusOK, recLogin.Code)
+
+		var loginRes handler.LoginResponse
+		json.Unmarshal(recLogin.Body.Bytes(), &loginRes)
+		adminToken := loginRes.Token
+
+		// Deleteリクエスト
+		reqDel := httptest.NewRequest(http.MethodDelete, "/manage/users/"+createdUserID, nil)
+		reqDel.Header.Set(echo.HeaderAuthorization, "Bearer "+adminToken)
+		recDel := httptest.NewRecorder()
+		e.ServeHTTP(recDel, reqDel)
+
+		if !assert.Equal(t, http.StatusNoContent, recDel.Code) {
+			t.Logf("Response body: %s", recDel.Body.String())
+		}
+
+		// 削除されたかDBで確認
+		var count int
+		err := db.QueryRow("SELECT COUNT(*) FROM users WHERE id = ?", createdUserID).Scan(&count)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, count)
 	})
 }

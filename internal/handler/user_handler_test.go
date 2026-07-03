@@ -26,6 +26,7 @@ type mockUserUsecase struct {
 	mockGetByID      func(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	mockGetAll       func(ctx context.Context) ([]*domain.User, error)
 	mockUpdate       func(ctx context.Context, id uuid.UUID, name string, loginID string, password []byte, assignedBoothID int, role domain.Role) error
+	mockDelete       func(ctx context.Context, id uuid.UUID) error
 }
 
 func (m *mockUserUsecase) Create(ctx context.Context, name string, loginID string, password []byte, assignedID int, role domain.Role) error {
@@ -38,6 +39,13 @@ func (m *mockUserUsecase) Create(ctx context.Context, name string, loginID strin
 func (m *mockUserUsecase) Update(ctx context.Context, id uuid.UUID, name string, loginID string, password []byte, assignedBoothID int, role domain.Role) error {
 	if m.mockUpdate != nil {
 		return m.mockUpdate(ctx, id, name, loginID, password, assignedBoothID, role)
+	}
+	return nil
+}
+
+func (m *mockUserUsecase) Delete(ctx context.Context, id uuid.UUID) error {
+	if m.mockDelete != nil {
+		return m.mockDelete(ctx, id)
 	}
 	return nil
 }
@@ -477,6 +485,62 @@ func TestUserHandler_Update(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		e.PUT("/users/:id", h.Update)
+		e.ServeHTTP(rec, req)
+
+		assert.NotEqual(t, http.StatusNoContent, rec.Code)
+	})
+}
+
+func TestUserHandler_Delete(t *testing.T) {
+	t.Run("正常系: 存在するユーザーを削除できること", func(t *testing.T) {
+		e := echo.New()
+		targetID := uuid.New()
+
+		mockUC := &mockUserUsecase{
+			mockDelete: func(ctx context.Context, id uuid.UUID) error {
+				assert.Equal(t, targetID, id)
+				return nil
+			},
+		}
+		h := handler.NewUserHandler(mockUC, []byte("unit-test-secret"))
+
+		req := httptest.NewRequest(http.MethodDelete, "/users/"+targetID.String(), nil)
+		rec := httptest.NewRecorder()
+
+		e.DELETE("/users/:id", h.Delete)
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusNoContent, rec.Code)
+	})
+
+	t.Run("異常系: 不正なUUID形式の場合はエラーが返ること", func(t *testing.T) {
+		e := echo.New()
+		h := handler.NewUserHandler(&mockUserUsecase{}, []byte("unit-test-secret"))
+
+		req := httptest.NewRequest(http.MethodDelete, "/users/invalid-uuid", nil)
+		rec := httptest.NewRecorder()
+
+		e.DELETE("/users/:id", h.Delete)
+		e.ServeHTTP(rec, req)
+
+		assert.NotEqual(t, http.StatusNoContent, rec.Code)
+	})
+
+	t.Run("異常系: Usecase層でエラーが起きた場合はそのままエラーが返ること", func(t *testing.T) {
+		e := echo.New()
+		targetID := uuid.New()
+
+		mockUC := &mockUserUsecase{
+			mockDelete: func(ctx context.Context, id uuid.UUID) error {
+				return errors.New("delete error")
+			},
+		}
+		h := handler.NewUserHandler(mockUC, []byte("unit-test-secret"))
+
+		req := httptest.NewRequest(http.MethodDelete, "/users/"+targetID.String(), nil)
+		rec := httptest.NewRecorder()
+
+		e.DELETE("/users/:id", h.Delete)
 		e.ServeHTTP(rec, req)
 
 		assert.NotEqual(t, http.StatusNoContent, rec.Code)
