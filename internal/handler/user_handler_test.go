@@ -25,11 +25,19 @@ type mockUserUsecase struct {
 	mockGetMe        func(ctx context.Context) (*domain.User, error)
 	mockGetByID      func(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	mockGetAll       func(ctx context.Context) ([]*domain.User, error)
+	mockUpdate       func(ctx context.Context, id uuid.UUID, name string, loginID string, password []byte, assignedBoothID int, role domain.Role) error
 }
 
 func (m *mockUserUsecase) Create(ctx context.Context, name string, loginID string, password []byte, assignedID int, role domain.Role) error {
 	if m.mockCreate != nil {
 		return m.mockCreate(ctx, name, loginID, password, assignedID, role)
+	}
+	return nil
+}
+
+func (m *mockUserUsecase) Update(ctx context.Context, id uuid.UUID, name string, loginID string, password []byte, assignedBoothID int, role domain.Role) error {
+	if m.mockUpdate != nil {
+		return m.mockUpdate(ctx, id, name, loginID, password, assignedBoothID, role)
 	}
 	return nil
 }
@@ -393,5 +401,84 @@ func TestUserHandler_GetAll(t *testing.T) {
 		e.ServeHTTP(rec, req)
 
 		assert.NotEqual(t, http.StatusOK, rec.Code)
+	})
+}
+
+func TestUserHandler_Update(t *testing.T) {
+	t.Run("正常系: ユーザーを更新できること", func(t *testing.T) {
+		e := echo.New()
+		targetID := uuid.New()
+
+		mockUC := &mockUserUsecase{
+			mockUpdate: func(ctx context.Context, id uuid.UUID, name, loginID string, password []byte, assignedID int, role domain.Role) error {
+				assert.Equal(t, targetID, id)
+				assert.Equal(t, "更新後の名前", name)
+				assert.Equal(t, "updated_login", loginID)
+				assert.Equal(t, []byte("newpass"), password)
+				assert.Equal(t, 999, assignedID)
+				assert.Equal(t, domain.RoleAdmin, role)
+				return nil
+			},
+		}
+		h := handler.NewUserHandler(mockUC, []byte("unit-test-secret"))
+
+		// 構造体をそのままMarshalすると相手先の修正前・修正後でコンパイルが通らなくなるため、
+		// クライアントからの実際のリクエストと同じように map を使って JSON を組み立てます
+		reqBody := map[string]interface{}{
+			"name":              "更新後の名前",
+			"login_id":          "updated_login",
+			"password":          "newpass", // 生の文字列
+			"assigned_booth_id": 999,
+			"role":              domain.RoleAdmin,
+		}
+		bodyBytes, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/users/"+targetID.String(), bytes.NewReader(bodyBytes))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.PUT("/users/:id", h.Update)
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusNoContent, rec.Code)
+	})
+
+	t.Run("異常系: 不正なUUID形式の場合はエラーが返ること", func(t *testing.T) {
+		e := echo.New()
+		h := handler.NewUserHandler(&mockUserUsecase{}, []byte("unit-test-secret"))
+
+		req := httptest.NewRequest(http.MethodPut, "/users/invalid-uuid", nil)
+		rec := httptest.NewRecorder()
+
+		e.PUT("/users/:id", h.Update)
+		e.ServeHTTP(rec, req)
+
+		assert.NotEqual(t, http.StatusNoContent, rec.Code)
+	})
+
+	t.Run("異常系: Usecase層でエラーが起きた場合はそのままエラーが返ること", func(t *testing.T) {
+		e := echo.New()
+		targetID := uuid.New()
+
+		mockUC := &mockUserUsecase{
+			mockUpdate: func(ctx context.Context, id uuid.UUID, name, loginID string, password []byte, assignedID int, role domain.Role) error {
+				return errors.New("forbidden or db error")
+			},
+		}
+		h := handler.NewUserHandler(mockUC, []byte("unit-test-secret"))
+
+		reqBody := map[string]interface{}{
+			"name": "更新後の名前",
+		}
+		bodyBytes, _ := json.Marshal(reqBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/users/"+targetID.String(), bytes.NewReader(bodyBytes))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+
+		e.PUT("/users/:id", h.Update)
+		e.ServeHTTP(rec, req)
+
+		assert.NotEqual(t, http.StatusNoContent, rec.Code)
 	})
 }

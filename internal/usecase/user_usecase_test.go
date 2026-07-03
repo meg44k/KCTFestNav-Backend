@@ -211,3 +211,47 @@ func TestUserUsecase_GetAll(t *testing.T) {
 		assert.Nil(t, users)
 	})
 }
+
+func TestUserUsecase_Update(t *testing.T) {
+	t.Run("正常系: Admin権限であれば更新できること", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			mockUpdate: func(ctx context.Context, user *domain.User) error {
+				assert.Equal(t, "更新後の名前", user.Name)
+				assert.Equal(t, "new_login", user.LoginID)
+				return nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Update(ctx, uuid.New(), "更新後の名前", "new_login", []byte("pass"), 1, domain.RoleStudent)
+		assert.NoError(t, err)
+	})
+
+	t.Run("異常系: Admin権限でない場合は ErrForbidden が返ること", func(t *testing.T) {
+		uc := usecase.NewUserUsecase(&mockUserRepository{})
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleStudent, AssignedBoothID: 1}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Update(ctx, uuid.New(), "更新後の名前", "new_login", []byte("pass"), 1, domain.RoleStudent)
+		assert.ErrorIs(t, err, usecase.ErrForbidden)
+	})
+
+	t.Run("異常系: リポジトリがエラーを返した場合はそのままエラーを返すこと", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			mockUpdate: func(ctx context.Context, user *domain.User) error {
+				return errors.New("db error")
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Update(ctx, uuid.New(), "更新後の名前", "new_login", []byte("pass"), 1, domain.RoleStudent)
+		assert.Error(t, err)
+	})
+}

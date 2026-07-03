@@ -16,13 +16,22 @@ type UserUsecase interface {
 		name string,
 		loginID string,
 		password []byte,
-		assignedID int,
+		assignedBoothID int,
 		role domain.Role,
 	) error
 	Authenticate(ctx context.Context, LoginID string, Password []byte) (*domain.User, error)
 	GetMe(ctx context.Context) (*domain.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetAll(ctx context.Context) ([]*domain.User, error)
+	Update(
+		ctx context.Context,
+		id uuid.UUID,
+		name string,
+		loginID string,
+		password []byte,
+		assignedBoothID int,
+		role domain.Role,
+	) error
 }
 
 type UserHandler struct {
@@ -150,4 +159,39 @@ func (h *UserHandler) GetAll(c *echo.Context) error {
 	return c.JSON(http.StatusOK, GetAllUsersResponse{
 		Users: res,
 	})
+}
+
+type UpdateUserRequest struct {
+	ID              uuid.UUID   `json:"id"`
+	Name            string      `json:"name"`
+	LoginID         string      `json:"login_id"`
+	Password        string      `json:"password"`
+	AssignedBoothID int         `json:"assigned_booth_id"`
+	Role            domain.Role `json:"role"`
+}
+
+func (h *UserHandler) Update(c *echo.Context) error {
+	var req UpdateUserRequest
+	if err := c.Bind(&req); err != nil {
+		return err
+	}
+
+	id, err := getUUIDParam(c)
+	if err != nil {
+		return err
+	}
+
+	err = h.userUsecase.Update(
+		c.Request().Context(),
+		id,
+		req.Name,
+		req.LoginID,
+		[]byte(req.Password),
+		req.AssignedBoothID,
+		req.Role)
+	if err != nil {
+		return err
+	}
+
+	return c.NoContent(http.StatusNoContent)
 }

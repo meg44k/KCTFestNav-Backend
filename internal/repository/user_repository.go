@@ -39,8 +39,18 @@ func (ur *userRepository) Create(ctx context.Context, u *domain.User) error {
 }
 
 func (ur *userRepository) Update(ctx context.Context, u *domain.User) error {
-	// TODO: 実際の処理を書く
-	return nil
+	arg := database.UpdateUserParams{
+		LoginID: u.LoginID,
+		Name:    u.Name,
+		AssignedBoothID: sql.NullInt32{
+			Int32: int32(u.AssignedBoothID),
+			Valid: u.AssignedBoothID != 0,
+		},
+		Password: string(u.Password),
+		Role:     string(u.Role),
+		ID:       u.ID.String(),
+	}
+	return ur.db.UpdateUser(ctx, arg)
 }
 
 func (ur *userRepository) Delete(ctx context.Context, id uuid.UUID) error {

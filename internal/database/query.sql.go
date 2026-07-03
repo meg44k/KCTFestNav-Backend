@@ -419,3 +419,35 @@ func (q *Queries) UpdateLiveStatus(ctx context.Context, arg UpdateLiveStatusPara
 	_, err := q.db.ExecContext(ctx, updateLiveStatus, arg.Status, arg.ID)
 	return err
 }
+
+const updateUser = `-- name: UpdateUser :exec
+UPDATE users
+SET
+    login_id = ?,
+    name = ?,
+    assigned_booth_id = ?,
+    password = ?,
+    role = ?
+WHERE id = ?
+`
+
+type UpdateUserParams struct {
+	LoginID         string
+	Name            string
+	AssignedBoothID sql.NullInt32
+	Password        string
+	Role            string
+	ID              string
+}
+
+func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
+	_, err := q.db.ExecContext(ctx, updateUser,
+		arg.LoginID,
+		arg.Name,
+		arg.AssignedBoothID,
+		arg.Password,
+		arg.Role,
+		arg.ID,
+	)
+	return err
+}

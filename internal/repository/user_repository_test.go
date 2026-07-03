@@ -188,3 +188,44 @@ func TestUserRepository_GetAll(t *testing.T) {
 		assert.Equal(t, "ブース所属テスト", users[0].Name)
 	})
 }
+
+func TestUserRepository_Update(t *testing.T) {
+	db, rdb := setupUserTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+
+	repo := repository.NewUserRepository(db, rdb)
+	ctx := context.Background()
+
+	t.Run("正常系: ユーザー情報を更新できること", func(t *testing.T) {
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
+		_, _ = db.Exec("TRUNCATE TABLE users")
+		_, _ = db.Exec("TRUNCATE TABLE booths")
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+
+		// 更新用のブースを用意しておく
+		_, _ = db.Exec("INSERT INTO booths (id, name, organizer, detail, x, y, z) VALUES (999, 'テストブース', '主催', '詳細', 0, 0, 0)")
+
+		targetID := uuid.New()
+		user, _ := domain.ReconstructUser(targetID, "元の名前", "login_id", []byte("hash"), 0, domain.RoleStudent)
+
+		// Create
+		err := repo.Create(ctx, user)
+		assert.NoError(t, err)
+
+		// 情報を書き換えたドメインモデルを用意 (ブースIDも999に変更)
+		updatedUser, _ := domain.ReconstructUser(targetID, "更新後の名前", "updated_login", []byte("new_hash"), 999, domain.RoleAdmin)
+
+		// Update
+		err = repo.Update(ctx, updatedUser)
+		assert.NoError(t, err)
+
+		// DBから取得して更新されているか確認
+		fetchedUser, err := repo.GetByID(ctx, targetID)
+		assert.NoError(t, err)
+		assert.Equal(t, "更新後の名前", fetchedUser.Name)
+		assert.Equal(t, "updated_login", fetchedUser.LoginID)
+		assert.Equal(t, domain.RoleAdmin, fetchedUser.Role)
+		assert.Equal(t, 999, fetchedUser.AssignedBoothID)
+	})
+}

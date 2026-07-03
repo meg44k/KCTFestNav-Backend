@@ -32,12 +32,12 @@ func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 	}
 }
 
-func (uu *UserUsecase) Create(ctx context.Context, name string, loginID string, inputPassword []byte, assignedID int, role domain.Role) error {
+func (uu *UserUsecase) Create(ctx context.Context, name string, loginID string, inputPassword []byte, assignedBoothID int, role domain.Role) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword(inputPassword, bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-	user, err := domain.NewUser(name, loginID, hashedPassword, assignedID, role)
+	user, err := domain.NewUser(name, loginID, hashedPassword, assignedBoothID, role)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,22 @@ func (uu *UserUsecase) Authenticate(ctx context.Context, loginID string, inputPa
 	return user, nil
 }
 
-func (uu *UserUsecase) Update(ctx context.Context, user *domain.User) error {
+func (uu *UserUsecase) Update(
+	ctx context.Context,
+	id uuid.UUID,
+	name string,
+	loginID string,
+	password []byte,
+	assignedBoothID int,
+	role domain.Role) error {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return ErrForbidden
+	}
+	user, err := domain.ReconstructUser(id, name, loginID, password, assignedBoothID, role)
+	if err != nil {
+		return err
+	}
 	return uu.userRepo.Update(ctx, user)
 }
 

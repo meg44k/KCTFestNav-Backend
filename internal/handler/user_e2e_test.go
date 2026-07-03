@@ -68,6 +68,7 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	manage.POST("/users", userHandler.Create)
 	manage.GET("/users/:id", userHandler.GetByID)
 	manage.GET("/users", userHandler.GetAll)
+	manage.PUT("/users/:id", userHandler.Update, mv.JWTAuth(jwtSecret))
 
 	authGroup := e.Group("/auth")
 	authGroup.POST("/login", userHandler.Login)
@@ -269,5 +270,70 @@ func TestUserE2E(t *testing.T) {
 			}
 		}
 		assert.True(t, found, "作成したテストユーザーが一覧に含まれていません")
+	})
+
+	t.Run("PUT /manage/users/:id - ユーザー情報を更新できること(Admin権限)", func(t *testing.T) {
+		// 1. Adminユーザーを作成する
+		adminReq := handler.CreateRequest{
+			Name:            "管理者ユーザー",
+			LoginID:         "admin_user",
+			Password:        "admin_pass",
+			AssignedBoothID: 0,
+			Role:            domain.RoleAdmin,
+		}
+		adminBody, _ := json.Marshal(adminReq)
+		req1 := httptest.NewRequest(http.MethodPost, "/manage/users", bytes.NewReader(adminBody))
+		req1.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec1 := httptest.NewRecorder()
+		e.ServeHTTP(rec1, req1)
+		assert.Equal(t, http.StatusCreated, rec1.Code)
+
+		// 2. Adminユーザーでログインしてトークンを取得
+		loginReq := handler.LoginRequest{
+			LoginID:  "admin_user",
+			Password: "admin_pass",
+		}
+		loginBody, _ := json.Marshal(loginReq)
+		req2 := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(loginBody))
+		req2.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec2 := httptest.NewRecorder()
+		e.ServeHTTP(rec2, req2)
+		assert.Equal(t, http.StatusOK, rec2.Code)
+		var loginRes handler.LoginResponse
+		json.Unmarshal(rec2.Body.Bytes(), &loginRes)
+		adminToken := loginRes.Token
+
+		// 3. 更新用ブースを用意
+		_, _ = db.Exec("INSERT INTO booths (id, name, organizer, detail, x, y, z) VALUES (999, 'E2Eブース', '主催', '詳細', 0, 0, 0)")
+
+		// 4. 先ほど作成した一般ユーザー(createdUserID)の情報を更新する
+		updateReq := map[string]interface{}{
+			"name":              "E2Eテストユーザー(更新済)",
+			"login_id":          "e2e_test_user_updated",
+			"password":          "new_secure_password", // 生の文字列
+			"assigned_booth_id": 999,
+			"role":              domain.RoleMember,
+		}
+		updateBody, _ := json.Marshal(updateReq)
+		req3 := httptest.NewRequest(http.MethodPut, "/manage/users/"+createdUserID, bytes.NewReader(updateBody))
+		req3.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req3.Header.Set(echo.HeaderAuthorization, "Bearer "+adminToken)
+		rec3 := httptest.NewRecorder()
+		e.ServeHTTP(rec3, req3)
+		
+		if !assert.Equal(t, http.StatusNoContent, rec3.Code) {
+			t.Logf("Response body: %s", rec3.Body.String())
+		}
+
+		// 5. 更新されたことを確認
+		var dbName string
+		var dbRole string
+		var dbBoothID sql.NullInt32
+		err := db.QueryRow("SELECT name, role, assigned_booth_id FROM users WHERE id = ?", createdUserID).Scan(&dbName, &dbRole, &dbBoothID)
+		assert.NoError(t, err)
+		assert.Equal(t, "E2Eテストユーザー(更新済)", dbName)
+		assert.Equal(t, string(domain.RoleMember), dbRole)
+		assert.True(t, dbBoothID.Valid)
+		assert.Equal(t, int32(999), dbBoothID.Int32)
 	})
 }
