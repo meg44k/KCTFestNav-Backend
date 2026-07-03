@@ -2,18 +2,19 @@ package handler_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
-	"context"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/meg44k/KCTFestNav-Backend/internal/handler"
@@ -53,7 +54,7 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	// 依存関係（DI）のセットアップ
 	repo := repository.NewUserRepository(db, rdb)
 	uc := usecase.NewUserUsecase(repo)
-	
+
 	jwtSecret := []byte("test-secret")
 	userHandler := handler.NewUserHandler(uc, jwtSecret)
 
@@ -65,16 +66,17 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 
 	// ルーティングの登録
 	manage := e.Group("/manage")
+	manage.Use(mv.JWTAuth(jwtSecret))
 	manage.POST("/users", userHandler.Create)
 	manage.GET("/users/:id", userHandler.GetByID)
 	manage.GET("/users", userHandler.GetAll)
-	manage.PUT("/users/:id", userHandler.Update, mv.JWTAuth(jwtSecret))
-	manage.DELETE("/users/:id", userHandler.Delete, mv.JWTAuth(jwtSecret))
+	manage.PUT("/users/:id", userHandler.Update)
+	manage.DELETE("/users/:id", userHandler.Delete)
 
 	authGroup := e.Group("/auth")
 	authGroup.POST("/login", userHandler.Login)
 	authGroup.GET("/me", userHandler.GetMe, mv.JWTAuth(jwtSecret))
-	
+
 	// パス確認用（パブリックな取得想定）
 	e.GET("/users/:id", userHandler.GetByID)
 
@@ -88,6 +90,27 @@ func TestUserE2E(t *testing.T) {
 
 	var loginToken string
 	var createdUserID string
+	var adminToken string
+
+	t.Run("初期化: AdminユーザーをDBに直接作成し、ログインしてトークンを取得", func(t *testing.T) {
+		adminHash, _ := bcrypt.GenerateFromPassword([]byte("admin_pass"), bcrypt.DefaultCost)
+		_, err := db.Exec("INSERT INTO users (id, name, login_id, password, role, assigned_booth_id) VALUES (?, ?, ?, ?, ?, NULL)", "00000000-0000-0000-0000-000000000001", "管理者", "admin_user", adminHash, domain.RoleAdmin)
+		assert.NoError(t, err)
+
+		loginReq := handler.LoginRequest{
+			LoginID:  "admin_user",
+			Password: "admin_pass",
+		}
+		loginBody, _ := json.Marshal(loginReq)
+		req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(loginBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		var loginRes handler.LoginResponse
+		json.Unmarshal(rec.Body.Bytes(), &loginRes)
+		adminToken = loginRes.Token
+	})
 
 	t.Run("POST /manage/users - ユーザーの作成", func(t *testing.T) {
 		reqBody := handler.CreateRequest{
@@ -101,6 +124,7 @@ func TestUserE2E(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodPost, "/manage/users", bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+adminToken)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -116,7 +140,7 @@ func TestUserE2E(t *testing.T) {
 		err := db.QueryRow("SELECT id, name, password FROM users WHERE login_id = ?", "e2e_test_user").Scan(&dbID, &dbName, &dbPassword)
 		assert.NoError(t, err)
 		assert.Equal(t, "E2Eテストユーザー", dbName)
-		
+
 		createdUserID = dbID
 		// 生のパスワードのまま保存されていないことを確認！
 		assert.NotEqual(t, "my_secure_password", dbPassword)
@@ -165,7 +189,7 @@ func TestUserE2E(t *testing.T) {
 		// 401 Unauthorized が返ってくること
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
-	
+
 	t.Run("POST /auth/login - ログイン失敗（存在しないLoginID）", func(t *testing.T) {
 		reqBody := handler.LoginRequest{
 			LoginID:  "ghost_user", // 存在しないユーザー
@@ -244,8 +268,7 @@ func TestUserE2E(t *testing.T) {
 
 	t.Run("GET /manage/users - ユーザー一覧を取得できること", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/manage/users", nil)
-		// manage グループは JWT 認証が必要（※E2EのsetupUserE2ETestではmanageにJWTをかけていないが、一応付けておく）
-		req.Header.Set(echo.HeaderAuthorization, "Bearer "+loginToken)
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+adminToken)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -260,7 +283,7 @@ func TestUserE2E(t *testing.T) {
 
 		// さきほど作成したE2Eテストユーザーが最低1人は含まれているはず
 		assert.GreaterOrEqual(t, len(res.Users), 1)
-		
+
 		var found bool
 		for _, u := range res.Users {
 			if u.LoginID == "e2e_test_user" {
@@ -274,36 +297,6 @@ func TestUserE2E(t *testing.T) {
 	})
 
 	t.Run("PUT /manage/users/:id - ユーザー情報を更新できること(Admin権限)", func(t *testing.T) {
-		// 1. Adminユーザーを作成する
-		adminReq := handler.CreateRequest{
-			Name:            "管理者ユーザー",
-			LoginID:         "admin_user",
-			Password:        "admin_pass",
-			AssignedBoothID: 0,
-			Role:            domain.RoleAdmin,
-		}
-		adminBody, _ := json.Marshal(adminReq)
-		req1 := httptest.NewRequest(http.MethodPost, "/manage/users", bytes.NewReader(adminBody))
-		req1.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec1 := httptest.NewRecorder()
-		e.ServeHTTP(rec1, req1)
-		assert.Equal(t, http.StatusCreated, rec1.Code)
-
-		// 2. Adminユーザーでログインしてトークンを取得
-		loginReq := handler.LoginRequest{
-			LoginID:  "admin_user",
-			Password: "admin_pass",
-		}
-		loginBody, _ := json.Marshal(loginReq)
-		req2 := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(loginBody))
-		req2.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		rec2 := httptest.NewRecorder()
-		e.ServeHTTP(rec2, req2)
-		assert.Equal(t, http.StatusOK, rec2.Code)
-		var loginRes handler.LoginResponse
-		json.Unmarshal(rec2.Body.Bytes(), &loginRes)
-		adminToken := loginRes.Token
-
 		// 3. 更新用ブースを用意
 		_, _ = db.Exec("INSERT INTO booths (id, name, organizer, detail, x, y, z) VALUES (999, 'E2Eブース', '主催', '詳細', 0, 0, 0)")
 
@@ -321,7 +314,7 @@ func TestUserE2E(t *testing.T) {
 		req3.Header.Set(echo.HeaderAuthorization, "Bearer "+adminToken)
 		rec3 := httptest.NewRecorder()
 		e.ServeHTTP(rec3, req3)
-		
+
 		if !assert.Equal(t, http.StatusNoContent, rec3.Code) {
 			t.Logf("Response body: %s", rec3.Body.String())
 		}

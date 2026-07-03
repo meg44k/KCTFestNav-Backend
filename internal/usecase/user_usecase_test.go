@@ -191,7 +191,10 @@ func TestUserUsecase_GetAll(t *testing.T) {
 		}
 		uc := usecase.NewUserUsecase(mockRepo)
 
-		users, err := uc.GetAll(context.Background())
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		users, err := uc.GetAll(ctx)
 		assert.NoError(t, err)
 		assert.Len(t, users, 2)
 		assert.Equal(t, "テスト1", users[0].Name)
@@ -206,7 +209,10 @@ func TestUserUsecase_GetAll(t *testing.T) {
 		}
 		uc := usecase.NewUserUsecase(mockRepo)
 
-		users, err := uc.GetAll(context.Background())
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		users, err := uc.GetAll(ctx)
 		assert.Error(t, err)
 		assert.Nil(t, users)
 	})
