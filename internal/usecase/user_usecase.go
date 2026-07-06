@@ -126,3 +126,24 @@ func (uu *UserUsecase) GetAll(ctx context.Context) ([]*domain.User, error) {
 	}
 	return users, nil
 }
+
+func (uu *UserUsecase) InitAdminUser(ctx context.Context, loginID string, inputPassword []byte) error {
+	_, err := uu.userRepo.GetByLoginID(ctx, loginID)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, repository.ErrNotFound) {
+		return err
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(inputPassword, bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user, err := domain.NewUser("admin", loginID, hashedPassword, 0, domain.RoleAdmin)
+	if err != nil {
+		return err
+	}
+	return uu.userRepo.Create(ctx, user)
+}
