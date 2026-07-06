@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
@@ -37,6 +38,9 @@ func main() {
 		ParseTime: true,
 	}
 	db, err := sql.Open("mysql", cfg.FormatDSN())
+	if err != nil {
+		log.Printf("%v", err)
+	}
 	// Redis設定
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     os.Getenv("REDIS_ADDR"),
@@ -70,6 +74,18 @@ func main() {
 
 	router.InitRoutes(e, handlers)
 
+	// adminユーザの追加
+	adminID := os.Getenv("INIT_ADMIN_ID")
+	adminPassword := os.Getenv("INIT_ADMIN_PASSWORD")
+	if adminID != "" && adminPassword != "" {
+		if err := userUsecase.InitAdminUser(context.Background(), adminID, []byte(adminPassword)); err != nil {
+			log.Printf("Failed to initialize admin user: %v", err)
+		} else {
+			log.Println("Admin initialization check completed.")
+		}
+	}
+
+	// サーバーの起動
 	if err := e.Start(":1323"); err != nil {
 		e.Logger.Error("failed to start server", "error", err)
 	}

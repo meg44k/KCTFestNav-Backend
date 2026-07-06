@@ -33,6 +33,11 @@ func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 }
 
 func (uu *UserUsecase) Create(ctx context.Context, name string, loginID string, inputPassword []byte, assignedBoothID int, role domain.Role) error {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return ErrForbidden
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword(inputPassword, bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -110,9 +115,35 @@ func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User,
 }
 
 func (uu *UserUsecase) GetAll(ctx context.Context) ([]*domain.User, error) {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return nil, ErrForbidden
+	}
+
 	users, err := uu.userRepo.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 	return users, nil
+}
+
+func (uu *UserUsecase) InitAdminUser(ctx context.Context, loginID string, inputPassword []byte) error {
+	_, err := uu.userRepo.GetByLoginID(ctx, loginID)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, repository.ErrNotFound) {
+		return err
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword(inputPassword, bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	user, err := domain.NewUser("admin", loginID, hashedPassword, 0, domain.RoleAdmin)
+	if err != nil {
+		return err
+	}
+	return uu.userRepo.Create(ctx, user)
 }
