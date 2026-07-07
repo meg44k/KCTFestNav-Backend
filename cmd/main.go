@@ -59,7 +59,7 @@ func main() {
 
 	userRepo := repository.NewUserRepository(db, rdb)
 	userUsecase := usecase.NewUserUsecase(userRepo)
-	userHandler := handler.NewUserHandler(userUsecase, []byte(os.Getenv("jwtSecret")))
+	userHandler := handler.NewUserHandler(userUsecase, []byte(os.Getenv("JWT_SECRET")))
 	announceRepo := repository.NewAnnouncementRepository()
 	announceUsecase := usecase.NewAnnouncementUsecase(announceRepo)
 	announceHandler := handler.NewAnnouncementHandler(announceUsecase)

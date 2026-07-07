@@ -4,7 +4,7 @@ info:
   description: 高専祭ナビゲーションアプリ「KCTFestNav」のバックエンドAPI仕様書
   version: 1.1.0
 servers:
-  - url: http://localhost:8080/api/v1
+  - url: http://localhost:1323
     description: ローカル開発サーバー
 
 paths:
@@ -70,13 +70,13 @@ paths:
                 items:
                   $ref: '#/components/schemas/Spot'
 
-  /booths/{boothId}:
+  /booths/{id}:
     get:
       summary: 個別企画の詳細取得
       tags:
         - Booths
       parameters:
-        - name: boothId
+        - name: id
           in: path
           required: true
           schema:
@@ -89,36 +89,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Booth'
 
-  /booths/{boothId}/congestion:
-    patch:
-      summary: 混雑度の更新
-      description: 企画担当者（自企画のみ）または運営委員のみ実行可能。
-      tags:
-        - Spots
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: boothId
-          in: path
-          required: true
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                level:
-                  $ref: '#/components/schemas/CongestionLevel'
-      responses:
-        '200':
-          description: 更新成功
-        '403':
-          description: 権限不足
-
-  /live-events:
+  /lives:
     get:
       summary: 全ライブイベントのスケジュール取得
       tags:
@@ -133,7 +104,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/LiveEvent'
 
-  /live-events/current:
+  /lives/current:
     get:
       summary: 現在進行中のライブ情報を取得
       tags:
@@ -145,26 +116,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LiveEvent'
-    patch:
-      summary: 現在のライブ状態を更新
-      description: 運営委員のみ実行可能。
+
+  /lives/{id}:
+    get:
+      summary: 特定のライブ情報を取得
       tags:
         - LiveEvents
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                liveEventId:
-                  type: string
-                  description: 次に開始する、または現在進行中のライブイベントID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
       responses:
         '200':
-          description: 更新成功
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiveEvent'
 
   /announcements:
     get:
@@ -179,29 +149,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/Announcement'
 
-  /manage/announcements:
-    put:
-      summary: お知らせの更新
-      description: 管理者または学生会のみ実行可能。
-      tags:
-        - Announcements
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewAnnouncement'
-      responses:
-        '204':
-          description: 更新成功
-
-  /admin/spots:
+  /manage/booths:
     post:
       summary: 企画・スポットの新規作成
       tags:
-        - Admin
+        - Manage/Booths
       security:
         - bearerAuth: []
       requestBody:
@@ -214,15 +166,15 @@ paths:
         '201':
           description: 作成成功
 
-  /admin/spots/{spotId}:
+  /manage/booths/{id}:
     put:
       summary: 企画・スポット情報の更新
       tags:
-        - Admin
+        - Manage/Booths
       security:
         - bearerAuth: []
       parameters:
-        - name: spotId
+        - name: id
           in: path
           required: true
           schema:
@@ -239,11 +191,11 @@ paths:
     delete:
       summary: 企画・スポットの削除
       tags:
-        - Admin
+        - Manage/Booths
       security:
         - bearerAuth: []
       parameters:
-        - name: spotId
+        - name: id
           in: path
           required: true
           schema:
@@ -252,11 +204,56 @@ paths:
         '204':
           description: 削除成功
 
-  /admin/users:
+  /manage/booths/{id}/congestion:
+    patch:
+      summary: 混雑度の更新
+      description: 企画担当者（自企画のみ）または運営委員のみ実行可能。
+      tags:
+        - Manage/Booths
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                level:
+                  $ref: '#/components/schemas/CongestionLevel'
+      responses:
+        '200':
+          description: 更新成功
+
+  /manage/announcements:
+    put:
+      summary: お知らせの更新
+      description: 運営委員のみ実行可能。
+      tags:
+        - Manage/Announcements
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewAnnouncement'
+      responses:
+        '204':
+          description: 更新成功
+
+  /manage/users:
     get:
       summary: ユーザー一覧の取得
       tags:
-        - Admin
+        - Manage/Users
       security:
         - bearerAuth: []
       responses:
@@ -271,7 +268,7 @@ paths:
     post:
       summary: 担当者ユーザーの作成
       tags:
-        - Admin
+        - Manage/Users
       security:
         - bearerAuth: []
       requestBody:
@@ -284,15 +281,55 @@ paths:
         '201':
           description: 作成成功
 
-  /admin/users/{userId}:
-    delete:
-      summary: ユーザーの削除
+  /manage/users/{id}:
+    get:
+      summary: 特定ユーザの取得
       tags:
-        - Admin
+        - Manage/Users
       security:
         - bearerAuth: []
       parameters:
-        - name: userId
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      summary: ユーザー情報の更新
+      tags:
+        - Manage/Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewUser'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: ユーザーの削除
+      tags:
+        - Manage/Users
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
           in: path
           required: true
           schema:
@@ -300,6 +337,88 @@ paths:
       responses:
         '204':
           description: 削除成功
+
+  /manage/lives:
+    post:
+      summary: ライブイベントの新規作成
+      tags:
+        - Manage/LiveEvents
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiveEvent'
+      responses:
+        '201':
+          description: 作成成功
+
+  /manage/lives/{id}:
+    put:
+      summary: ライブイベント情報の更新
+      tags:
+        - Manage/LiveEvents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LiveEvent'
+      responses:
+        '200':
+          description: 更新成功
+    delete:
+      summary: ライブイベントの削除
+      tags:
+        - Manage/LiveEvents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 削除成功
+
+  /manage/lives/{id}/status:
+    patch:
+      summary: ライブイベント状態の更新
+      tags:
+        - Manage/LiveEvents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  description: "current" など
+      responses:
+        '200':
+          description: 更新成功
 
 components:
   securitySchemes:
@@ -398,6 +517,9 @@ components:
     CongestionLevel:
       type: string
       enum: [empty, normal, crowded]
+
+    Booth:
+      $ref: '#/components/schemas/Spot'
 
     LiveEvent:
       type: object
