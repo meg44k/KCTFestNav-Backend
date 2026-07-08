@@ -16,8 +16,8 @@ import (
 )
 
 type mockLiveUsecase struct {
-	createFn  func(ctx context.Context, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8) error
-	updateFn  func(ctx context.Context, id int, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8, status domain.LiveStatus) error
+	createFn  func(ctx context.Context, p domain.LiveParams) error
+	updateFn  func(ctx context.Context, id int, status domain.LiveStatus, p domain.LiveParams) error
 	deleteFn  func(ctx context.Context, id int) error
 	getByIDFn func(ctx context.Context, id int) (*domain.Live, error)
 	getAllFn  func(ctx context.Context) ([]*domain.Live, error)
@@ -25,11 +25,11 @@ type mockLiveUsecase struct {
 	updateLiveStatusFn func(ctx context.Context, id int, status domain.LiveStatus) error
 }
 
-func (m *mockLiveUsecase) Create(ctx context.Context, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8) error {
-	return m.createFn(ctx, name, detail, thumbnailURL, startTime, endTime, sessionNumber)
+func (m *mockLiveUsecase) Create(ctx context.Context, p domain.LiveParams) error {
+	return m.createFn(ctx, p)
 }
-func (m *mockLiveUsecase) Update(ctx context.Context, id int, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8, status domain.LiveStatus) error {
-	return m.updateFn(ctx, id, name, detail, thumbnailURL, startTime, endTime, sessionNumber, status)
+func (m *mockLiveUsecase) Update(ctx context.Context, id int, status domain.LiveStatus, p domain.LiveParams) error {
+	return m.updateFn(ctx, id, status, p)
 }
 func (m *mockLiveUsecase) Delete(ctx context.Context, id int) error {
 	return m.deleteFn(ctx, id)
@@ -105,7 +105,7 @@ func TestLiveHandler_Create(t *testing.T) {
 
 			// モックの準備
 			mockUC := &mockLiveUsecase{
-				createFn: func(ctx context.Context, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8) error {
+				createFn: func(ctx context.Context, p domain.LiveParams) error {
 					return tt.mockCreateErr
 				},
 			}
@@ -195,7 +195,7 @@ func TestLiveHandler_Update(t *testing.T) {
 			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.requestID}})
 
 			mockUC := &mockLiveUsecase{
-				updateFn: func(ctx context.Context, id int, name string, detail string, thumbnailURL string, startTime time.Time, endTime time.Time, sessionNumber int8, status domain.LiveStatus) error {
+				updateFn: func(ctx context.Context, id int, status domain.LiveStatus, p domain.LiveParams) error {
 					return tt.mockUpdateErr
 				},
 			}
@@ -226,7 +226,14 @@ func TestLiveHandler_GetByID(t *testing.T) {
 	e := echo.New()
 
 	mockTime := time.Date(2026, 5, 29, 13, 0, 0, 0, time.UTC)
-	mockLive, _ := domain.ReconstructLive(1, "ライブA", "詳細", "http://example.com/thumb.png", mockTime, mockTime.Add(time.Hour), 1, domain.LiveStatusUpcoming)
+	mockLive, _ := domain.ReconstructLive(1, domain.LiveStatusUpcoming, domain.LiveParams{
+		Name:          "ライブA",
+		Detail:        "詳細",
+		ThumbnailURL:  "http://example.com/thumb.png",
+		StartTime:     mockTime,
+		EndTime:       mockTime.Add(time.Hour),
+		SessionNumber: 1,
+	})
 
 	tests := []struct {
 		name           string
@@ -304,8 +311,22 @@ func TestLiveHandler_GetAll(t *testing.T) {
 	e := echo.New()
 
 	mockTime := time.Date(2026, 5, 29, 13, 0, 0, 0, time.UTC)
-	mockLive1, _ := domain.ReconstructLive(1, "ライブA", "詳細A", "http://example.com/thumb1.png", mockTime, mockTime.Add(time.Hour), 1, domain.LiveStatusFinished)
-	mockLive2, _ := domain.ReconstructLive(2, "ライブB", "詳細B", "http://example.com/thumb2.png", mockTime.Add(2*time.Hour), mockTime.Add(3*time.Hour), 2, domain.LiveStatusUpcoming)
+	mockLive1, _ := domain.ReconstructLive(1, domain.LiveStatusFinished, domain.LiveParams{
+		Name:          "ライブA",
+		Detail:        "詳細A",
+		ThumbnailURL:  "http://example.com/thumb1.png",
+		StartTime:     mockTime,
+		EndTime:       mockTime.Add(time.Hour),
+		SessionNumber: 1,
+	})
+	mockLive2, _ := domain.ReconstructLive(2, domain.LiveStatusUpcoming, domain.LiveParams{
+		Name:          "ライブB",
+		Detail:        "詳細B",
+		ThumbnailURL:  "http://example.com/thumb2.png",
+		StartTime:     mockTime.Add(2 * time.Hour),
+		EndTime:       mockTime.Add(3 * time.Hour),
+		SessionNumber: 2,
+	})
 
 	tests := []struct {
 		name           string

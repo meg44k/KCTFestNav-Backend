@@ -13,25 +13,14 @@ type BoothUsecase interface {
 	GetAll(ctx context.Context) ([]*domain.Booth, error)
 	Create(
 		ctx context.Context,
-		name string,
-		organizer string,
-		detail string,
-		congestionStatus domain.CongestionStatus,
-		x float32,
-		y float32,
-		z float32,
+		p domain.BoothParams,
 	) error
 	Delete(ctx context.Context, id int) error
 	Update(
 		ctx context.Context,
 		id int,
-		name string,
-		organizer string,
-		detail string,
 		congestionStatus domain.CongestionStatus,
-		x float32,
-		y float32,
-		z float32,
+		p domain.BoothParams,
 	) error
 	UpdateCongestion(
 		ctx context.Context,
@@ -55,10 +44,13 @@ type GetBoothResponse struct {
 	Name             string                  `json:"name"`
 	Organizer        string                  `json:"organizer"`
 	Detail           string                  `json:"detail"`
+	Location         string                  `json:"location"`
 	CongestionStatus domain.CongestionStatus `json:"congestion_status"`
 	X                float32                 `json:"x"`
 	Y                float32                 `json:"y"`
 	Z                float32                 `json:"z"`
+	Latitude         float64                 `json:"latitude"`
+	Longitude        float64                 `json:"longitude"`
 }
 
 func (h *BoothHandler) GetByID(c *echo.Context) error {
@@ -74,11 +66,14 @@ func (h *BoothHandler) GetByID(c *echo.Context) error {
 		ID:               b.ID,
 		Name:             b.Name,
 		Organizer:        b.Organizer,
+		Location:         b.Location,
 		Detail:           b.Detail,
 		CongestionStatus: b.CongestionStatus(),
 		X:                b.X,
 		Y:                b.Y,
 		Z:                b.Z,
+		Latitude:         b.Latitude,
+		Longitude:        b.Longitude,
 	}
 
 	return c.JSON(http.StatusOK, res)
@@ -101,10 +96,13 @@ func (h *BoothHandler) GetAll(c *echo.Context) error {
 			Name:             b.Name,
 			Organizer:        b.Organizer,
 			Detail:           b.Detail,
+			Location:         b.Location,
 			CongestionStatus: b.CongestionStatus(),
 			X:                b.X,
 			Y:                b.Y,
 			Z:                b.Z,
+			Latitude:         b.Latitude,
+			Longitude:        b.Longitude,
 		}
 	}
 	return c.JSON(http.StatusOK, GetAllBoothsResponse{
@@ -116,10 +114,13 @@ type CreateBoothRequest struct {
 	Name             string                  `json:"name"`
 	Organizer        string                  `json:"organizer"`
 	Detail           string                  `json:"detail"`
+	Location         string                  `json:"location"`
 	CongestionStatus domain.CongestionStatus `json:"congestion_status"`
 	X                float32                 `json:"x"`
 	Y                float32                 `json:"y"`
 	Z                float32                 `json:"z"`
+	Latitude         float64                 `json:"latitude"`
+	Longitude        float64                 `json:"longitude"`
 }
 
 func (h *BoothHandler) Create(c *echo.Context) error {
@@ -129,13 +130,17 @@ func (h *BoothHandler) Create(c *echo.Context) error {
 	}
 	if err := h.boothUsecase.Create(
 		c.Request().Context(),
-		req.Name,
-		req.Organizer,
-		req.Detail,
-		req.CongestionStatus,
-		req.X,
-		req.Y,
-		req.Z,
+		domain.BoothParams{
+			Name:      req.Name,
+			Organizer: req.Organizer,
+			Detail:    req.Detail,
+			Location:  req.Location,
+			X:         req.X,
+			Y:         req.Y,
+			Z:         req.Z,
+			Latitude:  req.Latitude,
+			Longitude: req.Longitude,
+		},
 	); err != nil {
 		return err
 	}
@@ -157,10 +162,13 @@ type UpdateBoothRequest struct {
 	Name             string                  `json:"name"`
 	Organizer        string                  `json:"organizer"`
 	Detail           string                  `json:"detail"`
+	Location         string                  `json:"location"`
 	CongestionStatus domain.CongestionStatus `json:"congestion_status"`
 	X                float32                 `json:"x"`
 	Y                float32                 `json:"y"`
 	Z                float32                 `json:"z"`
+	Latitude         float64                 `json:"latitude"`
+	Longitude        float64                 `json:"longitude"`
 }
 
 func (h *BoothHandler) Update(c *echo.Context) error {
@@ -178,13 +186,18 @@ func (h *BoothHandler) Update(c *echo.Context) error {
 	if err := h.boothUsecase.Update(
 		c.Request().Context(),
 		id,
-		req.Name,
-		req.Organizer,
-		req.Detail,
 		req.CongestionStatus,
-		req.X,
-		req.Y,
-		req.Z,
+		domain.BoothParams{
+			Name:      req.Name,
+			Organizer: req.Organizer,
+			Detail:    req.Detail,
+			Location:  req.Location,
+			X:         req.X,
+			Y:         req.Y,
+			Z:         req.Z,
+			Latitude:  req.Latitude,
+			Longitude: req.Longitude,
+		},
 	); err != nil {
 		return err
 	}

@@ -49,14 +49,14 @@ SELECT * FROM booths;
 
 -- name: CreateBooth :exec
 INSERT INTO booths (
-name, organizer, detail,  x, y, z
+name, organizer, detail, location, x, y, z, latitude, longitude
 ) VALUES (
-?, ?, ?, ?, ?, ?
+?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: UpdateBooth :exec
 UPDATE booths
-SET name = ?, organizer = ?, detail = ?, x = ?, y = ?, z = ?
+SET name = ?, organizer = ?, detail = ?, location = ?,  x = ?, y = ?, z = ?, latitude = ?, longitude = ?
 WHERE id = ?;
 
 -- name: DeleteBooth :exec

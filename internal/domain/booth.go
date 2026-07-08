@@ -14,9 +14,12 @@ type Booth struct {
 	Organizer        string           // ブースの主催者(ex. 1-1, 陸上部...)
 	Detail           string           // ブースの説明
 	congestionStatus CongestionStatus // 0: 空き 1: 少し混雑している 2: かなり混雑している]
-	X                float32          // X座標
-	Y                float32          // Y座標
-	Z                float32          // Z座標
+	Location         string
+	X                float32 // X座標
+	Y                float32 // Y座標
+	Z                float32 // Z座標
+	Latitude         float64 // 緯度
+	Longitude        float64 // 経度
 }
 
 type CongestionStatus int8
@@ -27,30 +30,37 @@ const (
 	BoothCongestionVeryCrowded     CongestionStatus = 2
 )
 
+type BoothParams struct {
+	Name      string
+	Organizer string
+	Detail    string
+	Location  string
+	X         float32
+	Y         float32
+	Z         float32
+	Latitude  float64
+	Longitude float64
+}
+
 // 新規ブース作成用コンストラクタ
 // IDがDB側で採番されるため、デフォルトではID=0となっている
-func NewBooth(
-	name string,
-	organizer string,
-	detail string,
-	X float32,
-	Y float32,
-	Z float32,
-
-) (*Booth, error) {
-	if strings.TrimSpace(name) == "" {
+func NewBooth(p BoothParams) (*Booth, error) {
+	if strings.TrimSpace(p.Name) == "" {
 		return nil, ErrNameRequired
 
 	}
 	return &Booth{
 		ID:               0,
-		Name:             name,
-		Organizer:        organizer,
-		Detail:           detail,
+		Name:             p.Name,
+		Organizer:        p.Organizer,
+		Detail:           p.Detail,
+		Location:         p.Location,
 		congestionStatus: BoothCongestionEmpty,
-		X:                X,
-		Y:                Y,
-		Z:                Z,
+		X:                p.X,
+		Y:                p.Y,
+		Z:                p.Z,
+		Latitude:         p.Latitude,
+		Longitude:        p.Longitude,
 	}, nil
 }
 
@@ -58,24 +68,21 @@ func NewBooth(
 // IDがDB側から採択されたものがIDに入っている
 func ReconstructBooth(
 	id int,
-	name string,
-	organizer string,
-	detail string,
 	congestionStatus CongestionStatus,
-	x float32,
-	y float32,
-	z float32,
-
+	p BoothParams,
 ) (*Booth, error) {
 	return &Booth{
 		ID:               id,
-		Name:             name,
-		Organizer:        organizer,
-		Detail:           detail,
+		Name:             p.Name,
+		Organizer:        p.Organizer,
+		Detail:           p.Detail,
+		Location:         p.Location,
 		congestionStatus: congestionStatus,
-		X:                x,
-		Y:                y,
-		Z:                z,
+		X:                p.X,
+		Y:                p.Y,
+		Z:                p.Z,
+		Latitude:         p.Latitude,
+		Longitude:        p.Longitude,
 	}, nil
 }
 

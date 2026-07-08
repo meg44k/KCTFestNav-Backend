@@ -63,13 +63,18 @@ func (br *boothRepository) GetByID(ctx context.Context, id int) (*domain.Booth, 
 
 	booth, err := domain.ReconstructBooth(
 		int(dbBooth.ID),
-		dbBooth.Name,
-		dbBooth.Organizer,
-		dbBooth.Detail,
 		congestionStatus,
-		float32(dbBooth.X),
-		float32(dbBooth.Y),
-		float32(dbBooth.Z),
+		domain.BoothParams{
+			Name:      dbBooth.Name,
+			Organizer: dbBooth.Organizer,
+			Detail:    dbBooth.Detail,
+			Location:  dbBooth.Location.String,
+			X:         float32(dbBooth.X),
+			Y:         float32(dbBooth.Y),
+			Z:         float32(dbBooth.Z),
+			Latitude:  dbBooth.Latitude.Float64,
+			Longitude: dbBooth.Longitude.Float64,
+		},
 	)
 	if err != nil {
 		return nil, err
@@ -99,13 +104,18 @@ func (br *boothRepository) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 
 		booth, err := domain.ReconstructBooth(
 			int(b.ID),
-			b.Name,
-			b.Organizer,
-			b.Detail,
 			congestionStatus,
-			float32(b.X),
-			float32(b.Y),
-			float32(b.Z),
+			domain.BoothParams{
+				Name:      b.Name,
+				Organizer: b.Organizer,
+				Detail:    b.Detail,
+				Location:  b.Location.String,
+				X:         float32(b.X),
+				Y:         float32(b.Y),
+				Z:         float32(b.Z),
+				Latitude:  b.Latitude.Float64,
+				Longitude: b.Longitude.Float64,
+			},
 		)
 		if err != nil {
 			return nil, err

@@ -13,9 +13,9 @@ import (
 
 const createBooth = `-- name: CreateBooth :exec
 INSERT INTO booths (
-name, organizer, detail,  x, y, z
+name, organizer, detail, location, x, y, z, latitude, longitude
 ) VALUES (
-?, ?, ?, ?, ?, ?
+?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -23,9 +23,12 @@ type CreateBoothParams struct {
 	Name      string
 	Organizer string
 	Detail    string
+	Location  sql.NullString
 	X         float64
 	Y         float64
 	Z         float64
+	Latitude  sql.NullFloat64
+	Longitude sql.NullFloat64
 }
 
 func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) error {
@@ -33,9 +36,12 @@ func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) error 
 		arg.Name,
 		arg.Organizer,
 		arg.Detail,
+		arg.Location,
 		arg.X,
 		arg.Y,
 		arg.Z,
+		arg.Latitude,
+		arg.Longitude,
 	)
 	return err
 }
@@ -128,7 +134,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 }
 
 const getAllBooths = `-- name: GetAllBooths :many
-SELECT id, name, organizer, detail, x, y, z FROM booths
+SELECT id, name, organizer, detail, location, x, y, z, latitude, longitude FROM booths
 `
 
 func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
@@ -145,9 +151,12 @@ func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
 			&i.Name,
 			&i.Organizer,
 			&i.Detail,
+			&i.Location,
 			&i.X,
 			&i.Y,
 			&i.Z,
+			&i.Latitude,
+			&i.Longitude,
 		); err != nil {
 			return nil, err
 		}
@@ -234,7 +243,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 
 const getBoothByID = `-- name: GetBoothByID :one
 
-SELECT id, name, organizer, detail, x, y, z FROM booths WHERE id = ?
+SELECT id, name, organizer, detail, location, x, y, z, latitude, longitude FROM booths WHERE id = ?
 `
 
 // ==========================================
@@ -248,9 +257,12 @@ func (q *Queries) GetBoothByID(ctx context.Context, id int32) (Booth, error) {
 		&i.Name,
 		&i.Organizer,
 		&i.Detail,
+		&i.Location,
 		&i.X,
 		&i.Y,
 		&i.Z,
+		&i.Latitude,
+		&i.Longitude,
 	)
 	return i, err
 }
@@ -346,7 +358,7 @@ func (q *Queries) GetUserByLoginID(ctx context.Context, loginID string) (User, e
 
 const updateBooth = `-- name: UpdateBooth :exec
 UPDATE booths
-SET name = ?, organizer = ?, detail = ?, x = ?, y = ?, z = ?
+SET name = ?, organizer = ?, detail = ?, location = ?,  x = ?, y = ?, z = ?, latitude = ?, longitude = ?
 WHERE id = ?
 `
 
@@ -354,9 +366,12 @@ type UpdateBoothParams struct {
 	Name      string
 	Organizer string
 	Detail    string
+	Location  sql.NullString
 	X         float64
 	Y         float64
 	Z         float64
+	Latitude  sql.NullFloat64
+	Longitude sql.NullFloat64
 	ID        int32
 }
 
@@ -365,9 +380,12 @@ func (q *Queries) UpdateBooth(ctx context.Context, arg UpdateBoothParams) error 
 		arg.Name,
 		arg.Organizer,
 		arg.Detail,
+		arg.Location,
 		arg.X,
 		arg.Y,
 		arg.Z,
+		arg.Latitude,
+		arg.Longitude,
 		arg.ID,
 	)
 	return err

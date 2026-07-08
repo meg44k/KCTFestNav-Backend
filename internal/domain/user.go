@@ -18,6 +18,14 @@ type User struct {
 	Role            Role      // 役職 (Admin / Gakuseikai / Student / Member)
 }
 
+type UserParams struct {
+	Name            string
+	LoginID         string
+	Password        []byte
+	AssignedBoothID int
+	Role            Role
+}
+
 // Roleについて
 // Admin: システム管理者 全ての権限を持つ
 // Gakuseikai: 学生会員 ほとんど全ての権限を持つ　削除などのぶっこわれる系の権限は外す予定
@@ -32,31 +40,31 @@ const (
 	RoleMember     Role = "Member"
 )
 
-func NewUser(name string, loginID string, password []byte, assignedBoothID int, role Role) (*User, error) {
+func NewUser(p UserParams) (*User, error) {
 	// Roleのバリデーション
-	if !role.IsValid() {
+	if !p.Role.IsValid() {
 		return nil, errors.New("Role should be Admin, Gakuseikai, Student or Member")
 	}
 	// ID生成
 	UUID := uuid.New()
 	return &User{
 		ID:              UUID,
-		Name:            name,
-		LoginID:         loginID,
-		Password:        password,
-		AssignedBoothID: assignedBoothID,
-		Role:            role,
+		Name:            p.Name,
+		LoginID:         p.LoginID,
+		Password:        p.Password,
+		AssignedBoothID: p.AssignedBoothID,
+		Role:            p.Role,
 	}, nil
 }
 
-func ReconstructUser(id uuid.UUID, name string, loginID string, password []byte, assignedBoothID int, role Role) (*User, error) {
+func ReconstructUser(id uuid.UUID, p UserParams) (*User, error) {
 	return &User{
 		ID:              id,
-		Name:            name,
-		LoginID:         loginID,
-		Password:        password,
-		AssignedBoothID: assignedBoothID,
-		Role:            role,
+		Name:            p.Name,
+		LoginID:         p.LoginID,
+		Password:        p.Password,
+		AssignedBoothID: p.AssignedBoothID,
+		Role:            p.Role,
 	}, nil
 }
 

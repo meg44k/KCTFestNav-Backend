@@ -158,7 +158,14 @@ func TestBoothRepository_Create(t *testing.T) {
 		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
 		assert.NoError(t, err)
 
-		booth, _ := domain.NewBooth("新規ブース", "学生会", "詳細", 10.5, 20.5, 30.5)
+		booth, _ := domain.NewBooth(domain.BoothParams{
+			Name:      "新規ブース",
+			Organizer: "学生会",
+			Detail:    "詳細",
+			X:         10.5,
+			Y:         20.5,
+			Z:         30.5,
+		})
 
 		err = repo.Create(ctx, booth)
 		assert.NoError(t, err)
@@ -197,7 +204,14 @@ func TestBoothRepository_Update(t *testing.T) {
 		id, err := res.LastInsertId()
 		assert.NoError(t, err)
 
-		booth, _ := domain.ReconstructBooth(int(id), "新しいブース", "新主催者", "新詳細", 1, 10.0, 20.0, 30.0)
+		booth, _ := domain.ReconstructBooth(int(id), domain.CongestionStatus(1), domain.BoothParams{
+			Name:      "新しいブース",
+			Organizer: "新主催者",
+			Detail:    "新詳細",
+			X:         10.0,
+			Y:         20.0,
+			Z:         30.0,
+		})
 
 		err = repo.Update(ctx, booth)
 		assert.NoError(t, err)

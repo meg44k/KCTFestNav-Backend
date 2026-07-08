@@ -32,7 +32,7 @@ func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 	}
 }
 
-func (uu *UserUsecase) Create(ctx context.Context, name string, loginID string, inputPassword []byte, assignedBoothID int, role domain.Role) error {
+func (uu *UserUsecase) Create(ctx context.Context, inputPassword []byte, p domain.UserParams) error {
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
 	if !ok || reqUser.Role != domain.RoleAdmin {
 		return ErrForbidden
@@ -42,7 +42,8 @@ func (uu *UserUsecase) Create(ctx context.Context, name string, loginID string, 
 	if err != nil {
 		return err
 	}
-	user, err := domain.NewUser(name, loginID, hashedPassword, assignedBoothID, role)
+	p.Password = hashedPassword
+	user, err := domain.NewUser(p)
 	if err != nil {
 		return err
 	}
@@ -69,16 +70,12 @@ func (uu *UserUsecase) Authenticate(ctx context.Context, loginID string, inputPa
 func (uu *UserUsecase) Update(
 	ctx context.Context,
 	id uuid.UUID,
-	name string,
-	loginID string,
-	password []byte,
-	assignedBoothID int,
-	role domain.Role) error {
+	p domain.UserParams) error {
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
 	if !ok || reqUser.Role != domain.RoleAdmin {
 		return ErrForbidden
 	}
-	user, err := domain.ReconstructUser(id, name, loginID, password, assignedBoothID, role)
+	user, err := domain.ReconstructUser(id, p)
 	if err != nil {
 		return err
 	}
@@ -141,7 +138,13 @@ func (uu *UserUsecase) InitAdminUser(ctx context.Context, loginID string, inputP
 		return err
 	}
 
-	user, err := domain.NewUser("admin", loginID, hashedPassword, 0, domain.RoleAdmin)
+	user, err := domain.NewUser(domain.UserParams{
+		Name:            "admin",
+		LoginID:         loginID,
+		Password:        hashedPassword,
+		AssignedBoothID: 0,
+		Role:            domain.RoleAdmin,
+	})
 	if err != nil {
 		return err
 	}

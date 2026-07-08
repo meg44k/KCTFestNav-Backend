@@ -19,6 +19,15 @@ type Live struct {
 	status        LiveStatus // ライブの状況 0: まだ始まっていない 1: 開演中 2: 終了済み 学生会員が手動で状況を変える
 }
 
+type LiveParams struct {
+	Name          string
+	Detail        string
+	ThumbnailURL  string
+	StartTime     time.Time
+	EndTime       time.Time
+	SessionNumber int8
+}
+
 // ライブの状態
 const (
 	LiveStatusUpcoming LiveStatus = 0 // 開演前
@@ -28,26 +37,19 @@ const (
 
 // 新規作成用コンストラクタ
 // DBでIDが採番されるためデフォルトではID=0
-func NewLive(
-	name string,
-	detail string,
-	thumbnailURL string,
-	startTime time.Time,
-	endTime time.Time,
-	sessionNumber int8,
-) (*Live, error) {
-	err := validateLive(name, startTime, endTime, sessionNumber)
+func NewLive(p LiveParams) (*Live, error) {
+	err := validateLive(p.Name, p.StartTime, p.EndTime, p.SessionNumber)
 	if err != nil {
 		return nil, err
 	}
 	return &Live{
 		ID:            0,
-		Name:          name,
-		Detail:        detail,
-		ThumbnailURL:  thumbnailURL,
-		StartTime:     startTime,
-		EndTime:       endTime,
-		sessionNumber: sessionNumber,
+		Name:          p.Name,
+		Detail:        p.Detail,
+		ThumbnailURL:  p.ThumbnailURL,
+		StartTime:     p.StartTime,
+		EndTime:       p.EndTime,
+		sessionNumber: p.SessionNumber,
 		status:        LiveStatusUpcoming,
 	}, nil
 }
@@ -55,26 +57,21 @@ func NewLive(
 // DBからの復元用コンストラクタ
 func ReconstructLive(
 	id int,
-	name string,
-	detail string,
-	thumbnailURL string,
-	startTime time.Time,
-	endTime time.Time,
-	sessionNumber int8,
 	status LiveStatus,
+	p LiveParams,
 ) (*Live, error) {
-	err := validateLive(name, startTime, endTime, sessionNumber)
+	err := validateLive(p.Name, p.StartTime, p.EndTime, p.SessionNumber)
 	if err != nil {
 		return nil, err
 	}
 	return &Live{
 		ID:            id,
-		Name:          name,
-		Detail:        detail,
-		ThumbnailURL:  thumbnailURL,
-		StartTime:     startTime,
-		EndTime:       endTime,
-		sessionNumber: sessionNumber,
+		Name:          p.Name,
+		Detail:        p.Detail,
+		ThumbnailURL:  p.ThumbnailURL,
+		StartTime:     p.StartTime,
+		EndTime:       p.EndTime,
+		sessionNumber: p.SessionNumber,
 		status:        status,
 	}, nil
 }

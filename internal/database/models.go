@@ -14,9 +14,12 @@ type Booth struct {
 	Name      string
 	Organizer string
 	Detail    string
+	Location  sql.NullString
 	X         float64
 	Y         float64
 	Z         float64
+	Latitude  sql.NullFloat64
+	Longitude sql.NullFloat64
 }
 
 type Live struct {

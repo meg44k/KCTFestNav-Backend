@@ -11,14 +11,18 @@ type Announcement struct {
 	Content string // お知らせの本文
 }
 
+type AnnouncementParams struct {
+	Content string
+}
+
 // 新規お知らせ作成用コンストラクタ
-func NewAnnouncement(content string) (*Announcement, error) {
-	if strings.TrimSpace(content) == "" {
+func NewAnnouncement(p AnnouncementParams) (*Announcement, error) {
+	if strings.TrimSpace(p.Content) == "" {
 		return nil, ErrContentRequired
 	}
 
 	return &Announcement{
-		Content: content,
+		Content: p.Content,
 	}, nil
 }
 

@@ -26,7 +26,14 @@ func TestNewLive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			live, err := NewLive(tt.inputName, tt.inputDetail, "https://example.com/thumb.png", tt.inputStartTime, tt.inputEndTime, 1)
+			live, err := NewLive(LiveParams{
+				Name:          tt.inputName,
+				Detail:        tt.inputDetail,
+				ThumbnailURL:  "https://example.com/thumb.png",
+				StartTime:     tt.inputStartTime,
+				EndTime:       tt.inputEndTime,
+				SessionNumber: 1,
+			})
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewLive() error = %v, wantErr %v", err, tt.wantErr)
@@ -70,7 +77,14 @@ func TestReconstructLive(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			live, err := ReconstructLive(tt.inputID, tt.inputName, tt.inputDetail, "https://example.com/thumb.png", tt.inputStartTime, tt.inputEndTime, 1, tt.inputStatus)
+			live, err := ReconstructLive(tt.inputID, tt.inputStatus, LiveParams{
+				Name:          tt.inputName,
+				Detail:        tt.inputDetail,
+				ThumbnailURL:  "https://example.com/thumb.png",
+				StartTime:     tt.inputStartTime,
+				EndTime:       tt.inputEndTime,
+				SessionNumber: 1,
+			})
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReconstructLive() error = %v, wantErr %v", err, tt.wantErr)

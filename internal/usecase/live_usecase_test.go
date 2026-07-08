@@ -142,12 +142,14 @@ func TestLiveUsecase_Create(t *testing.T) {
 			uc := NewLiveUsecase(repo)
 			err := uc.Create(
 				ctx,
-				tt.inputName,
-				tt.inputDetail,
-				tt.inputThumb,
-				tt.inputStart,
-				tt.inputEnd,
-				tt.sessionNumber,
+				domain.LiveParams{
+					Name:          tt.inputName,
+					Detail:        tt.inputDetail,
+					ThumbnailURL:  tt.inputThumb,
+					StartTime:     tt.inputStart,
+					EndTime:       tt.inputEnd,
+					SessionNumber: tt.sessionNumber,
+				},
 			)
 
 			if tt.expectedErr == nil {
@@ -167,8 +169,14 @@ func TestLiveUsecase_Create(t *testing.T) {
 		uc := NewLiveUsecase(repo)
 		err := uc.Create(
 			ctxWithRole(domain.RoleStudent),
-			"テストライブ", "説明文", "https://example.com/thumb.png",
-			baseTime, baseTime.Add(1*time.Hour), 1,
+			domain.LiveParams{
+				Name:          "テストライブ",
+				Detail:        "説明文",
+				ThumbnailURL:  "https://example.com/thumb.png",
+				StartTime:     baseTime,
+				EndTime:       baseTime.Add(1 * time.Hour),
+				SessionNumber: 1,
+			},
 		)
 
 		require.Error(t, err)
@@ -183,8 +191,14 @@ func TestLiveUsecase_Create(t *testing.T) {
 		uc := NewLiveUsecase(repo)
 		err := uc.Create(
 			context.Background(),
-			"テストライブ", "説明文", "https://example.com/thumb.png",
-			baseTime, baseTime.Add(1*time.Hour), 1,
+			domain.LiveParams{
+				Name:          "テストライブ",
+				Detail:        "説明文",
+				ThumbnailURL:  "https://example.com/thumb.png",
+				StartTime:     baseTime,
+				EndTime:       baseTime.Add(1 * time.Hour),
+				SessionNumber: 1,
+			},
 		)
 
 		require.Error(t, err)
@@ -289,13 +303,15 @@ func TestLiveUsecase_Update(t *testing.T) {
 			err := uc.Update(
 				ctx,
 				tt.inputID,
-				tt.inputName,
-				tt.inputDetail,
-				tt.inputThumb,
-				tt.inputStart,
-				tt.inputEnd,
-				tt.sessionNumber,
 				tt.status,
+				domain.LiveParams{
+					Name:          tt.inputName,
+					Detail:        tt.inputDetail,
+					ThumbnailURL:  tt.inputThumb,
+					StartTime:     tt.inputStart,
+					EndTime:       tt.inputEnd,
+					SessionNumber: tt.sessionNumber,
+				},
 			)
 
 			if tt.expectedErr == nil {
@@ -315,8 +331,14 @@ func TestLiveUsecase_Update(t *testing.T) {
 		uc := NewLiveUsecase(repo)
 		err := uc.Update(
 			ctxWithRole(domain.RoleStudent),
-			1, "テストライブ", "説明文", "https://example.com/thumb.png",
-			baseTime, baseTime.Add(1*time.Hour), 1, domain.LiveStatusUpcoming,
+			1, domain.LiveStatusUpcoming, domain.LiveParams{
+				Name:          "テストライブ",
+				Detail:        "説明文",
+				ThumbnailURL:  "https://example.com/thumb.png",
+				StartTime:     baseTime,
+				EndTime:       baseTime.Add(1 * time.Hour),
+				SessionNumber: 1,
+			},
 		)
 
 		require.Error(t, err)
@@ -331,8 +353,14 @@ func TestLiveUsecase_Update(t *testing.T) {
 		uc := NewLiveUsecase(repo)
 		err := uc.Update(
 			ctxWithRole(domain.RoleAdmin),
-			1, "テストライブ", "説明文", "https://example.com/thumb.png",
-			baseTime, baseTime.Add(1*time.Hour), 1, domain.LiveStatusUpcoming,
+			1, domain.LiveStatusUpcoming, domain.LiveParams{
+				Name:          "テストライブ",
+				Detail:        "説明文",
+				ThumbnailURL:  "https://example.com/thumb.png",
+				StartTime:     baseTime,
+				EndTime:       baseTime.Add(1 * time.Hour),
+				SessionNumber: 1,
+			},
 		)
 
 		require.NoError(t, err)
@@ -342,7 +370,14 @@ func TestLiveUsecase_Update(t *testing.T) {
 func TestLiveUsecase_GetByID(t *testing.T) {
 	baseTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
 
-	mockLive, _ := domain.ReconstructLive(1, "テストライブ", "説明文", "https://example.com/thumb.png", baseTime, baseTime.Add(1*time.Hour), 1, domain.LiveStatusUpcoming)
+	mockLive, _ := domain.ReconstructLive(1, domain.LiveStatusUpcoming, domain.LiveParams{
+		Name:          "テストライブ",
+		Detail:        "説明文",
+		ThumbnailURL:  "https://example.com/thumb.png",
+		StartTime:     baseTime,
+		EndTime:       baseTime.Add(1 * time.Hour),
+		SessionNumber: 1,
+	})
 
 	t.Run("正常系: ライブを取得できる", func(t *testing.T) {
 		repo := &mockLiveRepository{
@@ -376,8 +411,22 @@ func TestLiveUsecase_GetByID(t *testing.T) {
 func TestLiveUsecase_GetAll(t *testing.T) {
 	baseTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
 
-	mockLive1, _ := domain.ReconstructLive(1, "ライブ1", "説明1", "https://example.com/1.png", baseTime, baseTime.Add(1*time.Hour), 1, domain.LiveStatusUpcoming)
-	mockLive2, _ := domain.ReconstructLive(2, "ライブ2", "説明2", "https://example.com/2.png", baseTime.Add(2*time.Hour), baseTime.Add(3*time.Hour), 2, domain.LiveStatusOngoing)
+	mockLive1, _ := domain.ReconstructLive(1, domain.LiveStatusUpcoming, domain.LiveParams{
+		Name:          "ライブ1",
+		Detail:        "説明1",
+		ThumbnailURL:  "https://example.com/1.png",
+		StartTime:     baseTime,
+		EndTime:       baseTime.Add(1 * time.Hour),
+		SessionNumber: 1,
+	})
+	mockLive2, _ := domain.ReconstructLive(2, domain.LiveStatusOngoing, domain.LiveParams{
+		Name:          "ライブ2",
+		Detail:        "説明2",
+		ThumbnailURL:  "https://example.com/2.png",
+		StartTime:     baseTime.Add(2 * time.Hour),
+		EndTime:       baseTime.Add(3 * time.Hour),
+		SessionNumber: 2,
+	})
 
 	t.Run("正常系: 複数件取得できる", func(t *testing.T) {
 		repo := &mockLiveRepository{
@@ -480,7 +529,14 @@ func TestLiveUsecase_Delete(t *testing.T) {
 func TestLiveUsecase_GetCurrentLive(t *testing.T) {
 	t.Run("正常系: 進行中のライブを取得できる", func(t *testing.T) {
 		baseTime := time.Date(2026, time.May, 29, 13, 0, 0, 0, time.Local)
-		expectedLive, _ := domain.ReconstructLive(1, "テスト", "詳細", "url", baseTime, baseTime.Add(time.Hour), 1, domain.LiveStatus(1))
+		expectedLive, _ := domain.ReconstructLive(1, domain.LiveStatus(1), domain.LiveParams{
+			Name:          "テスト",
+			Detail:        "詳細",
+			ThumbnailURL:  "url",
+			StartTime:     baseTime,
+			EndTime:       baseTime.Add(time.Hour),
+			SessionNumber: 1,
+		})
 
 		repo := &mockLiveRepository{
 			getCurrentLiveFn: func(ctx context.Context) (*domain.Live, error) {

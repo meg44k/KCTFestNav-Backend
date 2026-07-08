@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"context"
-	"time"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
@@ -19,12 +18,7 @@ func NewLiveUsecase(repo domain.LiveRepository) *LiveUsecase {
 
 func (u *LiveUsecase) Create(
 	ctx context.Context,
-	name string,
-	detail string,
-	thumbnailURL string,
-	startTime time.Time,
-	endTime time.Time,
-	sessionNumber int8,
+	p domain.LiveParams,
 ) error {
 	// 権限チェック: Admin以外不可
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
@@ -32,7 +26,7 @@ func (u *LiveUsecase) Create(
 		return ErrForbidden
 	}
 
-	live, err := domain.NewLive(name, detail, thumbnailURL, startTime, endTime, sessionNumber)
+	live, err := domain.NewLive(p)
 	if err != nil {
 		return err
 	}
@@ -42,13 +36,8 @@ func (u *LiveUsecase) Create(
 func (u *LiveUsecase) Update(
 	ctx context.Context,
 	id int,
-	name string,
-	detail string,
-	thumbnailURL string,
-	startTime time.Time,
-	endTime time.Time,
-	sessionNumber int8,
 	status domain.LiveStatus,
+	p domain.LiveParams,
 ) error {
 	// 権限チェック: 学生会員以上の権限がないと不可
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
@@ -56,7 +45,7 @@ func (u *LiveUsecase) Update(
 		return ErrForbidden
 	}
 
-	live, err := domain.ReconstructLive(id, name, detail, thumbnailURL, startTime, endTime, sessionNumber, status)
+	live, err := domain.ReconstructLive(id, status, p)
 	if err != nil {
 		return err
 	}

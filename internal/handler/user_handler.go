@@ -13,11 +13,8 @@ import (
 type UserUsecase interface {
 	Create(
 		ctx context.Context,
-		name string,
-		loginID string,
-		password []byte,
-		assignedBoothID int,
-		role domain.Role,
+		inputPassword []byte,
+		p domain.UserParams,
 	) error
 	Authenticate(ctx context.Context, LoginID string, Password []byte) (*domain.User, error)
 	GetMe(ctx context.Context) (*domain.User, error)
@@ -26,11 +23,7 @@ type UserUsecase interface {
 	Update(
 		ctx context.Context,
 		id uuid.UUID,
-		name string,
-		loginID string,
-		password []byte,
-		assignedBoothID int,
-		role domain.Role,
+		p domain.UserParams,
 	) error
 	Delete(
 		ctx context.Context,
@@ -63,7 +56,13 @@ func (h *UserHandler) Create(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
-	if err := h.userUsecase.Create(c.Request().Context(), req.Name, req.LoginID, []byte(req.Password), req.AssignedBoothID, req.Role); err != nil {
+	err := h.userUsecase.Create(c.Request().Context(), []byte(req.Password), domain.UserParams{
+		Name:            req.Name,
+		LoginID:         req.LoginID,
+		AssignedBoothID: req.AssignedBoothID,
+		Role:            req.Role,
+	})
+	if err != nil {
 		return err
 	}
 	return c.NoContent(http.StatusCreated)
@@ -188,11 +187,14 @@ func (h *UserHandler) Update(c *echo.Context) error {
 	err = h.userUsecase.Update(
 		c.Request().Context(),
 		id,
-		req.Name,
-		req.LoginID,
-		[]byte(req.Password),
-		req.AssignedBoothID,
-		req.Role)
+		domain.UserParams{
+			Name:            req.Name,
+			LoginID:         req.LoginID,
+			Password:        []byte(req.Password),
+			AssignedBoothID: req.AssignedBoothID,
+			Role:            req.Role,
+		},
+	)
 	if err != nil {
 		return err
 	}

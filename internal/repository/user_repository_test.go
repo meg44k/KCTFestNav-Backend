@@ -56,7 +56,13 @@ func TestUserRepository_CreateAndGetByID(t *testing.T) {
 		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
 
 		targetID := uuid.New()
-		user, _ := domain.ReconstructUser(targetID, "リポジトリテスト", "repo_test", []byte("hashed"), 0, domain.RoleStudent)
+		user, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "リポジトリテスト",
+			LoginID:         "repo_test",
+			Password:        []byte("hashed"),
+			AssignedBoothID: 0,
+			Role:            domain.RoleStudent,
+		})
 
 		// Create実行
 		err := repo.Create(ctx, user)
@@ -95,7 +101,13 @@ func TestUserRepository_GetByLoginID(t *testing.T) {
 		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
 
 		targetID := uuid.New()
-		user, _ := domain.ReconstructUser(targetID, "リポジトリテスト", "login_test", []byte("hashed"), 0, domain.RoleStudent)
+		user, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "リポジトリテスト",
+			LoginID:         "login_test",
+			Password:        []byte("hashed"),
+			AssignedBoothID: 0,
+			Role:            domain.RoleStudent,
+		})
 		err := repo.Create(ctx, user)
 		assert.NoError(t, err)
 
@@ -135,8 +147,20 @@ func TestUserRepository_GetAll(t *testing.T) {
 		_, _ = db.Exec("TRUNCATE TABLE users")
 		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
 
-		user1, _ := domain.ReconstructUser(uuid.New(), "テスト1", "test_1", []byte("hash"), 0, domain.RoleStudent)
-		user2, _ := domain.ReconstructUser(uuid.New(), "テスト2", "test_2", []byte("hash"), 0, domain.RoleAdmin)
+		user1, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "テスト1",
+			LoginID:         "test_1",
+			Password:        []byte("hash"),
+			AssignedBoothID: 0,
+			Role:            domain.RoleStudent,
+		})
+		user2, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "テスト2",
+			LoginID:         "test_2",
+			Password:        []byte("hash"),
+			AssignedBoothID: 0,
+			Role:            domain.RoleAdmin,
+		})
 		err := repo.Create(ctx, user1)
 		assert.NoError(t, err)
 		err = repo.Create(ctx, user2)
@@ -176,7 +200,13 @@ func TestUserRepository_GetAll(t *testing.T) {
 		_, err := db.Exec("INSERT INTO booths (id, name, organizer, detail, x, y, z) VALUES (999, 'テストブース', 'テスト主催者', '詳細', 0, 0, 0)")
 		assert.NoError(t, err)
 
-		user, _ := domain.ReconstructUser(uuid.New(), "ブース所属テスト", "booth_test", []byte("hash"), 999, domain.RoleStudent)
+		user, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "ブース所属テスト",
+			LoginID:         "booth_test",
+			Password:        []byte("hash"),
+			AssignedBoothID: 999,
+			Role:            domain.RoleStudent,
+		})
 		err = repo.Create(ctx, user)
 		assert.NoError(t, err)
 
@@ -207,14 +237,26 @@ func TestUserRepository_Update(t *testing.T) {
 		_, _ = db.Exec("INSERT INTO booths (id, name, organizer, detail, x, y, z) VALUES (999, 'テストブース', '主催', '詳細', 0, 0, 0)")
 
 		targetID := uuid.New()
-		user, _ := domain.ReconstructUser(targetID, "元の名前", "login_id", []byte("hash"), 0, domain.RoleStudent)
+		user, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "元の名前",
+			LoginID:         "login_id",
+			Password:        []byte("hash"),
+			AssignedBoothID: 0,
+			Role:            domain.RoleStudent,
+		})
 
 		// Create
 		err := repo.Create(ctx, user)
 		assert.NoError(t, err)
 
 		// 情報を書き換えたドメインモデルを用意 (ブースIDも999に変更)
-		updatedUser, _ := domain.ReconstructUser(targetID, "更新後の名前", "updated_login", []byte("new_hash"), 999, domain.RoleAdmin)
+		updatedUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "更新後の名前",
+			LoginID:         "updated_login",
+			Password:        []byte("new_hash"),
+			AssignedBoothID: 999,
+			Role:            domain.RoleAdmin,
+		})
 
 		// Update
 		err = repo.Update(ctx, updatedUser)
@@ -243,7 +285,13 @@ func TestUserRepository_Delete(t *testing.T) {
 		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
 
 		targetID := uuid.New()
-		user, _ := domain.ReconstructUser(targetID, "削除されるユーザー", "delete_user", []byte("hash"), 0, domain.RoleStudent)
+		user, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "削除されるユーザー",
+			LoginID:         "delete_user",
+			Password:        []byte("hash"),
+			AssignedBoothID: 0,
+			Role:            domain.RoleStudent,
+		})
 
 		err := repo.Create(ctx, user)
 		assert.NoError(t, err)

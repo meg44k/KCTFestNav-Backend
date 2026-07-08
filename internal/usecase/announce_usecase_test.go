@@ -46,7 +46,7 @@ func TestAnnouncementUsecase_Update(t *testing.T) {
 		uc := NewAnnouncementUsecase(mockRepo)
 
 		ctx := context.WithValue(context.Background(), ContextRequestUserKey, RequestUser{Role: domain.RoleAdmin})
-		err := uc.Update(ctx, "new hello")
+		err := uc.Update(ctx, domain.AnnouncementParams{Content: "new hello"})
 		assert.NoError(t, err)
 		assert.Equal(t, "new hello", updatedContent)
 	})
@@ -60,7 +60,7 @@ func TestAnnouncementUsecase_Update(t *testing.T) {
 		uc := NewAnnouncementUsecase(mockRepo)
 
 		ctx := context.WithValue(context.Background(), ContextRequestUserKey, RequestUser{Role: domain.RoleGakuseikai})
-		err := uc.Update(ctx, "new hello")
+		err := uc.Update(ctx, domain.AnnouncementParams{Content: "new hello"})
 		assert.NoError(t, err)
 	})
 
@@ -68,14 +68,14 @@ func TestAnnouncementUsecase_Update(t *testing.T) {
 		uc := NewAnnouncementUsecase(&mockAnnouncementRepository{})
 
 		ctx := context.WithValue(context.Background(), ContextRequestUserKey, RequestUser{Role: domain.RoleStudent})
-		err := uc.Update(ctx, "new hello")
+		err := uc.Update(ctx, domain.AnnouncementParams{Content: "new hello"})
 		assert.ErrorIs(t, err, ErrForbidden)
 	})
 
 	t.Run("empty content", func(t *testing.T) {
 		uc := NewAnnouncementUsecase(&mockAnnouncementRepository{})
 		ctx := context.WithValue(context.Background(), ContextRequestUserKey, RequestUser{Role: domain.RoleAdmin})
-		err := uc.Update(ctx, "")
+		err := uc.Update(ctx, domain.AnnouncementParams{Content: ""})
 		assert.ErrorIs(t, err, domain.ErrContentRequired)
 	})
 }
