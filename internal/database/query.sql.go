@@ -13,9 +13,9 @@ import (
 
 const createBooth = `-- name: CreateBooth :exec
 INSERT INTO booths (
-name, organizer, detail, location, x, y, z, latitude, longitude
+name, organizer, detail, location, image_url, x, y, z, latitude, longitude
 ) VALUES (
-?, ?, ?, ?, ?, ?, ?, ?, ?
+?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -24,6 +24,7 @@ type CreateBoothParams struct {
 	Organizer string
 	Detail    string
 	Location  sql.NullString
+	ImageUrl  sql.NullString
 	X         float64
 	Y         float64
 	Z         float64
@@ -37,6 +38,7 @@ func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) error 
 		arg.Organizer,
 		arg.Detail,
 		arg.Location,
+		arg.ImageUrl,
 		arg.X,
 		arg.Y,
 		arg.Z,
@@ -134,7 +136,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 }
 
 const getAllBooths = `-- name: GetAllBooths :many
-SELECT id, name, organizer, detail, location, x, y, z, latitude, longitude FROM booths
+SELECT id, name, organizer, detail, location, image_url, x, y, z, latitude, longitude FROM booths
 `
 
 func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
@@ -152,6 +154,7 @@ func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
 			&i.Organizer,
 			&i.Detail,
 			&i.Location,
+			&i.ImageUrl,
 			&i.X,
 			&i.Y,
 			&i.Z,
@@ -243,7 +246,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 
 const getBoothByID = `-- name: GetBoothByID :one
 
-SELECT id, name, organizer, detail, location, x, y, z, latitude, longitude FROM booths WHERE id = ?
+SELECT id, name, organizer, detail, location, image_url, x, y, z, latitude, longitude FROM booths WHERE id = ?
 `
 
 // ==========================================
@@ -258,6 +261,7 @@ func (q *Queries) GetBoothByID(ctx context.Context, id int32) (Booth, error) {
 		&i.Organizer,
 		&i.Detail,
 		&i.Location,
+		&i.ImageUrl,
 		&i.X,
 		&i.Y,
 		&i.Z,
@@ -358,7 +362,7 @@ func (q *Queries) GetUserByLoginID(ctx context.Context, loginID string) (User, e
 
 const updateBooth = `-- name: UpdateBooth :exec
 UPDATE booths
-SET name = ?, organizer = ?, detail = ?, location = ?,  x = ?, y = ?, z = ?, latitude = ?, longitude = ?
+SET name = ?, organizer = ?, detail = ?, location = ?, image_url = ?, x = ?, y = ?, z = ?, latitude = ?, longitude = ?
 WHERE id = ?
 `
 
@@ -367,6 +371,7 @@ type UpdateBoothParams struct {
 	Organizer string
 	Detail    string
 	Location  sql.NullString
+	ImageUrl  sql.NullString
 	X         float64
 	Y         float64
 	Z         float64
@@ -381,6 +386,7 @@ func (q *Queries) UpdateBooth(ctx context.Context, arg UpdateBoothParams) error 
 		arg.Organizer,
 		arg.Detail,
 		arg.Location,
+		arg.ImageUrl,
 		arg.X,
 		arg.Y,
 		arg.Z,

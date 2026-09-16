@@ -15,6 +15,7 @@ type Booth struct {
 	Detail           string           // ブースの説明
 	congestionStatus CongestionStatus // 0: 空き 1: 少し混雑している 2: かなり混雑している]
 	Location         string
+	ImageURL         string  // ブースの紹介画像のURL(未設定なら空文字)
 	X                float32 // X座標
 	Y                float32 // Y座標
 	Z                float32 // Z座標
@@ -35,6 +36,7 @@ type BoothParams struct {
 	Organizer string
 	Detail    string
 	Location  string
+	ImageURL  string
 	X         float32
 	Y         float32
 	Z         float32
@@ -55,6 +57,7 @@ func NewBooth(p BoothParams) (*Booth, error) {
 		Organizer:        p.Organizer,
 		Detail:           p.Detail,
 		Location:         p.Location,
+		ImageURL:         p.ImageURL,
 		congestionStatus: BoothCongestionEmpty,
 		X:                p.X,
 		Y:                p.Y,
@@ -77,6 +80,7 @@ func ReconstructBooth(
 		Organizer:        p.Organizer,
 		Detail:           p.Detail,
 		Location:         p.Location,
+		ImageURL:         p.ImageURL,
 		congestionStatus: congestionStatus,
 		X:                p.X,
 		Y:                p.Y,

@@ -45,6 +45,7 @@ type GetBoothResponse struct {
 	Organizer        string                  `json:"organizer"`
 	Detail           string                  `json:"detail"`
 	Location         string                  `json:"location"`
+	ImageURL         string                  `json:"image_url"`
 	CongestionStatus domain.CongestionStatus `json:"congestion_status"`
 	X                float32                 `json:"x"`
 	Y                float32                 `json:"y"`
@@ -69,6 +70,7 @@ func (h *BoothHandler) GetByID(c *echo.Context) error {
 		Location:         b.Location,
 		Detail:           b.Detail,
 		CongestionStatus: b.CongestionStatus(),
+		ImageURL:         b.ImageURL,
 		X:                b.X,
 		Y:                b.Y,
 		Z:                b.Z,
@@ -98,6 +100,7 @@ func (h *BoothHandler) GetAll(c *echo.Context) error {
 			Detail:           b.Detail,
 			Location:         b.Location,
 			CongestionStatus: b.CongestionStatus(),
+			ImageURL:         b.ImageURL,
 			X:                b.X,
 			Y:                b.Y,
 			Z:                b.Z,
@@ -115,6 +118,7 @@ type CreateBoothRequest struct {
 	Organizer        string                  `json:"organizer"`
 	Detail           string                  `json:"detail"`
 	Location         string                  `json:"location"`
+	ImageURL         string                  `json:"image_url"`
 	CongestionStatus domain.CongestionStatus `json:"congestion_status"`
 	X                float32                 `json:"x"`
 	Y                float32                 `json:"y"`
@@ -136,6 +140,7 @@ func (h *BoothHandler) Create(c *echo.Context) error {
 			Detail:    req.Detail,
 			Location:  req.Location,
 			X:         req.X,
+			ImageURL:  req.ImageURL,
 			Y:         req.Y,
 			Z:         req.Z,
 			Latitude:  req.Latitude,
@@ -163,6 +168,7 @@ type UpdateBoothRequest struct {
 	Organizer        string                  `json:"organizer"`
 	Detail           string                  `json:"detail"`
 	Location         string                  `json:"location"`
+	ImageURL         string                  `json:"image_url"`
 	CongestionStatus domain.CongestionStatus `json:"congestion_status"`
 	X                float32                 `json:"x"`
 	Y                float32                 `json:"y"`
@@ -193,6 +199,7 @@ func (h *BoothHandler) Update(c *echo.Context) error {
 			Detail:    req.Detail,
 			Location:  req.Location,
 			X:         req.X,
+			ImageURL:  req.ImageURL,
 			Y:         req.Y,
 			Z:         req.Z,
 			Latitude:  req.Latitude,

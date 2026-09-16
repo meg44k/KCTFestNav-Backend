@@ -4,6 +4,7 @@ CREATE TABLE booths(
   organizer VARCHAR(255) NOT NULL,
   detail TEXT NOT NULL,
   location TEXT,
+  image_url TEXT,
   x FLOAT NOT NULL,
   y FLOAT NOT NULL,
   z FLOAT NOT NULL,

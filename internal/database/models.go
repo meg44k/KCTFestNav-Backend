@@ -15,6 +15,7 @@ type Booth struct {
 	Organizer string
 	Detail    string
 	Location  sql.NullString
+	ImageUrl  sql.NullString
 	X         float64
 	Y         float64
 	Z         float64

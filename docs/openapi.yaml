@@ -66,13 +66,16 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Spot'
+                type: object
+                properties:
+                  booths:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booth'
 
   /booths/{id}:
     get:
-      summary: 個別企画の詳細取得
+      summary: 個別ブースの詳細取得
       tags:
         - Booths
       parameters:
@@ -80,7 +83,7 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
       responses:
         '200':
           description: 成功
@@ -161,14 +164,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NewSpot'
+              $ref: '#/components/schemas/NewBooth'
       responses:
         '201':
           description: 作成成功
 
   /manage/booths/{id}:
     put:
-      summary: 企画・スポット情報の更新
+      summary: ブース情報の更新
       tags:
         - Manage/Booths
       security:
@@ -178,18 +181,18 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NewSpot'
+              $ref: '#/components/schemas/UpdateBooth'
       responses:
         '200':
           description: 更新成功
     delete:
-      summary: 企画・スポットの削除
+      summary: ブースの削除
       tags:
         - Manage/Booths
       security:
@@ -199,7 +202,7 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
       responses:
         '204':
           description: 削除成功
@@ -217,16 +220,17 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
+              required: [congestion_status]
               properties:
-                level:
-                  $ref: '#/components/schemas/CongestionLevel'
+                congestion_status:
+                  $ref: '#/components/schemas/CongestionStatus'
       responses:
         '200':
           description: 更新成功
@@ -415,7 +419,7 @@ paths:
               properties:
                 status:
                   type: string
-                  description: "current" など
+                  description: '"current" など'
       responses:
         '200':
           description: 更新成功
@@ -461,65 +465,100 @@ components:
       enum: [admin, staff]
       description: admin=運営委員, staff=企画担当者
 
-    Spot:
+    Booth:
       type: object
       properties:
         id:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        location:
-          $ref: '#/components/schemas/Location'
-        congestion:
-          $ref: '#/components/schemas/CongestionLevel'
-        category:
-          $ref: '#/components/schemas/SpotCategory'
-        updatedAt:
-          type: string
-          format: date-time
-
-    NewSpot:
-      type: object
-      required: [name, location, category]
-      properties:
-        name:
-          type: string
-        description:
-          type: string
-        location:
-          $ref: '#/components/schemas/Location'
-        category:
-          $ref: '#/components/schemas/SpotCategory'
-
-    SpotCategory:
-      type: string
-      enum: [exhibition, food, performance, other]
-
-    Location:
-      type: object
-      properties:
-        floor:
           type: integer
+        name:
+          type: string
+          description: ブース名
+        organizer:
+          type: string
+          description: 主催者(ex. 1-1, 陸上部)
+        detail:
+          type: string
+          description: ブースの説明
+        location:
+          type: string
+          description: 場所の説明(ex. 第一体育館)
+        image_url:
+          type: string
+          description: 紹介画像のURL。未設定の場合は空文字
+        congestion_status:
+          $ref: '#/components/schemas/CongestionStatus'
+        x:
+          type: number
+          description: 館内マップ上のX座標
+        y:
+          type: number
+          description: 館内マップ上のY座標
+        z:
+          type: number
+          description: 館内マップ上のZ座標(階数)
+        latitude:
+          type: number
+          description: 緯度。未設定の場合は0
+        longitude:
+          type: number
+          description: 経度。未設定の場合は0
+
+    NewBooth:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        organizer:
+          type: string
+        detail:
+          type: string
+        location:
+          type: string
+        image_url:
+          type: string
+        x:
+          type: number
+        y:
+          type: number
+        z:
+          type: number
         latitude:
           type: number
         longitude:
           type: number
-        mapPoint:
-          type: object
-          properties:
-            x:
-              type: number
-            y:
-              type: number
 
-    CongestionLevel:
-      type: string
-      enum: [empty, normal, crowded]
+    UpdateBooth:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        organizer:
+          type: string
+        detail:
+          type: string
+        location:
+          type: string
+        image_url:
+          type: string
+        congestion_status:
+          $ref: '#/components/schemas/CongestionStatus'
+        x:
+          type: number
+        y:
+          type: number
+        z:
+          type: number
+        latitude:
+          type: number
+        longitude:
+          type: number
 
-    Booth:
-      $ref: '#/components/schemas/Spot'
+    CongestionStatus:
+      type: integer
+      enum: [0, 1, 2]
+      description: 0=空いている, 1=少し混雑, 2=かなり混雑
 
     LiveEvent:
       type: object
