@@ -3,9 +3,13 @@ CREATE TABLE booths(
   name VARCHAR(255) NOT NULL,
   organizer VARCHAR(255) NOT NULL,
   detail TEXT NOT NULL,
+  location TEXT,
+  image_url TEXT,
   x FLOAT NOT NULL,
   y FLOAT NOT NULL,
-  z FLOAT NOT NULL
+  z FLOAT NOT NULL,
+  latitude DOUBLE,
+  longitude DOUBLE
 );
 
 CREATE TABLE users(

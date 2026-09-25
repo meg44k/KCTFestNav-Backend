@@ -18,34 +18,24 @@ func NewBoothUsecase(repo domain.BoothRepository) *BoothUsecase {
 
 func (u *BoothUsecase) Create(
 	ctx context.Context,
-	name string,
-	organizer string,
-	detail string,
-	congestionStatus domain.CongestionStatus,
-	x float32,
-	y float32,
-	z float32,
+	p domain.BoothParams,
 ) error {
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
 	if !ok || reqUser.Role != domain.RoleAdmin {
 		return ErrForbidden
 	}
-	booth, err := domain.NewBooth(name, organizer, detail, x, y, z)
+	booth, err := domain.NewBooth(p)
 	if err != nil {
 		return err
 	}
 	return u.boothRepo.Create(ctx, booth)
 }
 
-func (u *BoothUsecase) Update(ctx context.Context,
+func (u *BoothUsecase) Update(
+	ctx context.Context,
 	id int,
-	name string,
-	organizer string,
-	detail string,
 	congestionStatus domain.CongestionStatus,
-	x float32,
-	y float32,
-	z float32,
+	p domain.BoothParams,
 ) error {
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
 	// 管理者 or　学生会 or 学生出ない時、権限なしとして返す
@@ -57,7 +47,7 @@ func (u *BoothUsecase) Update(ctx context.Context,
 		return ErrForbidden
 	}
 
-	booth, err := domain.ReconstructBooth(id, name, organizer, detail, congestionStatus, x, y, z)
+	booth, err := domain.ReconstructBooth(id, congestionStatus, p)
 	if err != nil {
 		return err
 	}

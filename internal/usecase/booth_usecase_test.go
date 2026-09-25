@@ -85,7 +85,13 @@ func TestBoothUsecase_Create(t *testing.T) {
 		}
 
 		uc := NewBoothUsecase(repo)
-		err := uc.Create(ctx, "ブースA", "1-1", "詳細", 0, 10.5, 20.5, 0.0)
+		err := uc.Create(ctx, domain.BoothParams{
+			Name:      "ブースA",
+			Organizer: "1-1",
+			Detail:    "詳細",
+			X:         10.5,
+			Y:         20.5,
+		})
 
 		require.NoError(t, err)
 	})
@@ -94,7 +100,13 @@ func TestBoothUsecase_Create(t *testing.T) {
 		ctx := boothCtxWithRequestUser(domain.RoleGakuseikai, 0)
 		uc := NewBoothUsecase(&mockBoothRepository{})
 
-		err := uc.Create(ctx, "ブースA", "1-1", "詳細", 0, 10.5, 20.5, 0.0)
+		err := uc.Create(ctx, domain.BoothParams{
+			Name:      "ブースA",
+			Organizer: "1-1",
+			Detail:    "詳細",
+			X:         10.5,
+			Y:         20.5,
+		})
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrForbidden)
@@ -109,7 +121,13 @@ func TestBoothUsecase_Create(t *testing.T) {
 		}
 
 		uc := NewBoothUsecase(repo)
-		err := uc.Create(ctx, "ブースA", "1-1", "詳細", 0, 10.5, 20.5, 0.0)
+		err := uc.Create(ctx, domain.BoothParams{
+			Name:      "ブースA",
+			Organizer: "1-1",
+			Detail:    "詳細",
+			X:         10.5,
+			Y:         20.5,
+		})
 
 		require.Error(t, err)
 		assert.EqualError(t, err, "db error")
@@ -129,7 +147,13 @@ func TestBoothUsecase_Update(t *testing.T) {
 		}
 
 		uc := NewBoothUsecase(repo)
-		err := uc.Update(ctx, 1, "ブース更新", "1-1", "詳細", 1, 10.5, 20.5, 0.0)
+		err := uc.Update(ctx, 1, domain.CongestionStatus(1), domain.BoothParams{
+			Name:      "ブース更新",
+			Organizer: "1-1",
+			Detail:    "詳細",
+			X:         10.5,
+			Y:         20.5,
+		})
 
 		require.NoError(t, err)
 	})
@@ -138,7 +162,13 @@ func TestBoothUsecase_Update(t *testing.T) {
 		ctx := boothCtxWithRequestUser(domain.RoleStudent, 2) // assignされているIDと更新対象(1)が違うのでエラーになる
 		uc := NewBoothUsecase(&mockBoothRepository{})
 
-		err := uc.Update(ctx, 1, "ブース更新", "1-1", "詳細", 1, 10.5, 20.5, 0.0)
+		err := uc.Update(ctx, 1, domain.CongestionStatus(1), domain.BoothParams{
+			Name:      "ブース更新",
+			Organizer: "1-1",
+			Detail:    "詳細",
+			X:         10.5,
+			Y:         20.5,
+		})
 
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrForbidden)
@@ -175,7 +205,7 @@ func TestBoothUsecase_Delete(t *testing.T) {
 
 func TestBoothUsecase_GetByID(t *testing.T) {
 	t.Run("正常系: ブースを取得できる", func(t *testing.T) {
-		expectedBooth, _ := domain.ReconstructBooth(1, "A", "O", "D", 1, 0, 0, 0)
+		expectedBooth, _ := domain.ReconstructBooth(1, domain.BoothCongestionEmpty, domain.BoothParams{Name: "A", Organizer: "O", Detail: "D"})
 		repo := &mockBoothRepository{
 			getByIDFn: func(ctx context.Context, id int) (*domain.Booth, error) {
 				return expectedBooth, nil
@@ -192,7 +222,7 @@ func TestBoothUsecase_GetByID(t *testing.T) {
 
 func TestBoothUsecase_GetAll(t *testing.T) {
 	t.Run("正常系: ブース一覧を取得できる", func(t *testing.T) {
-		expectedBooth, _ := domain.ReconstructBooth(1, "A", "O", "D", 1, 0, 0, 0)
+		expectedBooth, _ := domain.ReconstructBooth(1, domain.BoothCongestionEmpty, domain.BoothParams{Name: "A", Organizer: "O", Detail: "D"})
 		repo := &mockBoothRepository{
 			getAllFn: func(ctx context.Context) ([]*domain.Booth, error) {
 				return []*domain.Booth{expectedBooth}, nil

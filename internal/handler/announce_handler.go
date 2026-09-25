@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
 )
 
@@ -41,7 +42,9 @@ func (h *AnnouncementHandler) Update(c *echo.Context) error {
 		return err
 	}
 
-	if err := h.usecase.Update(c.Request().Context(), req.Content); err != nil {
+	if err := h.usecase.Update(c.Request().Context(), domain.AnnouncementParams{
+		Content: req.Content,
+	}); err != nil {
 		return err
 	}
 

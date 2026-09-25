@@ -15,15 +15,15 @@ import (
 
 type mockAnnouncementUsecase struct {
 	getFn    func(ctx context.Context) (*domain.Announcement, error)
-	updateFn func(ctx context.Context, content string) error
+	updateFn func(ctx context.Context, p domain.AnnouncementParams) error
 }
 
 func (m *mockAnnouncementUsecase) Get(ctx context.Context) (*domain.Announcement, error) {
 	return m.getFn(ctx)
 }
 
-func (m *mockAnnouncementUsecase) Update(ctx context.Context, content string) error {
-	return m.updateFn(ctx, content)
+func (m *mockAnnouncementUsecase) Update(ctx context.Context, p domain.AnnouncementParams) error {
+	return m.updateFn(ctx, p)
 }
 
 func TestAnnouncementHandler_Get(t *testing.T) {
@@ -54,8 +54,8 @@ func TestAnnouncementHandler_Update(t *testing.T) {
 
 	var updatedContent string
 	mockUsecase := &mockAnnouncementUsecase{
-		updateFn: func(ctx context.Context, content string) error {
-			updatedContent = content
+		updateFn: func(ctx context.Context, p domain.AnnouncementParams) error {
+			updatedContent = p.Content
 			return nil
 		},
 	}

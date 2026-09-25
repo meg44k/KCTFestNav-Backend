@@ -20,25 +20,25 @@ import (
 
 // モック用のUsecase
 type mockUserUsecase struct {
-	mockCreate       func(ctx context.Context, name string, loginID string, password []byte, assignedID int, role domain.Role) error
+	mockCreate       func(ctx context.Context, inputPassword []byte, p domain.UserParams) error
 	mockAuthenticate func(ctx context.Context, loginID string, password []byte) (*domain.User, error)
 	mockGetMe        func(ctx context.Context) (*domain.User, error)
 	mockGetByID      func(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	mockGetAll       func(ctx context.Context) ([]*domain.User, error)
-	mockUpdate       func(ctx context.Context, id uuid.UUID, name string, loginID string, password []byte, assignedBoothID int, role domain.Role) error
+	mockUpdate       func(ctx context.Context, id uuid.UUID, p domain.UserParams) error
 	mockDelete       func(ctx context.Context, id uuid.UUID) error
 }
 
-func (m *mockUserUsecase) Create(ctx context.Context, name string, loginID string, password []byte, assignedID int, role domain.Role) error {
+func (m *mockUserUsecase) Create(ctx context.Context, inputPassword []byte, p domain.UserParams) error {
 	if m.mockCreate != nil {
-		return m.mockCreate(ctx, name, loginID, password, assignedID, role)
+		return m.mockCreate(ctx, inputPassword, p)
 	}
 	return nil
 }
 
-func (m *mockUserUsecase) Update(ctx context.Context, id uuid.UUID, name string, loginID string, password []byte, assignedBoothID int, role domain.Role) error {
+func (m *mockUserUsecase) Update(ctx context.Context, id uuid.UUID, p domain.UserParams) error {
 	if m.mockUpdate != nil {
-		return m.mockUpdate(ctx, id, name, loginID, password, assignedBoothID, role)
+		return m.mockUpdate(ctx, id, p)
 	}
 	return nil
 }
@@ -82,12 +82,12 @@ func TestUserHandler_Create(t *testing.T) {
 	t.Run("正常系: リクエストボディが正しければ 201 Created が返ること", func(t *testing.T) {
 		e := echo.New()
 		mockUC := &mockUserUsecase{
-			mockCreate: func(ctx context.Context, name, loginID string, password []byte, assignedID int, role domain.Role) error {
-				assert.Equal(t, "テストユーザー", name)
-				assert.Equal(t, "test_user", loginID)
-				assert.Equal(t, []byte("password123"), password)
-				assert.Equal(t, 1, assignedID)
-				assert.Equal(t, domain.RoleStudent, role)
+			mockCreate: func(ctx context.Context, inputPassword []byte, p domain.UserParams) error {
+				assert.Equal(t, "テストユーザー", p.Name)
+				assert.Equal(t, "test_user", p.LoginID)
+				assert.Equal(t, []byte("password123"), inputPassword)
+				assert.Equal(t, 1, p.AssignedBoothID)
+				assert.Equal(t, domain.RoleStudent, p.Role)
 				return nil
 			},
 		}
@@ -134,7 +134,7 @@ func TestUserHandler_Create(t *testing.T) {
 	t.Run("異常系: Usecase層でエラーが起きた場合はそのままエラーが返ること", func(t *testing.T) {
 		e := echo.New()
 		mockUC := &mockUserUsecase{
-			mockCreate: func(ctx context.Context, name, loginID string, password []byte, assignedID int, role domain.Role) error {
+			mockCreate: func(ctx context.Context, inputPassword []byte, p domain.UserParams) error {
 				return errors.New("db connection error")
 			},
 		}
@@ -166,7 +166,13 @@ func TestUserHandler_Login(t *testing.T) {
 	t.Run("正常系: 認証成功時に 200 OK と トークン が返ること", func(t *testing.T) {
 		e := echo.New()
 		
-		dummyUser, _ := domain.NewUser("テストユーザー", "test_user", []byte("hashed_password"), 1, domain.RoleStudent)
+		dummyUser, _ := domain.NewUser(domain.UserParams{
+			Name:            "テストユーザー",
+			LoginID:         "test_user",
+			Password:        []byte("hashed_password"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 		dummyUser.ID = uuid.New()
 
 		mockUC := &mockUserUsecase{
@@ -245,7 +251,13 @@ func TestUserHandler_GetMe(t *testing.T) {
 		e := echo.New()
 
 		dummyID := uuid.New()
-		dummyUser, _ := domain.ReconstructUser(dummyID, "テストユーザー", "test_user", []byte("hashed_password"), 1, domain.RoleStudent)
+		dummyUser, _ := domain.ReconstructUser(dummyID, domain.UserParams{
+			Name:            "テストユーザー",
+			LoginID:         "test_user",
+			Password:        []byte("hashed_password"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 
 		mockUC := &mockUserUsecase{
 			mockGetMe: func(ctx context.Context) (*domain.User, error) {
@@ -298,7 +310,13 @@ func TestUserHandler_GetByID(t *testing.T) {
 		e := echo.New()
 
 		targetID := uuid.New()
-		dummyUser, _ := domain.ReconstructUser(targetID, "テストユーザー", "test_user", []byte("hashed"), 1, domain.RoleStudent)
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テストユーザー",
+			LoginID:         "test_user",
+			Password:        []byte("hashed"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 
 		mockUC := &mockUserUsecase{
 			mockGetByID: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
@@ -365,8 +383,20 @@ func TestUserHandler_GetAll(t *testing.T) {
 	t.Run("正常系: 全ユーザーのリストが200で返ること", func(t *testing.T) {
 		e := echo.New()
 
-		user1, _ := domain.ReconstructUser(uuid.New(), "テスト1", "test1", []byte("hash"), 1, domain.RoleStudent)
-		user2, _ := domain.ReconstructUser(uuid.New(), "テスト2", "test2", []byte("hash"), 2, domain.RoleAdmin)
+		user1, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "テスト1",
+			LoginID:         "test1",
+			Password:        []byte("hash"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+		user2, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "テスト2",
+			LoginID:         "test2",
+			Password:        []byte("hash"),
+			AssignedBoothID: 2,
+			Role:            domain.RoleAdmin,
+		})
 
 		mockUC := &mockUserUsecase{
 			mockGetAll: func(ctx context.Context) ([]*domain.User, error) {
@@ -418,13 +448,13 @@ func TestUserHandler_Update(t *testing.T) {
 		targetID := uuid.New()
 
 		mockUC := &mockUserUsecase{
-			mockUpdate: func(ctx context.Context, id uuid.UUID, name, loginID string, password []byte, assignedID int, role domain.Role) error {
+			mockUpdate: func(ctx context.Context, id uuid.UUID, p domain.UserParams) error {
 				assert.Equal(t, targetID, id)
-				assert.Equal(t, "更新後の名前", name)
-				assert.Equal(t, "updated_login", loginID)
-				assert.Equal(t, []byte("newpass"), password)
-				assert.Equal(t, 999, assignedID)
-				assert.Equal(t, domain.RoleAdmin, role)
+				assert.Equal(t, "更新後の名前", p.Name)
+				assert.Equal(t, "updated_login", p.LoginID)
+				assert.Equal(t, []byte("newpass"), p.Password)
+				assert.Equal(t, 999, p.AssignedBoothID)
+				assert.Equal(t, domain.RoleAdmin, p.Role)
 				return nil
 			},
 		}
@@ -469,7 +499,7 @@ func TestUserHandler_Update(t *testing.T) {
 		targetID := uuid.New()
 
 		mockUC := &mockUserUsecase{
-			mockUpdate: func(ctx context.Context, id uuid.UUID, name, loginID string, password []byte, assignedID int, role domain.Role) error {
+			mockUpdate: func(ctx context.Context, id uuid.UUID, p domain.UserParams) error {
 				return errors.New("forbidden or db error")
 			},
 		}

@@ -8,7 +8,7 @@ import (
 
 type AnnouncementUsecase interface {
 	Get(ctx context.Context) (*domain.Announcement, error)
-	Update(ctx context.Context, content string) error
+	Update(ctx context.Context, p domain.AnnouncementParams) error
 }
 
 type announcementUsecase struct {
@@ -23,13 +23,13 @@ func (u *announcementUsecase) Get(ctx context.Context) (*domain.Announcement, er
 	return u.repo.Get(ctx)
 }
 
-func (u *announcementUsecase) Update(ctx context.Context, content string) error {
+func (u *announcementUsecase) Update(ctx context.Context, p domain.AnnouncementParams) error {
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
 	if !ok || (reqUser.Role != domain.RoleAdmin && reqUser.Role != domain.RoleGakuseikai) {
 		return ErrForbidden
 	}
 
-	announcement, err := domain.NewAnnouncement(content)
+	announcement, err := domain.NewAnnouncement(p)
 	if err != nil {
 		return err
 	}

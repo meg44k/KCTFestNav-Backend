@@ -68,11 +68,13 @@ func (ur *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.Us
 	}
 	user, err := domain.ReconstructUser(
 		parsedID,
-		dbUser.Name,
-		dbUser.LoginID,
-		[]byte(dbUser.Password),
-		int(dbUser.AssignedBoothID.Int32),
-		domain.Role(dbUser.Role),
+		domain.UserParams{
+			Name:            dbUser.Name,
+			LoginID:         dbUser.LoginID,
+			Password:        []byte(dbUser.Password),
+			AssignedBoothID: int(dbUser.AssignedBoothID.Int32),
+			Role:            domain.Role(dbUser.Role),
+		},
 	)
 	if err != nil {
 		return nil, err
@@ -93,11 +95,13 @@ func (ur *userRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
 		}
 		user, err := domain.ReconstructUser(
 			parsedID,
-			u.Name,
-			u.LoginID,
-			[]byte(u.Password),
-			int(u.AssignedBoothID.Int32),
-			domain.Role(u.Role),
+			domain.UserParams{
+				Name:            u.Name,
+				LoginID:         u.LoginID,
+				Password:        []byte(u.Password),
+				AssignedBoothID: int(u.AssignedBoothID.Int32),
+				Role:            domain.Role(u.Role),
+			},
 		)
 		if err != nil {
 			return nil, err
@@ -124,11 +128,13 @@ func (ur *userRepository) GetByLoginID(ctx context.Context, loginID string) (*do
 
 	user, err := domain.ReconstructUser(
 		parsedID,
-		dbUser.Name,
-		dbUser.LoginID,
-		[]byte(dbUser.Password),
-		int(dbUser.AssignedBoothID.Int32),
-		domain.Role(dbUser.Role),
+		domain.UserParams{
+			Name:            dbUser.Name,
+			LoginID:         dbUser.LoginID,
+			Password:        []byte(dbUser.Password),
+			AssignedBoothID: int(dbUser.AssignedBoothID.Int32),
+			Role:            domain.Role(dbUser.Role),
+		},
 	)
 	if err != nil {
 		return nil, err

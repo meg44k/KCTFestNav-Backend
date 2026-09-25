@@ -49,14 +49,14 @@ func TestLiveRepository_Create(t *testing.T) {
 	t.Run("正常にライブイベントを保存できる", func(t *testing.T) {
 		// 1. 保存するデータを準備
 		// ※domain.NewLiveの引数は実際のものに合わせて調整してください
-		live, err := domain.NewLive(
-			"テストライブ",
-			"テストの詳細です",
-			"https://example.com/thumb.jpg",
-			time.Now(),
-			time.Now().Add(1*time.Hour),
-			1,
-		)
+		live, err := domain.NewLive(domain.LiveParams{
+			Name:          "テストライブ",
+			Detail:        "テストの詳細です",
+			ThumbnailURL:  "https://example.com/thumb.jpg",
+			StartTime:     time.Now(),
+			EndTime:       time.Now().Add(1 * time.Hour),
+			SessionNumber: 1,
+		})
 		assert.NoError(t, err)
 
 		// 2. Create メソッドを実行
@@ -93,14 +93,14 @@ func TestLiveRepository_GetByID(t *testing.T) {
 
 	t.Run("存在するIDを指定した場合、正常に取得できる", func(t *testing.T) {
 		// 1. テスト用にダミーデータを1件保存しておく
-		live, _ := domain.NewLive(
-			"取得テストライブ",
-			"取得のテスト詳細",
-			"https://example.com/get.jpg",
-			time.Now().Round(time.Second), // DB保存時にミリ秒以下が丸められる対策
-			time.Now().Add(1*time.Hour).Round(time.Second),
-			2,
-		)
+		live, _ := domain.NewLive(domain.LiveParams{
+			Name:          "取得テストライブ",
+			Detail:        "取得のテスト詳細",
+			ThumbnailURL:  "https://example.com/get.jpg",
+			StartTime:     time.Now().Round(time.Second), // DB保存時にミリ秒以下が丸められる対策
+			EndTime:       time.Now().Add(1 * time.Hour).Round(time.Second),
+			SessionNumber: 2,
+		})
 		err := repo.Create(ctx, live)
 		assert.NoError(t, err)
 
@@ -150,22 +150,22 @@ func TestLiveRepository_GetAll(t *testing.T) {
 
 	t.Run("複数件のデータが正常に取得できること", func(t *testing.T) {
 		// 1. テスト用にダミーデータを2件保存する
-		live1, _ := domain.NewLive(
-			"ライブA",
-			"詳細A",
-			"",
-			time.Now().Round(time.Second),
-			time.Now().Add(1*time.Hour).Round(time.Second),
-			1,
-		)
-		live2, _ := domain.NewLive(
-			"ライブB",
-			"詳細B",
-			"",
-			time.Now().Round(time.Second),
-			time.Now().Add(2*time.Hour).Round(time.Second),
-			2,
-		)
+		live1, _ := domain.NewLive(domain.LiveParams{
+			Name:          "ライブA",
+			Detail:        "詳細A",
+			ThumbnailURL:  "",
+			StartTime:     time.Now().Round(time.Second),
+			EndTime:       time.Now().Add(1 * time.Hour).Round(time.Second),
+			SessionNumber: 1,
+		})
+		live2, _ := domain.NewLive(domain.LiveParams{
+			Name:          "ライブB",
+			Detail:        "詳細B",
+			ThumbnailURL:  "",
+			StartTime:     time.Now().Round(time.Second),
+			EndTime:       time.Now().Add(2 * time.Hour).Round(time.Second),
+			SessionNumber: 2,
+		})
 		
 		err := repo.Create(ctx, live1)
 		assert.NoError(t, err, "1件目のセットアップ失敗")
@@ -223,14 +223,14 @@ func TestLiveRepository_Update(t *testing.T) {
 
 	t.Run("正常にデータを更新できること", func(t *testing.T) {
 		// 1. テスト用にダミーデータを1件保存する
-		live, _ := domain.NewLive(
-			"更新前のライブ",
-			"古い詳細",
-			"",
-			time.Now().Round(time.Second),
-			time.Now().Add(1*time.Hour).Round(time.Second),
-			1,
-		)
+		live, _ := domain.NewLive(domain.LiveParams{
+			Name:          "更新前のライブ",
+			Detail:        "古い詳細",
+			ThumbnailURL:  "",
+			StartTime:     time.Now().Round(time.Second),
+			EndTime:       time.Now().Add(1 * time.Hour).Round(time.Second),
+			SessionNumber: 1,
+		})
 		err := repo.Create(ctx, live)
 		assert.NoError(t, err, "セットアップ失敗")
 
@@ -281,14 +281,14 @@ func TestLiveRepository_Delete(t *testing.T) {
 
 	t.Run("正常にデータを削除できること", func(t *testing.T) {
 		// 1. テスト用にダミーデータを1件保存する
-		live, _ := domain.NewLive(
-			"削除される運命のライブ",
-			"詳細",
-			"",
-			time.Now().Round(time.Second),
-			time.Now().Add(1*time.Hour).Round(time.Second),
-			1,
-		)
+		live, _ := domain.NewLive(domain.LiveParams{
+			Name:          "削除される運命のライブ",
+			Detail:        "詳細",
+			ThumbnailURL:  "",
+			StartTime:     time.Now().Round(time.Second),
+			EndTime:       time.Now().Add(1 * time.Hour).Round(time.Second),
+			SessionNumber: 1,
+		})
 		err := repo.Create(ctx, live)
 		assert.NoError(t, err, "セットアップ失敗")
 
@@ -334,8 +334,22 @@ func TestLiveRepository_GetCurrentLive(t *testing.T) {
 		_, _ = db.Exec("TRUNCATE TABLE lives")
 
 		// 1. ダミーデータを2件用意（Create時は全て未開催ステータスになる想定）
-		live1, _ := domain.NewLive("終わったライブ", "詳細", "", time.Now(), time.Now().Add(time.Hour), 1)
-		live2, _ := domain.NewLive("進行中ライブ", "詳細", "", time.Now().Add(time.Hour), time.Now().Add(2*time.Hour), 2)
+		live1, _ := domain.NewLive(domain.LiveParams{
+			Name:          "終わったライブ",
+			Detail:        "詳細",
+			ThumbnailURL:  "",
+			StartTime:     time.Now(),
+			EndTime:       time.Now().Add(time.Hour),
+			SessionNumber: 1,
+		})
+		live2, _ := domain.NewLive(domain.LiveParams{
+			Name:          "進行中ライブ",
+			Detail:        "詳細",
+			ThumbnailURL:  "",
+			StartTime:     time.Now().Add(time.Hour),
+			EndTime:       time.Now().Add(2 * time.Hour),
+			SessionNumber: 2,
+		})
 		
 		_ = repo.Create(ctx, live1)
 		_ = repo.Create(ctx, live2)
@@ -385,7 +399,14 @@ func TestLiveRepository_UpdateLiveStatus(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("ステータスのみを正常に更新し、Redisキャッシュを削除できる", func(t *testing.T) {
-		live, _ := domain.ReconstructLive(0, "ステータス変更用", "詳細", "url", time.Now(), time.Now().Add(time.Hour), 1, 0)
+		live, _ := domain.ReconstructLive(0, domain.LiveStatus(0), domain.LiveParams{
+			Name:          "ステータス変更用",
+			Detail:        "詳細",
+			ThumbnailURL:  "url",
+			StartTime:     time.Now(),
+			EndTime:       time.Now().Add(time.Hour),
+			SessionNumber: 1,
+		})
 		err := repo.Create(ctx, live)
 		assert.NoError(t, err)
 

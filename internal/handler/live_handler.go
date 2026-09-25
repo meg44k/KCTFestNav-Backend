@@ -12,23 +12,13 @@ import (
 type LiveUsecase interface {
 	Create(
 		ctx context.Context,
-		name string,
-		detail string,
-		thumbnailURL string,
-		startTime time.Time,
-		endTime time.Time,
-		sessionNumber int8,
+		p domain.LiveParams,
 	) error
 	Update(
 		ctx context.Context,
 		id int,
-		name string,
-		detail string,
-		thumbnailURL string,
-		startTime time.Time,
-		endTime time.Time,
-		sessionNumber int8,
 		status domain.LiveStatus,
+		p domain.LiveParams,
 	) error
 	UpdateLiveStatus(ctx context.Context, id int, status domain.LiveStatus) error
 	Delete(ctx context.Context, id int) error
@@ -65,12 +55,14 @@ func (h *LiveHandler) Create(c *echo.Context) error {
 	ctx := c.Request().Context()
 	err := h.liveUsecase.Create(
 		ctx,
-		req.Name,
-		req.Detail,
-		req.ThumbnailURL,
-		req.StartTime,
-		req.EndTime,
-		req.SessionNumber,
+		domain.LiveParams{
+			Name:          req.Name,
+			Detail:        req.Detail,
+			ThumbnailURL:  req.ThumbnailURL,
+			StartTime:     req.StartTime,
+			EndTime:       req.EndTime,
+			SessionNumber: req.SessionNumber,
+		},
 	)
 	if err != nil {
 		return err // エラーはCustomErrorHandlerで振り分けされる
@@ -105,13 +97,15 @@ func (h *LiveHandler) Update(c *echo.Context) error {
 	err = h.liveUsecase.Update(
 		c.Request().Context(),
 		id,
-		req.Name,
-		req.Detail,
-		req.ThumbnailURL,
-		req.StartTime,
-		req.EndTime,
-		req.SessionNumber,
 		req.Status,
+		domain.LiveParams{
+			Name:          req.Name,
+			Detail:        req.Detail,
+			ThumbnailURL:  req.ThumbnailURL,
+			StartTime:     req.StartTime,
+			EndTime:       req.EndTime,
+			SessionNumber: req.SessionNumber,
+		},
 	)
 	if err != nil {
 		return err // エラーはCustomErrorHandlerで振り分けされる

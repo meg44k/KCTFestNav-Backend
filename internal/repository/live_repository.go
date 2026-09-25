@@ -71,13 +71,16 @@ func (lr *liveRepository) GetByID(ctx context.Context, id int) (*domain.Live, er
 	}
 	live, err := domain.ReconstructLive(
 		int(dbLive.ID),
-		dbLive.Name,
-		dbLive.Detail.String,
-		dbLive.Thumbnailurl.String,
-		dbLive.StartTime,
-		dbLive.EndTime,
-		int8(dbLive.SessionNumber.Int16),
-		domain.LiveStatus(dbLive.Status))
+		domain.LiveStatus(dbLive.Status),
+		domain.LiveParams{
+			Name:          dbLive.Name,
+			Detail:        dbLive.Detail.String,
+			ThumbnailURL:  dbLive.Thumbnailurl.String,
+			StartTime:     dbLive.StartTime,
+			EndTime:       dbLive.EndTime,
+			SessionNumber: int8(dbLive.SessionNumber.Int16),
+		},
+	)
 	return live, nil
 }
 
@@ -91,13 +94,16 @@ func (lr *liveRepository) GetAll(ctx context.Context) ([]*domain.Live, error) {
 	for i, dbLive := range dbLives {
 		live, err := domain.ReconstructLive(
 			int(dbLive.ID),
-			dbLive.Name,
-			dbLive.Detail.String,
-			dbLive.Thumbnailurl.String,
-			dbLive.StartTime,
-			dbLive.EndTime,
-			int8(dbLive.SessionNumber.Int16),
-			domain.LiveStatus(dbLive.Status))
+			domain.LiveStatus(dbLive.Status),
+			domain.LiveParams{
+				Name:          dbLive.Name,
+				Detail:        dbLive.Detail.String,
+				ThumbnailURL:  dbLive.Thumbnailurl.String,
+				StartTime:     dbLive.StartTime,
+				EndTime:       dbLive.EndTime,
+				SessionNumber: int8(dbLive.SessionNumber.Int16),
+			},
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -143,13 +149,15 @@ func (lr *liveRepository) GetCurrentLive(ctx context.Context) (*domain.Live, err
 	// live型へ
 	live, err := domain.ReconstructLive(
 		liveDTO.ID,
-		liveDTO.Name,
-		liveDTO.Detail,
-		liveDTO.ThumbnailURL,
-		liveDTO.StartTime,
-		liveDTO.EndTime,
-		liveDTO.SessionNumber,
 		liveDTO.Status,
+		domain.LiveParams{
+			Name:          liveDTO.Name,
+			Detail:        liveDTO.Detail,
+			ThumbnailURL:  liveDTO.ThumbnailURL,
+			StartTime:     liveDTO.StartTime,
+			EndTime:       liveDTO.EndTime,
+			SessionNumber: liveDTO.SessionNumber,
+		},
 	)
 	if err != nil {
 		return nil, err

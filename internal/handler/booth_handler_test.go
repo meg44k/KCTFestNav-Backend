@@ -18,9 +18,9 @@ import (
 type mockBoothUsecase struct {
 	mockGetByID func(ctx context.Context, id int) (*domain.Booth, error)
 	mockGetAll  func(ctx context.Context) ([]*domain.Booth, error)
-	mockCreate           func(ctx context.Context, name, organizer, detail string, congestionStatus domain.CongestionStatus, x, y, z float32) error
+	mockCreate           func(ctx context.Context, p domain.BoothParams) error
 	mockDelete           func(ctx context.Context, id int) error
-	mockUpdate           func(ctx context.Context, id int, name string, organizer string, detail string, congestionStatus domain.CongestionStatus, x float32, y float32, z float32) error
+	mockUpdate           func(ctx context.Context, id int, congestionStatus domain.CongestionStatus, p domain.BoothParams) error
 	mockUpdateCongestion func(ctx context.Context, id int, congestionLevel domain.CongestionStatus) error
 }
 
@@ -38,9 +38,9 @@ func (m *mockBoothUsecase) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 	return nil, nil
 }
 
-func (m *mockBoothUsecase) Create(ctx context.Context, name, organizer, detail string, congestionStatus domain.CongestionStatus, x, y, z float32) error {
+func (m *mockBoothUsecase) Create(ctx context.Context, p domain.BoothParams) error {
 	if m.mockCreate != nil {
-		return m.mockCreate(ctx, name, organizer, detail, congestionStatus, x, y, z)
+		return m.mockCreate(ctx, p)
 	}
 	return nil
 }
@@ -52,9 +52,9 @@ func (m *mockBoothUsecase) Delete(ctx context.Context, id int) error {
 	return nil
 }
 
-func (m *mockBoothUsecase) Update(ctx context.Context, id int, name string, organizer string, detail string, congestionStatus domain.CongestionStatus, x float32, y float32, z float32) error {
+func (m *mockBoothUsecase) Update(ctx context.Context, id int, congestionStatus domain.CongestionStatus, p domain.BoothParams) error {
 	if m.mockUpdate != nil {
-		return m.mockUpdate(ctx, id, name, organizer, detail, congestionStatus, x, y, z)
+		return m.mockUpdate(ctx, id, congestionStatus, p)
 	}
 	return nil
 }
@@ -69,7 +69,14 @@ func (m *mockBoothUsecase) UpdateCongestion(ctx context.Context, id int, congest
 func TestBoothHandler_GetByID(t *testing.T) {
 	t.Run("正常系: ブースが1件取得できること", func(t *testing.T) {
 		e := echo.New()
-		booth, _ := domain.ReconstructBooth(1, "ブースA", "主催者A", "詳細A", domain.CongestionStatus(1), 10.0, 20.0, 30.0)
+		booth, _ := domain.ReconstructBooth(1, domain.CongestionStatus(1), domain.BoothParams{
+			Name:      "ブースA",
+			Organizer: "主催者A",
+			Detail:    "詳細A",
+			X:         10.0,
+			Y:         20.0,
+			Z:         30.0,
+		})
 
 		mockUC := &mockBoothUsecase{
 			mockGetByID: func(ctx context.Context, id int) (*domain.Booth, error) {
@@ -136,8 +143,22 @@ func TestBoothHandler_GetByID(t *testing.T) {
 func TestBoothHandler_GetAll(t *testing.T) {
 	t.Run("正常系: 全ブースが取得できること", func(t *testing.T) {
 		e := echo.New()
-		booth1, _ := domain.ReconstructBooth(1, "ブースA", "主催者A", "詳細A", domain.CongestionStatus(1), 10.0, 20.0, 30.0)
-		booth2, _ := domain.ReconstructBooth(2, "ブースB", "主催者B", "詳細B", domain.CongestionStatus(2), 15.0, 25.0, 35.0)
+		booth1, _ := domain.ReconstructBooth(1, domain.CongestionStatus(1), domain.BoothParams{
+			Name:      "ブースA",
+			Organizer: "主催者A",
+			Detail:    "詳細A",
+			X:         10.0,
+			Y:         20.0,
+			Z:         30.0,
+		})
+		booth2, _ := domain.ReconstructBooth(2, domain.CongestionStatus(2), domain.BoothParams{
+			Name:      "ブースB",
+			Organizer: "主催者B",
+			Detail:    "詳細B",
+			X:         15.0,
+			Y:         25.0,
+			Z:         35.0,
+		})
 
 		mockUC := &mockBoothUsecase{
 			mockGetAll: func(ctx context.Context) ([]*domain.Booth, error) {
@@ -190,10 +211,10 @@ func TestBoothHandler_Create(t *testing.T) {
 	t.Run("正常系: リクエストボディが正しければ 201 Created が返ること", func(t *testing.T) {
 		e := echo.New()
 		mockUC := &mockBoothUsecase{
-			mockCreate: func(ctx context.Context, name, organizer, detail string, congestionStatus domain.CongestionStatus, x, y, z float32) error {
-				assert.Equal(t, "新ブース", name)
-				assert.Equal(t, "主催X", organizer)
-				assert.Equal(t, float32(1.5), x)
+			mockCreate: func(ctx context.Context, p domain.BoothParams) error {
+				assert.Equal(t, "新ブース", p.Name)
+				assert.Equal(t, "主催X", p.Organizer)
+				assert.Equal(t, float32(1.5), p.X)
 				return nil
 			},
 		}
@@ -228,7 +249,7 @@ func TestBoothHandler_Create(t *testing.T) {
 	t.Run("異常系: Usecase層でエラーが起きた場合はそのままエラーが返ること", func(t *testing.T) {
 		e := echo.New()
 		mockUC := &mockBoothUsecase{
-			mockCreate: func(ctx context.Context, name, organizer, detail string, congestionStatus domain.CongestionStatus, x, y, z float32) error {
+			mockCreate: func(ctx context.Context, p domain.BoothParams) error {
 				return errors.New("usecase error")
 			},
 		}
@@ -302,9 +323,9 @@ func TestBoothHandler_Update(t *testing.T) {
 	t.Run("正常系: リクエストボディが正しければ 200 OK が返ること", func(t *testing.T) {
 		e := echo.New()
 		mockUC := &mockBoothUsecase{
-			mockUpdate: func(ctx context.Context, id int, name string, organizer string, detail string, congestionStatus domain.CongestionStatus, x float32, y float32, z float32) error {
+			mockUpdate: func(ctx context.Context, id int, congestionStatus domain.CongestionStatus, p domain.BoothParams) error {
 				assert.Equal(t, 1, id)
-				assert.Equal(t, "ブース更新", name)
+				assert.Equal(t, "ブース更新", p.Name)
 				return nil
 			},
 		}

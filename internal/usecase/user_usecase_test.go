@@ -68,7 +68,13 @@ func (m *mockUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 func TestUserUsecase_GetByID(t *testing.T) {
 	t.Run("正常系: リポジトリからユーザーを取得できること", func(t *testing.T) {
 		targetID := uuid.New()
-		dummyUser, _ := domain.ReconstructUser(targetID, "テスト", "test", []byte("hash"), 1, domain.RoleStudent)
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テスト",
+			LoginID:         "test",
+			Password:        []byte("hash"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 
 		mockRepo := &mockUserRepository{
 			mockGetByID: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
@@ -101,7 +107,13 @@ func TestUserUsecase_GetByID(t *testing.T) {
 func TestUserUsecase_GetMe(t *testing.T) {
 	t.Run("正常系: コンテキストからRequestUserを取り出してユーザーを取得できること", func(t *testing.T) {
 		targetID := uuid.New()
-		dummyUser, _ := domain.ReconstructUser(targetID, "テスト", "test", []byte("hash"), 1, domain.RoleStudent)
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テスト",
+			LoginID:         "test",
+			Password:        []byte("hash"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 
 		mockRepo := &mockUserRepository{
 			mockGetByID: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
@@ -132,7 +144,13 @@ func TestUserUsecase_Authenticate(t *testing.T) {
 		rawPassword := "mypassword"
 		hashed, _ := bcrypt.GenerateFromPassword([]byte(rawPassword), bcrypt.MinCost)
 		targetID := uuid.New()
-		dummyUser, _ := domain.ReconstructUser(targetID, "テスト", "test", hashed, 1, domain.RoleStudent)
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テスト",
+			LoginID:         "test",
+			Password:        hashed,
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 
 		mockRepo := &mockUserRepository{
 			mockGetByLoginID: func(ctx context.Context, loginID string) (*domain.User, error) {
@@ -163,7 +181,13 @@ func TestUserUsecase_Authenticate(t *testing.T) {
 	t.Run("異常系: パスワードが間違っている場合は ErrUnauthorized を返すこと", func(t *testing.T) {
 		hashed, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), bcrypt.MinCost)
 		targetID := uuid.New()
-		dummyUser, _ := domain.ReconstructUser(targetID, "テスト", "test", hashed, 1, domain.RoleStudent)
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テスト",
+			LoginID:         "test",
+			Password:        hashed,
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 
 		mockRepo := &mockUserRepository{
 			mockGetByLoginID: func(ctx context.Context, loginID string) (*domain.User, error) {
@@ -180,8 +204,20 @@ func TestUserUsecase_Authenticate(t *testing.T) {
 
 func TestUserUsecase_GetAll(t *testing.T) {
 	t.Run("正常系: リポジトリから全てのユーザーを取得できること", func(t *testing.T) {
-		dummyUser1, _ := domain.ReconstructUser(uuid.New(), "テスト1", "test1", []byte("hash"), 1, domain.RoleStudent)
-		dummyUser2, _ := domain.ReconstructUser(uuid.New(), "テスト2", "test2", []byte("hash"), 2, domain.RoleStudent)
+		dummyUser1, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "テスト1",
+			LoginID:         "test1",
+			Password:        []byte("hash"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+		dummyUser2, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "テスト2",
+			LoginID:         "test2",
+			Password:        []byte("hash"),
+			AssignedBoothID: 2,
+			Role:            domain.RoleStudent,
+		})
 		dummyUsers := []*domain.User{dummyUser1, dummyUser2}
 
 		mockRepo := &mockUserRepository{
@@ -232,7 +268,13 @@ func TestUserUsecase_Update(t *testing.T) {
 		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
 		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
 
-		err := uc.Update(ctx, uuid.New(), "更新後の名前", "new_login", []byte("pass"), 1, domain.RoleStudent)
+		err := uc.Update(ctx, uuid.New(), domain.UserParams{
+			Name:            "更新後の名前",
+			LoginID:         "new_login",
+			Password:        []byte("pass"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 		assert.NoError(t, err)
 	})
 
@@ -242,7 +284,13 @@ func TestUserUsecase_Update(t *testing.T) {
 		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleStudent, AssignedBoothID: 1}
 		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
 
-		err := uc.Update(ctx, uuid.New(), "更新後の名前", "new_login", []byte("pass"), 1, domain.RoleStudent)
+		err := uc.Update(ctx, uuid.New(), domain.UserParams{
+			Name:            "更新後の名前",
+			LoginID:         "new_login",
+			Password:        []byte("pass"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 		assert.ErrorIs(t, err, usecase.ErrForbidden)
 	})
 
@@ -257,7 +305,13 @@ func TestUserUsecase_Update(t *testing.T) {
 		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
 		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
 
-		err := uc.Update(ctx, uuid.New(), "更新後の名前", "new_login", []byte("pass"), 1, domain.RoleStudent)
+		err := uc.Update(ctx, uuid.New(), domain.UserParams{
+			Name:            "更新後の名前",
+			LoginID:         "new_login",
+			Password:        []byte("pass"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
 		assert.Error(t, err)
 	})
 }
