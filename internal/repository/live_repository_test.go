@@ -17,6 +17,9 @@ import (
 func setupRedis(t *testing.T) *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
 		Addr: "127.0.0.1:6379",
+		// internal/repository 用の論理DB。go test ./... の並列実行で
+		// 他パッケージの FlushDB と干渉しないよう分けている
+		DB: 2,
 	})
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		t.Skipf("テスト用Redisが起動していないためスキップします: %v", err)
@@ -28,7 +31,7 @@ func setupRedis(t *testing.T) *redis.Client {
 
 func TestLiveRepository_Create(t *testing.T) {
 	// テスト用DBのDSN（※ご自身の環境のパスワードやDB名に合わせて変更してください）
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_repository?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)
@@ -74,7 +77,7 @@ func TestLiveRepository_Create(t *testing.T) {
 }
 
 func TestLiveRepository_GetByID(t *testing.T) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_repository?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)
@@ -131,7 +134,7 @@ func TestLiveRepository_GetByID(t *testing.T) {
 }
 
 func TestLiveRepository_GetAll(t *testing.T) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_repository?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)
@@ -166,10 +169,10 @@ func TestLiveRepository_GetAll(t *testing.T) {
 			EndTime:       time.Now().Add(2 * time.Hour).Round(time.Second),
 			SessionNumber: 2,
 		})
-		
+
 		err := repo.Create(ctx, live1)
 		assert.NoError(t, err, "1件目のセットアップ失敗")
-		
+
 		err = repo.Create(ctx, live2)
 		assert.NoError(t, err, "2件目のセットアップ失敗")
 
@@ -180,7 +183,7 @@ func TestLiveRepository_GetAll(t *testing.T) {
 		assert.NoError(t, err)
 		if assert.NotNil(t, lives) {
 			assert.Len(t, lives, 2, "2件のライブデータが取得できるはず")
-			
+
 			// 取り出したデータの中身が合っているか確認
 			// ※ 取得順（ORDER BY）を指定していない場合は順不同で返る可能性があるため、
 			// 名前で検索するか、簡単なチェックにとどめるのが無難です
@@ -204,7 +207,7 @@ func TestLiveRepository_GetAll(t *testing.T) {
 }
 
 func TestLiveRepository_Update(t *testing.T) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_repository?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)
@@ -262,7 +265,7 @@ func TestLiveRepository_Update(t *testing.T) {
 }
 
 func TestLiveRepository_Delete(t *testing.T) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_repository?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)
@@ -305,7 +308,7 @@ func TestLiveRepository_Delete(t *testing.T) {
 
 		// 5. 本当にDBから消えているか、GetByID で取り直して確認する
 		deletedLive, err := repo.GetByID(ctx, insertedID)
-		
+
 		// 削除されているので「見つかりません」というエラーが返ってくるはず
 		assert.Error(t, err)
 		assert.Nil(t, deletedLive, "削除されたデータは取得できないこと")
@@ -313,7 +316,7 @@ func TestLiveRepository_Delete(t *testing.T) {
 }
 
 func TestLiveRepository_GetCurrentLive(t *testing.T) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_repository?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)
@@ -350,7 +353,7 @@ func TestLiveRepository_GetCurrentLive(t *testing.T) {
 			EndTime:       time.Now().Add(2 * time.Hour),
 			SessionNumber: 2,
 		})
-		
+
 		_ = repo.Create(ctx, live1)
 		_ = repo.Create(ctx, live2)
 
@@ -381,7 +384,7 @@ func TestLiveRepository_GetCurrentLive(t *testing.T) {
 }
 
 func TestLiveRepository_UpdateLiveStatus(t *testing.T) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_repository?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)

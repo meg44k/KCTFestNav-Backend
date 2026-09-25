@@ -1,0 +1,8 @@
+# コンテナ内の mysql クライアントは既定で character_set_client=latin1 になるため、
+# UTF-8 のSQLファイルを流し込むと二重エンコードされて文字化けする。
+# (アプリからの書き込みは go-sql-driver が utf8mb4 を使うので影響しない)
+[client]
+default-character-set = utf8mb4
+
+[mysql]
+default-character-set = utf8mb4

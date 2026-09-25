@@ -10,8 +10,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/google/uuid"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +27,7 @@ import (
 
 // setupBoothE2ETest はテスト用のDBとEchoルーターを初期化して返します
 func setupBoothE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client, []byte) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_handler?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	require.NoError(t, err, "DBの初期化エラー")
 
@@ -44,6 +44,9 @@ func setupBoothE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client, []byte
 	// Redisの初期化
 	rdb := redis.NewClient(&redis.Options{
 		Addr: "127.0.0.1:6379",
+		// internal/handler 用の論理DB。go test ./... の並列実行で
+		// 他パッケージの FlushDB と干渉しないよう分けている
+		DB: 1,
 	})
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		t.Skipf("テスト用Redisが起動していないためスキップします: %v", err)
@@ -92,9 +95,13 @@ func TestBoothE2E(t *testing.T) {
 			Name:      "E2Eテストブース",
 			Organizer: "E2Eテスト実行委員会",
 			Detail:    "E2Eテスト用の詳細情報",
+			Location:  "第一体育館",
+			ImageURL:  "https://example.com/e2e-booth.jpg",
 			X:         1.5,
 			Y:         2.5,
 			Z:         3.5,
+			Latitude:  33.816853,
+			Longitude: 130.871808,
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 
@@ -162,6 +169,11 @@ func TestBoothE2E(t *testing.T) {
 
 		assert.Equal(t, insertedBoothID, res.ID)
 		assert.Equal(t, "E2Eテスト実行委員会", res.Organizer)
+		// 作成時に渡した値がDBに保存され、取得時に戻ってくること
+		assert.Equal(t, "第一体育館", res.Location)
+		assert.Equal(t, "https://example.com/e2e-booth.jpg", res.ImageURL)
+		assert.InDelta(t, 33.816853, res.Latitude, 1e-9)
+		assert.InDelta(t, 130.871808, res.Longitude, 1e-9)
 	})
 
 	t.Run("PUT /manage/booths/:id - ブースの更新", func(t *testing.T) {
@@ -169,9 +181,13 @@ func TestBoothE2E(t *testing.T) {
 			Name:      "更新済みブース",
 			Organizer: "更新済みオーガナイザー",
 			Detail:    "詳細も更新",
+			Location:  "視聴覚室",
+			ImageURL:  "https://example.com/e2e-updated.jpg",
 			X:         10.0,
 			Y:         20.0,
 			Z:         30.0,
+			Latitude:  33.817753,
+			Longitude: 130.872208,
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 
@@ -185,10 +201,24 @@ func TestBoothE2E(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 
-		var newName string
-		err := db.QueryRow("SELECT name FROM booths WHERE id = ?", insertedBoothID).Scan(&newName)
+		var (
+			newName      string
+			newLocation  string
+			newImageURL  string
+			newLatitude  float64
+			newLongitude float64
+		)
+		err := db.QueryRow(
+			"SELECT name, location, image_url, latitude, longitude FROM booths WHERE id = ?",
+			insertedBoothID,
+		).Scan(&newName, &newLocation, &newImageURL, &newLatitude, &newLongitude)
 		assert.NoError(t, err)
 		assert.Equal(t, "更新済みブース", newName)
+		// 更新時も場所・画像・座標がDBに書き込まれること
+		assert.Equal(t, "視聴覚室", newLocation)
+		assert.Equal(t, "https://example.com/e2e-updated.jpg", newImageURL)
+		assert.InDelta(t, 33.817753, newLatitude, 1e-9)
+		assert.InDelta(t, 130.872208, newLongitude, 1e-9)
 	})
 
 	t.Run("PATCH /manage/booths/:id/congestion - 混雑度の変更(Admin)", func(t *testing.T) {
@@ -223,11 +253,11 @@ func TestBoothE2E(t *testing.T) {
 		path := fmt.Sprintf("/manage/booths/%d/congestion", insertedBoothID)
 		req := httptest.NewRequest(http.MethodPatch, path, bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		
+
 		// 権限をStudentにし、アサイン先をこのブースIDに一致させるJWTトークンを発行！
 		studentToken, _ := auth.GenerateToken(uuid.New(), domain.RoleStudent, insertedBoothID, jwtSecret)
 		req.Header.Set("Authorization", "Bearer "+studentToken)
-		
+
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -249,11 +279,11 @@ func TestBoothE2E(t *testing.T) {
 		path := fmt.Sprintf("/manage/booths/%d/congestion", insertedBoothID)
 		req := httptest.NewRequest(http.MethodPatch, path, bytes.NewReader(bodyBytes))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-		
+
 		// 権限をStudentにし、アサイン先を別のブースID(9999)にするJWTトークン
 		wrongStudentToken, _ := auth.GenerateToken(uuid.New(), domain.RoleStudent, 9999, jwtSecret)
 		req.Header.Set("Authorization", "Bearer "+wrongStudentToken)
-		
+
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -282,11 +312,11 @@ func TestBoothE2E(t *testing.T) {
 	t.Run("異常系: DELETE /manage/booths/:id - 一般学生は削除できない(403)", func(t *testing.T) {
 		path := fmt.Sprintf("/manage/booths/%d", insertedBoothID)
 		req := httptest.NewRequest(http.MethodDelete, path, nil)
-		
+
 		// 権限をStudentにしたJWTトークン
 		studentToken, _ := auth.GenerateToken(uuid.New(), domain.RoleStudent, insertedBoothID, jwtSecret)
 		req.Header.Set("Authorization", "Bearer "+studentToken)
-		
+
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
