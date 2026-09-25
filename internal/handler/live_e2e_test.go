@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 
@@ -27,7 +27,7 @@ import (
 
 // setupE2ETest はテスト用のDBとEchoルーターを初期化して返します
 func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client, []byte) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_handler?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)
@@ -43,6 +43,9 @@ func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client, []byte) {
 	// Redisの初期化
 	rdb := redis.NewClient(&redis.Options{
 		Addr: "127.0.0.1:6379",
+		// internal/handler 用の論理DB。go test ./... の並列実行で
+		// 他パッケージの FlushDB と干渉しないよう分けている
+		DB: 1,
 	})
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		t.Skipf("テスト用Redisが起動していないためスキップします: %v", err)
@@ -66,7 +69,7 @@ func setupE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client, []byte) {
 	manage := e.Group("/manage")
 	// ★ ここで本物のミドルウェアを適用！
 	manage.Use(middleware.JWTAuth(jwtSecret))
-	
+
 	manage.POST("/lives", liveHandler.Create)
 	manage.PUT("/lives/:id", liveHandler.Update)
 	manage.PATCH("/lives/:id/status", liveHandler.UpdateLiveStatus)
@@ -106,7 +109,7 @@ func TestLiveE2E(t *testing.T) {
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		// ★ 生成した本物のトークンをヘッダーにセット
 		req.Header.Set("Authorization", authHeaderValue)
-		
+
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
