@@ -25,7 +25,7 @@ import (
 
 // setupUserE2ETest はテスト用のDBとEchoルーターを初期化して返します
 func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
-	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test?parseTime=true"
+	dsn := "root:@tcp(127.0.0.1:3306)/kctfest_test_handler?parseTime=true"
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatalf("DBの初期化エラー: %v", err)
@@ -46,6 +46,9 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	// Redisの初期化
 	rdb := redis.NewClient(&redis.Options{
 		Addr: "127.0.0.1:6379",
+		// internal/handler 用の論理DB。go test ./... の並列実行で
+		// 他パッケージの FlushDB と干渉しないよう分けている
+		DB: 1,
 	})
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		t.Skipf("テスト用Redisが起動していないためスキップします: %v", err)
