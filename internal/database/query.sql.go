@@ -11,6 +11,23 @@ import (
 	"time"
 )
 
+const advanceBlock = `-- name: AdvanceBlock :exec
+UPDATE stage_blocks
+SET current_order = LEAST(current_order + 1,
+  (SELECT COUNT(*) FROM performers WHERE performers.block_id = ?) + 1)
+WHERE stage_blocks.id = ?
+`
+
+type AdvanceBlockParams struct {
+	ID int32
+}
+
+// 同時に押されても出演者数 + 1(終了)を超えないよう、1 文で上限を取る
+func (q *Queries) AdvanceBlock(ctx context.Context, arg AdvanceBlockParams) error {
+	_, err := q.db.ExecContext(ctx, advanceBlock, arg.ID, arg.ID)
+	return err
+}
+
 const createBooth = `-- name: CreateBooth :exec
 INSERT INTO booths (
 name, organizer, detail, location, image_url, x, y, z, latitude, longitude
@@ -48,35 +65,54 @@ func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) error 
 	return err
 }
 
-const createLive = `-- name: CreateLive :exec
-INSERT INTO lives (
-name, detail, thumbnailURL, start_time, end_time, session_number, status
-) VALUES (
-?, ?, ?, ?, ?, ?, ?
-)
+const createPerformer = `-- name: CreatePerformer :execresult
+INSERT INTO performers (block_id, name, detail, thumbnail_url, perform_order) VALUES (?, ?, ?, ?, ?)
 `
 
-type CreateLiveParams struct {
-	Name          string
-	Detail        sql.NullString
-	Thumbnailurl  sql.NullString
-	StartTime     time.Time
-	EndTime       time.Time
-	SessionNumber sql.NullInt16
-	Status        int8
+type CreatePerformerParams struct {
+	BlockID      int32
+	Name         string
+	Detail       string
+	ThumbnailUrl string
+	PerformOrder int32
 }
 
-func (q *Queries) CreateLive(ctx context.Context, arg CreateLiveParams) error {
-	_, err := q.db.ExecContext(ctx, createLive,
+func (q *Queries) CreatePerformer(ctx context.Context, arg CreatePerformerParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createPerformer,
+		arg.BlockID,
 		arg.Name,
 		arg.Detail,
-		arg.Thumbnailurl,
-		arg.StartTime,
-		arg.EndTime,
-		arg.SessionNumber,
-		arg.Status,
+		arg.ThumbnailUrl,
+		arg.PerformOrder,
 	)
-	return err
+}
+
+const createStageBlock = `-- name: CreateStageBlock :execresult
+INSERT INTO stage_blocks (section_id, start_time, end_time) VALUES (?, ?, ?)
+`
+
+type CreateStageBlockParams struct {
+	SectionID int32
+	StartTime time.Time
+	EndTime   time.Time
+}
+
+func (q *Queries) CreateStageBlock(ctx context.Context, arg CreateStageBlockParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createStageBlock, arg.SectionID, arg.StartTime, arg.EndTime)
+}
+
+const createStageSection = `-- name: CreateStageSection :execresult
+INSERT INTO stage_sections (name, location, sort_order) VALUES (?, ?, ?)
+`
+
+type CreateStageSectionParams struct {
+	Name      string
+	Location  string
+	SortOrder int32
+}
+
+func (q *Queries) CreateStageSection(ctx context.Context, arg CreateStageSectionParams) (sql.Result, error) {
+	return q.db.ExecContext(ctx, createStageSection, arg.Name, arg.Location, arg.SortOrder)
 }
 
 const createUser = `-- name: CreateUser :exec
@@ -117,12 +153,30 @@ func (q *Queries) DeleteBooth(ctx context.Context, id int32) error {
 	return err
 }
 
-const deleteLive = `-- name: DeleteLive :exec
-DELETE FROM lives WHERE id = ?
+const deletePerformer = `-- name: DeletePerformer :exec
+DELETE FROM performers WHERE id = ?
 `
 
-func (q *Queries) DeleteLive(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, deleteLive, id)
+func (q *Queries) DeletePerformer(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deletePerformer, id)
+	return err
+}
+
+const deleteStageBlock = `-- name: DeleteStageBlock :exec
+DELETE FROM stage_blocks WHERE id = ?
+`
+
+func (q *Queries) DeleteStageBlock(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteStageBlock, id)
+	return err
+}
+
+const deleteStageSection = `-- name: DeleteStageSection :exec
+DELETE FROM stage_sections WHERE id = ?
+`
+
+func (q *Queries) DeleteStageSection(ctx context.Context, id int32) error {
+	_, err := q.db.ExecContext(ctx, deleteStageSection, id)
 	return err
 }
 
@@ -160,42 +214,6 @@ func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
 			&i.Z,
 			&i.Latitude,
 			&i.Longitude,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const getAllLives = `-- name: GetAllLives :many
-SELECT id, name, detail, thumbnailurl, start_time, end_time, session_number, status FROM lives
-`
-
-func (q *Queries) GetAllLives(ctx context.Context) ([]Live, error) {
-	rows, err := q.db.QueryContext(ctx, getAllLives)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Live
-	for rows.Next() {
-		var i Live
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.Detail,
-			&i.Thumbnailurl,
-			&i.StartTime,
-			&i.EndTime,
-			&i.SessionNumber,
-			&i.Status,
 		); err != nil {
 			return nil, err
 		}
@@ -271,51 +289,53 @@ func (q *Queries) GetBoothByID(ctx context.Context, id int32) (Booth, error) {
 	return i, err
 }
 
-const getCurrentLive = `-- name: GetCurrentLive :one
-SELECT id, name, detail, thumbnailurl, start_time, end_time, session_number, status FROM lives 
-WHERE status = 1
-LIMIT 1
+const getPerformer = `-- name: GetPerformer :one
+SELECT id, block_id, name, detail, thumbnail_url, perform_order FROM performers WHERE id = ?
 `
 
-// statusの値は仮ですが、例えば1を「進行中」とした場合
-func (q *Queries) GetCurrentLive(ctx context.Context) (Live, error) {
-	row := q.db.QueryRowContext(ctx, getCurrentLive)
-	var i Live
+func (q *Queries) GetPerformer(ctx context.Context, id int32) (Performer, error) {
+	row := q.db.QueryRowContext(ctx, getPerformer, id)
+	var i Performer
 	err := row.Scan(
 		&i.ID,
+		&i.BlockID,
 		&i.Name,
 		&i.Detail,
-		&i.Thumbnailurl,
-		&i.StartTime,
-		&i.EndTime,
-		&i.SessionNumber,
-		&i.Status,
+		&i.ThumbnailUrl,
+		&i.PerformOrder,
 	)
 	return i, err
 }
 
-const getLiveByID = `-- name: GetLiveByID :one
-
-
-SELECT id, name, detail, thumbnailurl, start_time, end_time, session_number, status FROM lives WHERE id = ?
+const getStageBlock = `-- name: GetStageBlock :one
+SELECT id, section_id, start_time, end_time, current_order FROM stage_blocks WHERE id = ?
 `
 
-// db/query.sql
-// ==========================================
-// Lives (ライブイベント関連)
-// ==========================================
-func (q *Queries) GetLiveByID(ctx context.Context, id int32) (Live, error) {
-	row := q.db.QueryRowContext(ctx, getLiveByID, id)
-	var i Live
+func (q *Queries) GetStageBlock(ctx context.Context, id int32) (StageBlock, error) {
+	row := q.db.QueryRowContext(ctx, getStageBlock, id)
+	var i StageBlock
+	err := row.Scan(
+		&i.ID,
+		&i.SectionID,
+		&i.StartTime,
+		&i.EndTime,
+		&i.CurrentOrder,
+	)
+	return i, err
+}
+
+const getStageSection = `-- name: GetStageSection :one
+SELECT id, name, location, sort_order FROM stage_sections WHERE id = ?
+`
+
+func (q *Queries) GetStageSection(ctx context.Context, id int32) (StageSection, error) {
+	row := q.db.QueryRowContext(ctx, getStageSection, id)
+	var i StageSection
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
-		&i.Detail,
-		&i.Thumbnailurl,
-		&i.StartTime,
-		&i.EndTime,
-		&i.SessionNumber,
-		&i.Status,
+		&i.Location,
+		&i.SortOrder,
 	)
 	return i, err
 }
@@ -360,6 +380,187 @@ func (q *Queries) GetUserByLoginID(ctx context.Context, loginID string) (User, e
 	return i, err
 }
 
+const listPerformers = `-- name: ListPerformers :many
+SELECT id, block_id, name, detail, thumbnail_url, perform_order FROM performers ORDER BY block_id, perform_order, id
+`
+
+func (q *Queries) ListPerformers(ctx context.Context) ([]Performer, error) {
+	rows, err := q.db.QueryContext(ctx, listPerformers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Performer
+	for rows.Next() {
+		var i Performer
+		if err := rows.Scan(
+			&i.ID,
+			&i.BlockID,
+			&i.Name,
+			&i.Detail,
+			&i.ThumbnailUrl,
+			&i.PerformOrder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPerformersInBlock = `-- name: ListPerformersInBlock :many
+SELECT id, block_id, name, detail, thumbnail_url, perform_order FROM performers WHERE block_id = ? ORDER BY perform_order, id
+`
+
+func (q *Queries) ListPerformersInBlock(ctx context.Context, blockID int32) ([]Performer, error) {
+	rows, err := q.db.QueryContext(ctx, listPerformersInBlock, blockID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Performer
+	for rows.Next() {
+		var i Performer
+		if err := rows.Scan(
+			&i.ID,
+			&i.BlockID,
+			&i.Name,
+			&i.Detail,
+			&i.ThumbnailUrl,
+			&i.PerformOrder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStageBlocks = `-- name: ListStageBlocks :many
+SELECT id, section_id, start_time, end_time, current_order FROM stage_blocks ORDER BY start_time, id
+`
+
+func (q *Queries) ListStageBlocks(ctx context.Context) ([]StageBlock, error) {
+	rows, err := q.db.QueryContext(ctx, listStageBlocks)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StageBlock
+	for rows.Next() {
+		var i StageBlock
+		if err := rows.Scan(
+			&i.ID,
+			&i.SectionID,
+			&i.StartTime,
+			&i.EndTime,
+			&i.CurrentOrder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listStageSections = `-- name: ListStageSections :many
+
+
+SELECT id, name, location, sort_order FROM stage_sections ORDER BY sort_order, id
+`
+
+// db/query.sql
+// ==========================================
+// Stage (ステージイベント: セクション → ブロック → 出演者)
+// ==========================================
+func (q *Queries) ListStageSections(ctx context.Context) ([]StageSection, error) {
+	rows, err := q.db.QueryContext(ctx, listStageSections)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []StageSection
+	for rows.Next() {
+		var i StageSection
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Location,
+			&i.SortOrder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const nextPerformOrder = `-- name: NextPerformOrder :one
+SELECT CAST(COALESCE(MAX(perform_order), 0) + 1 AS SIGNED) AS next_order FROM performers WHERE block_id = ?
+`
+
+func (q *Queries) NextPerformOrder(ctx context.Context, blockID int32) (int64, error) {
+	row := q.db.QueryRowContext(ctx, nextPerformOrder, blockID)
+	var next_order int64
+	err := row.Scan(&next_order)
+	return next_order, err
+}
+
+const rewindBlock = `-- name: RewindBlock :exec
+UPDATE stage_blocks
+SET current_order = GREATEST(LEAST(current_order,
+  (SELECT COUNT(*) FROM performers WHERE performers.block_id = ?) + 1) - 1, 0)
+WHERE stage_blocks.id = ?
+`
+
+type RewindBlockParams struct {
+	ID int32
+}
+
+// 出演者が消されて current_order が出演者数 + 1 を超えていても、1 回で最後の出演者に戻るよう先に丸める
+func (q *Queries) RewindBlock(ctx context.Context, arg RewindBlockParams) error {
+	_, err := q.db.ExecContext(ctx, rewindBlock, arg.ID, arg.ID)
+	return err
+}
+
+const setPerformerOrder = `-- name: SetPerformerOrder :exec
+UPDATE performers SET perform_order = ? WHERE id = ?
+`
+
+type SetPerformerOrderParams struct {
+	PerformOrder int32
+	ID           int32
+}
+
+func (q *Queries) SetPerformerOrder(ctx context.Context, arg SetPerformerOrderParams) error {
+	_, err := q.db.ExecContext(ctx, setPerformerOrder, arg.PerformOrder, arg.ID)
+	return err
+}
+
 const updateBooth = `-- name: UpdateBooth :exec
 UPDATE booths
 SET name = ?, organizer = ?, detail = ?, location = ?, image_url = ?, x = ?, y = ?, z = ?, latitude = ?, longitude = ?
@@ -397,50 +598,60 @@ func (q *Queries) UpdateBooth(ctx context.Context, arg UpdateBoothParams) error 
 	return err
 }
 
-const updateLive = `-- name: UpdateLive :exec
-UPDATE lives
-SET name = ?, detail = ?, thumbnailURL = ?, start_time = ?, end_time = ?, session_number = ?, status = ?
-WHERE id = ?
+const updatePerformer = `-- name: UpdatePerformer :exec
+UPDATE performers SET name = ?, detail = ?, thumbnail_url = ? WHERE id = ?
 `
 
-type UpdateLiveParams struct {
-	Name          string
-	Detail        sql.NullString
-	Thumbnailurl  sql.NullString
-	StartTime     time.Time
-	EndTime       time.Time
-	SessionNumber sql.NullInt16
-	Status        int8
-	ID            int32
+type UpdatePerformerParams struct {
+	Name         string
+	Detail       string
+	ThumbnailUrl string
+	ID           int32
 }
 
-func (q *Queries) UpdateLive(ctx context.Context, arg UpdateLiveParams) error {
-	_, err := q.db.ExecContext(ctx, updateLive,
+func (q *Queries) UpdatePerformer(ctx context.Context, arg UpdatePerformerParams) error {
+	_, err := q.db.ExecContext(ctx, updatePerformer,
 		arg.Name,
 		arg.Detail,
-		arg.Thumbnailurl,
-		arg.StartTime,
-		arg.EndTime,
-		arg.SessionNumber,
-		arg.Status,
+		arg.ThumbnailUrl,
 		arg.ID,
 	)
 	return err
 }
 
-const updateLiveStatus = `-- name: UpdateLiveStatus :exec
-UPDATE lives
-SET status = ?
-WHERE id = ?
+const updateStageBlock = `-- name: UpdateStageBlock :exec
+UPDATE stage_blocks SET start_time = ?, end_time = ? WHERE id = ?
 `
 
-type UpdateLiveStatusParams struct {
-	Status int8
-	ID     int32
+type UpdateStageBlockParams struct {
+	StartTime time.Time
+	EndTime   time.Time
+	ID        int32
 }
 
-func (q *Queries) UpdateLiveStatus(ctx context.Context, arg UpdateLiveStatusParams) error {
-	_, err := q.db.ExecContext(ctx, updateLiveStatus, arg.Status, arg.ID)
+func (q *Queries) UpdateStageBlock(ctx context.Context, arg UpdateStageBlockParams) error {
+	_, err := q.db.ExecContext(ctx, updateStageBlock, arg.StartTime, arg.EndTime, arg.ID)
+	return err
+}
+
+const updateStageSection = `-- name: UpdateStageSection :exec
+UPDATE stage_sections SET name = ?, location = ?, sort_order = ? WHERE id = ?
+`
+
+type UpdateStageSectionParams struct {
+	Name      string
+	Location  string
+	SortOrder int32
+	ID        int32
+}
+
+func (q *Queries) UpdateStageSection(ctx context.Context, arg UpdateStageSectionParams) error {
+	_, err := q.db.ExecContext(ctx, updateStageSection,
+		arg.Name,
+		arg.Location,
+		arg.SortOrder,
+		arg.ID,
+	)
 	return err
 }
 

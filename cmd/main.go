@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log"
 	"os"
+	"time"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
@@ -49,9 +50,9 @@ func main() {
 	})
 
 	// 依存関係注入
-	liveRepo := repository.NewLiveRepository(db, rdb)
-	liveUsecase := usecase.NewLiveUsecase(liveRepo)
-	liveHandler := handler.NewLiveHandler(liveUsecase)
+	stageRepo := repository.NewStageRepository(db)
+	stageUsecase := usecase.NewStageUsecase(stageRepo)
+	stageHandler := handler.NewStageHandler(stageUsecase, time.Now)
 
 	boothRepo := repository.NewBoothRepository(db, rdb)
 	boothUsecase := usecase.NewBoothUsecase(boothRepo)
@@ -66,7 +67,7 @@ func main() {
 
 	// ハンドラをまとめてルーターに渡す(ここもっと良くなるかも)
 	handlers := &handler.Handlers{
-		Live:         liveHandler,
+		Stage:        stageHandler,
 		Booth:        boothHandler,
 		User:         userHandler,
 		Announcement: announceHandler,

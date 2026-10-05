@@ -1,40 +1,76 @@
  -- db/query.sql
 
 -- ==========================================
--- Lives (ライブイベント関連)
+-- Stage (ステージイベント: セクション → ブロック → 出演者)
 -- ==========================================
 
--- name: GetLiveByID :one
-SELECT * FROM lives WHERE id = ?;
+-- name: ListStageSections :many
+SELECT * FROM stage_sections ORDER BY sort_order, id;
 
--- name: GetAllLives :many
-SELECT * FROM lives;
+-- name: ListStageBlocks :many
+SELECT * FROM stage_blocks ORDER BY start_time, id;
 
--- name: GetCurrentLive :one
--- statusの値は仮ですが、例えば1を「進行中」とした場合
-SELECT * FROM lives 
-WHERE status = 1
-LIMIT 1;
+-- name: ListPerformers :many
+SELECT * FROM performers ORDER BY block_id, perform_order, id;
 
--- name: CreateLive :exec
-INSERT INTO lives (
-name, detail, thumbnailURL, start_time, end_time, session_number, status
-) VALUES (
-?, ?, ?, ?, ?, ?, ?
-);
+-- name: ListPerformersInBlock :many
+SELECT * FROM performers WHERE block_id = ? ORDER BY perform_order, id;
 
--- name: UpdateLive :exec
-UPDATE lives
-SET name = ?, detail = ?, thumbnailURL = ?, start_time = ?, end_time = ?, session_number = ?, status = ?
-WHERE id = ?;
+-- name: GetStageSection :one
+SELECT * FROM stage_sections WHERE id = ?;
 
--- name: UpdateLiveStatus :exec
-UPDATE lives
-SET status = ?
-WHERE id = ?;
+-- name: GetStageBlock :one
+SELECT * FROM stage_blocks WHERE id = ?;
 
--- name: DeleteLive :exec
-DELETE FROM lives WHERE id = ?;
+-- name: GetPerformer :one
+SELECT * FROM performers WHERE id = ?;
+
+-- name: CreateStageSection :execresult
+INSERT INTO stage_sections (name, location, sort_order) VALUES (?, ?, ?);
+
+-- name: UpdateStageSection :exec
+UPDATE stage_sections SET name = ?, location = ?, sort_order = ? WHERE id = ?;
+
+-- name: DeleteStageSection :exec
+DELETE FROM stage_sections WHERE id = ?;
+
+-- name: CreateStageBlock :execresult
+INSERT INTO stage_blocks (section_id, start_time, end_time) VALUES (?, ?, ?);
+
+-- name: UpdateStageBlock :exec
+UPDATE stage_blocks SET start_time = ?, end_time = ? WHERE id = ?;
+
+-- name: DeleteStageBlock :exec
+DELETE FROM stage_blocks WHERE id = ?;
+
+-- name: NextPerformOrder :one
+SELECT CAST(COALESCE(MAX(perform_order), 0) + 1 AS SIGNED) AS next_order FROM performers WHERE block_id = ?;
+
+-- name: CreatePerformer :execresult
+INSERT INTO performers (block_id, name, detail, thumbnail_url, perform_order) VALUES (?, ?, ?, ?, ?);
+
+-- name: UpdatePerformer :exec
+UPDATE performers SET name = ?, detail = ?, thumbnail_url = ? WHERE id = ?;
+
+-- name: SetPerformerOrder :exec
+UPDATE performers SET perform_order = ? WHERE id = ?;
+
+-- name: DeletePerformer :exec
+DELETE FROM performers WHERE id = ?;
+
+-- 同時に押されても出演者数 + 1(終了)を超えないよう、1 文で上限を取る
+-- name: AdvanceBlock :exec
+UPDATE stage_blocks
+SET current_order = LEAST(current_order + 1,
+  (SELECT COUNT(*) FROM performers WHERE performers.block_id = sqlc.arg(id)) + 1)
+WHERE stage_blocks.id = sqlc.arg(id);
+
+-- 出演者が消されて current_order が出演者数 + 1 を超えていても、1 回で最後の出演者に戻るよう先に丸める
+-- name: RewindBlock :exec
+UPDATE stage_blocks
+SET current_order = GREATEST(LEAST(current_order,
+  (SELECT COUNT(*) FROM performers WHERE performers.block_id = sqlc.arg(id)) + 1) - 1, 0)
+WHERE stage_blocks.id = sqlc.arg(id);
 
 
 -- ==========================================

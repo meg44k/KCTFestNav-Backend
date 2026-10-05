@@ -23,15 +23,28 @@ type Booth struct {
 	Longitude sql.NullFloat64
 }
 
-type Live struct {
-	ID            int32
-	Name          string
-	Detail        sql.NullString
-	Thumbnailurl  sql.NullString
-	StartTime     time.Time
-	EndTime       time.Time
-	SessionNumber sql.NullInt16
-	Status        int8
+type Performer struct {
+	ID           int32
+	BlockID      int32
+	Name         string
+	Detail       string
+	ThumbnailUrl string
+	PerformOrder int32
+}
+
+type StageBlock struct {
+	ID           int32
+	SectionID    int32
+	StartTime    time.Time
+	EndTime      time.Time
+	CurrentOrder int32
+}
+
+type StageSection struct {
+	ID        int32
+	Name      string
+	Location  string
+	SortOrder int32
 }
 
 type User struct {
