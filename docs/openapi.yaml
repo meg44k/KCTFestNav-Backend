@@ -487,6 +487,11 @@ components:
           description: 紹介画像のURL。未設定の場合は空文字
         congestion_status:
           $ref: '#/components/schemas/CongestionStatus'
+        congestion_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 混雑度を最後に更新した時刻。まだ一度も更新していなければ null
         x:
           type: number
           description: 館内マップ上のX座標

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
@@ -52,6 +53,30 @@ type GetBoothResponse struct {
 	Z                float32                 `json:"z"`
 	Latitude         float64                 `json:"latitude"`
 	Longitude        float64                 `json:"longitude"`
+	// 混雑度を最後に更新した時刻。まだ一度も更新していなければ null
+	CongestionUpdatedAt *time.Time `json:"congestion_updated_at"`
+}
+
+func toGetBoothResponse(b *domain.Booth) GetBoothResponse {
+	res := GetBoothResponse{
+		ID:               b.ID,
+		Name:             b.Name,
+		Organizer:        b.Organizer,
+		Detail:           b.Detail,
+		Location:         b.Location,
+		CongestionStatus: b.CongestionStatus(),
+		ImageURL:         b.ImageURL,
+		X:                b.X,
+		Y:                b.Y,
+		Z:                b.Z,
+		Latitude:         b.Latitude,
+		Longitude:        b.Longitude,
+	}
+	if !b.CongestionUpdatedAt.IsZero() {
+		t := b.CongestionUpdatedAt
+		res.CongestionUpdatedAt = &t
+	}
+	return res
 }
 
 func (h *BoothHandler) GetByID(c *echo.Context) error {
@@ -63,22 +88,7 @@ func (h *BoothHandler) GetByID(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	res := GetBoothResponse{
-		ID:               b.ID,
-		Name:             b.Name,
-		Organizer:        b.Organizer,
-		Location:         b.Location,
-		Detail:           b.Detail,
-		CongestionStatus: b.CongestionStatus(),
-		ImageURL:         b.ImageURL,
-		X:                b.X,
-		Y:                b.Y,
-		Z:                b.Z,
-		Latitude:         b.Latitude,
-		Longitude:        b.Longitude,
-	}
-
-	return c.JSON(http.StatusOK, res)
+	return c.JSON(http.StatusOK, toGetBoothResponse(b))
 }
 
 type GetAllBoothsResponse struct {
@@ -93,20 +103,7 @@ func (h *BoothHandler) GetAll(c *echo.Context) error {
 
 	res := make([]GetBoothResponse, len(booths))
 	for i, b := range booths {
-		res[i] = GetBoothResponse{
-			ID:               b.ID,
-			Name:             b.Name,
-			Organizer:        b.Organizer,
-			Detail:           b.Detail,
-			Location:         b.Location,
-			CongestionStatus: b.CongestionStatus(),
-			ImageURL:         b.ImageURL,
-			X:                b.X,
-			Y:                b.Y,
-			Z:                b.Z,
-			Latitude:         b.Latitude,
-			Longitude:        b.Longitude,
-		}
+		res[i] = toGetBoothResponse(b)
 	}
 	return c.JSON(http.StatusOK, GetAllBoothsResponse{
 		Booths: res,

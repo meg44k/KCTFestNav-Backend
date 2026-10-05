@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
@@ -152,6 +153,7 @@ func TestBoothE2E(t *testing.T) {
 		assert.Len(t, res.Booths, 1)
 		assert.Equal(t, "E2Eテストブース", res.Booths[0].Name)
 		assert.Equal(t, domain.CongestionStatus(0), res.Booths[0].CongestionStatus)
+		assert.Nil(t, res.Booths[0].CongestionUpdatedAt, "まだ混雑度を更新していないので null")
 	})
 
 	t.Run("GET /booths/:id - 1件取得", func(t *testing.T) {
@@ -242,6 +244,19 @@ func TestBoothE2E(t *testing.T) {
 		val, err := rdb.Get(context.Background(), fmt.Sprintf("congestion_status:%d", insertedBoothID)).Int()
 		assert.NoError(t, err)
 		assert.Equal(t, 2, val)
+	})
+
+	t.Run("GET /booths/:id - 混雑度を更新した時刻が返ること", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/booths/%d", insertedBoothID), nil)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusOK, rec.Code)
+
+		var res handler.GetBoothResponse
+		assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+		if assert.NotNil(t, res.CongestionUpdatedAt) {
+			assert.WithinDuration(t, time.Now(), *res.CongestionUpdatedAt, time.Minute)
+		}
 	})
 
 	t.Run("PATCH /manage/booths/:id/congestion - アサインされたStudentは変更できる(200)", func(t *testing.T) {
