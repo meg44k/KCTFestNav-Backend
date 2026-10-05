@@ -72,10 +72,14 @@ func ValidateMoveDirection(d MoveDirection) error {
 	return nil
 }
 
-// 来場者に「演奏中」と出すか。ブロックの時間内(開始 ≦ now < 終了)で、
-// current_order が出演者を指しているときだけ。押し忘れても時間を過ぎれば消える
+// 終了時刻を過ぎても演奏中と出し続ける長さ。延びたライブに備え、押し忘れはこの後に消す
+const NowPlayingGrace = 30 * time.Minute
+
+// 来場者に「演奏中」と出すか。学生会が進めて current_order が出演者を指していれば、
+// 開始時刻に関係なく出す(早めの開始や当日前の確認でも見えるように)。
+// 押し忘れに備え、終了時刻から NowPlayingGrace たったら消す
 func (b *StageBlock) NowPlaying(now time.Time) bool {
-	if now.Before(b.StartTime) || !now.Before(b.EndTime) {
+	if !now.Before(b.EndTime.Add(NowPlayingGrace)) {
 		return false
 	}
 	return b.CurrentOrder >= 1 && b.CurrentOrder <= len(b.Performers)

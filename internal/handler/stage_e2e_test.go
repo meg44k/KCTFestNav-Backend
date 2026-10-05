@@ -137,8 +137,8 @@ func TestStageE2E(t *testing.T) {
 		assert.Equal(t, 2, s.Blocks[0].Performers[1].PerformOrder)
 	})
 
-	t.Run("時間外なら now_playing は false", func(t *testing.T) {
-		now = start.Add(time.Hour)
+	t.Run("終了から30分たてば now_playing は false(押し忘れ)", func(t *testing.T) {
+		now = start.Add(50*time.Minute + domain.NowPlayingGrace)
 		defer func() { now = start.Add(10 * time.Minute) }()
 		var res handler.StageResponse
 		require.NoError(t, json.Unmarshal(public.do(http.MethodGet, "/stage", nil).Body.Bytes(), &res))
