@@ -308,6 +308,56 @@ func TestUserUsecase_Update(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
+	t.Run("正常系: パスワードはハッシュ化して保存すること", func(t *testing.T) {
+		var saved *domain.User
+		mockRepo := &mockUserRepository{
+			mockUpdate: func(ctx context.Context, user *domain.User) error {
+				saved = user
+				return nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey,
+			usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin})
+
+		err := uc.Update(ctx, uuid.New(), domain.UserParams{
+			Name: "担当", LoginID: "booth-1", Password: []byte("new-pass"),
+			AssignedBoothID: 1, Role: domain.RoleStudent,
+		})
+		assert.NoError(t, err)
+		assert.NotEqual(t, []byte("new-pass"), saved.Password)
+		assert.NoError(t, bcrypt.CompareHashAndPassword(saved.Password, []byte("new-pass")))
+	})
+
+	t.Run("正常系: パスワードが空なら今のパスワードを保つこと", func(t *testing.T) {
+		id := uuid.New()
+		current, _ := domain.ReconstructUser(id, domain.UserParams{
+			Name: "担当", LoginID: "booth-1", Password: []byte("existing-hash"),
+			AssignedBoothID: 1, Role: domain.RoleStudent,
+		})
+		var saved *domain.User
+		mockRepo := &mockUserRepository{
+			mockGetByID: func(ctx context.Context, gotID uuid.UUID) (*domain.User, error) {
+				assert.Equal(t, id, gotID)
+				return current, nil
+			},
+			mockUpdate: func(ctx context.Context, user *domain.User) error {
+				saved = user
+				return nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey,
+			usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin})
+
+		err := uc.Update(ctx, id, domain.UserParams{
+			Name: "名前だけ変更", LoginID: "booth-1", AssignedBoothID: 1, Role: domain.RoleStudent,
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, "名前だけ変更", saved.Name)
+		assert.Equal(t, []byte("existing-hash"), saved.Password)
+	})
+
 	t.Run("異常系: Admin権限でない場合は ErrForbidden が返ること", func(t *testing.T) {
 		uc := usecase.NewUserUsecase(&mockUserRepository{})
 
