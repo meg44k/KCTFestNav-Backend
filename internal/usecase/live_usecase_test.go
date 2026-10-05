@@ -609,3 +609,40 @@ func TestLiveUsecase_UpdateLiveStatus(t *testing.T) {
 		assert.EqualError(t, err, "db error")
 	})
 }
+
+func TestLiveUsecase_UpdateLiveStatus_Validation(t *testing.T) {
+	t.Run("異常系: 0/1/2 以外は保存しない", func(t *testing.T) {
+		called := false
+		repo := &mockLiveRepository{
+			updateLiveStatusFn: func(ctx context.Context, id int, s domain.LiveStatus) error {
+				called = true
+				return nil
+			},
+		}
+		uc := NewLiveUsecase(repo)
+		err := uc.UpdateLiveStatus(ctxWithRole(domain.RoleGakuseikai), 1, domain.LiveStatus(7))
+		assert.ErrorIs(t, err, domain.ErrInvalidLiveStatus)
+		assert.False(t, called)
+	})
+}
+
+func TestLiveUsecase_Update_StatusValidation(t *testing.T) {
+	t.Run("異常系: 0/1/2 以外の状態では更新しない", func(t *testing.T) {
+		called := false
+		repo := &mockLiveRepository{
+			updateFn: func(ctx context.Context, live *domain.Live) error {
+				called = true
+				return nil
+			},
+		}
+		uc := NewLiveUsecase(repo)
+		err := uc.Update(ctxWithRole(domain.RoleAdmin), 1, domain.LiveStatus(7), domain.LiveParams{
+			Name:          "ライブ",
+			StartTime:     time.Date(2026, 10, 31, 13, 0, 0, 0, time.Local),
+			EndTime:       time.Date(2026, 10, 31, 13, 30, 0, 0, time.Local),
+			SessionNumber: 1,
+		})
+		assert.ErrorIs(t, err, domain.ErrInvalidLiveStatus)
+		assert.False(t, called)
+	})
+}

@@ -44,6 +44,9 @@ func (u *LiveUsecase) Update(
 	if !ok || (reqUser.Role != domain.RoleAdmin && reqUser.Role != domain.RoleGakuseikai) {
 		return ErrForbidden
 	}
+	if err := domain.ValidateLiveStatus(status); err != nil {
+		return err
+	}
 
 	live, err := domain.ReconstructLive(id, status, p)
 	if err != nil {
@@ -57,6 +60,9 @@ func (u *LiveUsecase) UpdateLiveStatus(ctx context.Context, id int, status domai
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
 	if !ok || reqUser.Role != domain.RoleAdmin && reqUser.Role != domain.RoleGakuseikai { // Adminと学生会以外不可
 		return ErrForbidden
+	}
+	if err := domain.ValidateLiveStatus(status); err != nil {
+		return err
 	}
 	return u.liveRepo.UpdateLiveStatus(ctx, id, status)
 }
