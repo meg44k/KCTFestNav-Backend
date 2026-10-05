@@ -80,9 +80,6 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	authGroup.POST("/login", userHandler.Login)
 	authGroup.GET("/me", userHandler.GetMe, mv.JWTAuth(jwtSecret))
 
-	// パス確認用（パブリックな取得想定）
-	e.GET("/users/:id", userHandler.GetByID)
-
 	return e, db, rdb
 }
 
@@ -238,8 +235,9 @@ func TestUserE2E(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
-	t.Run("GET /users/:id - ユーザー情報をIDで取得できること", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/users/"+createdUserID, nil)
+	t.Run("GET /manage/users/:id - ユーザー情報をIDで取得できること", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/manage/users/"+createdUserID, nil)
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+adminToken)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)
@@ -258,10 +256,21 @@ func TestUserE2E(t *testing.T) {
 		assert.Equal(t, domain.RoleStudent, res.Role)
 	})
 
-	t.Run("GET /users/:id - 存在しないUUIDの場合は404エラーになること", func(t *testing.T) {
+	t.Run("GET /manage/users/:id - Admin以外は403エラーになること", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/manage/users/"+createdUserID, nil)
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+loginToken)
+		rec := httptest.NewRecorder()
+
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("GET /manage/users/:id - 存在しないUUIDの場合は404エラーになること", func(t *testing.T) {
 		// ランダムなUUIDを生成
 		randomID := "123e4567-e89b-12d3-a456-426614174000"
-		req := httptest.NewRequest(http.MethodGet, "/users/"+randomID, nil)
+		req := httptest.NewRequest(http.MethodGet, "/manage/users/"+randomID, nil)
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+adminToken)
 		rec := httptest.NewRecorder()
 
 		e.ServeHTTP(rec, req)

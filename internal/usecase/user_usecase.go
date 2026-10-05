@@ -104,6 +104,11 @@ func (uu *UserUsecase) GetMe(ctx context.Context) (*domain.User, error) {
 }
 
 func (uu *UserUsecase) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
+	if !ok || reqUser.Role != domain.RoleAdmin {
+		return nil, ErrForbidden
+	}
+
 	user, err := uu.userRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
