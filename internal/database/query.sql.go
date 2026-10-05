@@ -531,11 +531,19 @@ func (q *Queries) NextPerformOrder(ctx context.Context, blockID int32) (int64, e
 }
 
 const rewindBlock = `-- name: RewindBlock :exec
-UPDATE stage_blocks SET current_order = GREATEST(current_order - 1, 0) WHERE id = ?
+UPDATE stage_blocks
+SET current_order = GREATEST(LEAST(current_order,
+  (SELECT COUNT(*) FROM performers WHERE performers.block_id = ?) + 1) - 1, 0)
+WHERE stage_blocks.id = ?
 `
 
-func (q *Queries) RewindBlock(ctx context.Context, id int32) error {
-	_, err := q.db.ExecContext(ctx, rewindBlock, id)
+type RewindBlockParams struct {
+	ID int32
+}
+
+// 出演者が消されて current_order が出演者数 + 1 を超えていても、1 回で最後の出演者に戻るよう先に丸める
+func (q *Queries) RewindBlock(ctx context.Context, arg RewindBlockParams) error {
+	_, err := q.db.ExecContext(ctx, rewindBlock, arg.ID, arg.ID)
 	return err
 }
 

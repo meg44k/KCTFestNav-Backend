@@ -65,8 +65,12 @@ SET current_order = LEAST(current_order + 1,
   (SELECT COUNT(*) FROM performers WHERE performers.block_id = sqlc.arg(id)) + 1)
 WHERE stage_blocks.id = sqlc.arg(id);
 
+-- 出演者が消されて current_order が出演者数 + 1 を超えていても、1 回で最後の出演者に戻るよう先に丸める
 -- name: RewindBlock :exec
-UPDATE stage_blocks SET current_order = GREATEST(current_order - 1, 0) WHERE id = ?;
+UPDATE stage_blocks
+SET current_order = GREATEST(LEAST(current_order,
+  (SELECT COUNT(*) FROM performers WHERE performers.block_id = sqlc.arg(id)) + 1) - 1, 0)
+WHERE stage_blocks.id = sqlc.arg(id);
 
 
 -- ==========================================

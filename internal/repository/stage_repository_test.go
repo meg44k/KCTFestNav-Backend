@@ -236,6 +236,21 @@ func TestStageRepository_AdvanceRewind(t *testing.T) {
 		require.NoError(t, r.AdvanceBlock(ctx, empty))
 		assert.Equal(t, 1, current(empty))
 	})
+	t.Run("出演者が減って数を超えていても、戻すと最後の出演者に戻る", func(t *testing.T) {
+		b := mustBlock(t, r, sid, start.Add(3*time.Hour))
+		var ids []int
+		for _, n := range []string{"P", "Q", "R"} {
+			ids = append(ids, mustPerformer(t, r, b, n))
+		}
+		for i := 0; i < 4; i++ {
+			require.NoError(t, r.AdvanceBlock(ctx, b))
+		}
+		require.Equal(t, 4, current(b))
+		require.NoError(t, r.DeletePerformer(ctx, ids[0]))
+		require.NoError(t, r.DeletePerformer(ctx, ids[1]))
+		require.NoError(t, r.RewindBlock(ctx, b))
+		assert.Equal(t, 1, current(b), "終了(2)を飛ばさず、残った 1 組の演奏中に戻る")
+	})
 	t.Run("同時に押されても上限を超えない", func(t *testing.T) {
 		b := mustBlock(t, r, sid, start.Add(2*time.Hour))
 		mustPerformer(t, r, b, "X")

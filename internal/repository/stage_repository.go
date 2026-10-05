@@ -287,5 +287,5 @@ func (r *stageRepository) RewindBlock(ctx context.Context, id int) error {
 	if _, err := r.db.GetStageBlock(ctx, int32(id)); err != nil {
 		return err
 	}
-	return r.db.RewindBlock(ctx, int32(id))
+	return r.db.RewindBlock(ctx, database.RewindBlockParams{ID: int32(id)})
 }
