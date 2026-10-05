@@ -41,8 +41,8 @@ curl -s http://localhost:1323/booths | python3 -m json.tool
 - 開発用のため root はパスワード無し。`.env` の `DB_USER=root` / `DB_PASS=`(空) と、
   e2eテストがハードコードしている DSN に合わせている
 - `db/init/` はボリュームが空のときだけ実行される。スキーマやシードを変えたら
-- すでに DB がある場合にライブのモックだけを足すには `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/seed/lives.sql`（流すたびに増えるので 1 回だけ）
   `docker compose down -v && docker compose up -d` で作り直す
+- すでに DB がある場合にライブのモックだけを足すには `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/seed/lives.sql`（流すたびに増えるので 1 回だけ）
 - 混雑度は MySQL ではなく Redis (`congestion_status:{id}`) で管理している。
   未登録のブースは「空いている」扱いになる
 - コンテナ内の mysql クライアントは既定で `character_set_client=latin1` になり、
