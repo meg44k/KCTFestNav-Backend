@@ -16,7 +16,7 @@ go run ./cmd              # APIサーバーを http://localhost:1323 で起動
 
 | DB | 用途 | 初期データ |
 |---|---|---|
-| `kctfestnav` | 開発用 | `db/init/03-seed.sql` のブース8件 |
+| `kctfestnav` | 開発用 | `db/init/03-seed.sql` のブース8件とステージ(2日分)のモック |
 | `kctfest_test_handler` | `internal/handler` のe2eテスト用 | なし(テストが毎回TRUNCATEする) |
 | `kctfest_test_repository` | `internal/repository` のテスト用 | なし(同上) |
 
@@ -42,6 +42,9 @@ curl -s http://localhost:1323/booths | python3 -m json.tool
   e2eテストがハードコードしている DSN に合わせている
 - `db/init/` はボリュームが空のときだけ実行される。スキーマやシードを変えたら
   `docker compose down -v && docker compose up -d` で作り直す
+- ライブ(lives)はステージ(セクション・ブロック・出演者)に置き換えた。既存のDBには
+  `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/migrations/2026-10-05-stage.sql`
+  を流す(lives を削除して新しい表を作る)。モックだけを足すには同じ要領で `db/seed/stage.sql` を 1 回だけ流す
 - 混雑度は MySQL ではなく Redis (`congestion_status:{id}`) で管理している。
   未登録のブースは「空いている」扱いになる
 - コンテナ内の mysql クライアントは既定で `character_set_client=latin1` になり、

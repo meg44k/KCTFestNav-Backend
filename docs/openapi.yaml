@@ -92,52 +92,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Booth'
 
-  /lives:
+  /stage:
     get:
-      summary: 全ライブイベントのスケジュール取得
+      summary: ステージイベントの全セクション・ブロック・出演者と演奏中
+      description: |
+        セクション(sort_order 順) → ブロック(開始時刻順) → 出演者(出演順) の入れ子。
+        時刻は +09:00。now_playing はブロックの時間内(開始 ≦ 今 < 終了)で
+        1 ≦ current_order ≦ 出演者数 のとき true。演奏中の出演者は perform_order == current_order。
       tags:
-        - LiveEvents
+        - Stage
       responses:
         '200':
           description: 成功
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LiveEvent'
-
-  /lives/current:
-    get:
-      summary: 現在進行中のライブ情報を取得
-      tags:
-        - LiveEvents
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LiveEvent'
-
-  /lives/{id}:
-    get:
-      summary: 特定のライブ情報を取得
-      tags:
-        - LiveEvents
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: 成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LiveEvent'
+                type: object
+                properties:
+                  sections:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/StageSection'
 
   /announcements:
     get:
@@ -342,11 +317,11 @@ paths:
         '204':
           description: 削除成功
 
-  /manage/lives:
+  /manage/stage/sections:
     post:
-      summary: ライブイベントの新規作成
+      summary: セクションの追加
       tags:
-        - Manage/LiveEvents
+        - Manage/Stage
       security:
         - bearerAuth: []
       requestBody:
@@ -354,16 +329,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LiveEvent'
+              $ref: '#/components/schemas/StageSectionInput'
       responses:
         '201':
-          description: 作成成功
+          description: 作成成功。作った id を返す
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedID'
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
 
-  /manage/lives/{id}:
+  /manage/stage/sections/{id}:
     put:
-      summary: ライブイベント情報の更新
+      summary: セクションの更新
       tags:
-        - Manage/LiveEvents
+        - Manage/Stage
       security:
         - bearerAuth: []
       parameters:
@@ -371,37 +356,159 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LiveEvent'
+              $ref: '#/components/schemas/StageSectionInput'
+      responses:
+        '204':
+          description: 成功
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
+    delete:
+      summary: セクションの削除(中のブロック・出演者も消える)
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 成功
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
+
+  /manage/stage/sections/{id}/blocks:
+    post:
+      summary: ブロックの追加
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StageBlockInput'
+      responses:
+        '201':
+          description: 作成成功。作った id を返す
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedID'
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
+
+  /manage/stage/blocks/{id}:
+    put:
+      summary: ブロックの時刻の更新(current_order は保つ)
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StageBlockInput'
+      responses:
+        '204':
+          description: 成功
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
+    delete:
+      summary: ブロックの削除(中の出演者も消える)
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 成功
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
+
+  /manage/stage/blocks/{id}/next:
+    post:
+      summary: 演奏中を次の出演者へ進める(出演者数 + 1 = 終了で止まる)
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
       responses:
         '200':
-          description: 更新成功
-    delete:
-      summary: ライブイベントの削除
-      tags:
-        - Manage/LiveEvents
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '204':
-          description: 削除成功
+          description: 更新後のブロック
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageBlock'
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin と学生会以外
+        '404':
+          description: 存在しない id
 
-  /manage/lives/{id}/status:
-    patch:
-      summary: ライブイベント状態の更新
+  /manage/stage/blocks/{id}/prev:
+    post:
+      summary: 演奏中を 1 つ戻す(0 で止まる)
       tags:
-        - Manage/LiveEvents
+        - Manage/Stage
       security:
         - bearerAuth: []
       parameters:
@@ -409,25 +516,132 @@ paths:
           in: path
           required: true
           schema:
-            type: string
+            type: integer
+      responses:
+        '200':
+          description: 更新後のブロック
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StageBlock'
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin と学生会以外
+        '404':
+          description: 存在しない id
+
+  /manage/stage/blocks/{id}/performers:
+    post:
+      summary: 出演者の追加(出演順は最後)
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                status:
-                  type: integer
-                  enum: [0, 1, 2]
-                  description: 0 = 開演前、1 = 公演中、2 = 終了
+              $ref: '#/components/schemas/PerformerInput'
+      responses:
+        '201':
+          description: 作成成功。作った id を返す
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatedID'
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
+
+  /manage/stage/performers/{id}:
+    put:
+      summary: 出演者の更新(出演順は変えない)
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PerformerInput'
       responses:
         '204':
-          description: 更新成功
+          description: 成功
         '400':
-          description: 状態の値が不正
+          description: 入力が不正
         '403':
-          description: Admin と学生会以外
+          description: Admin 以外
+        '404':
+          description: 存在しない id
+    delete:
+      summary: 出演者の削除
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 成功
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
+
+  /manage/stage/performers/{id}/move:
+    post:
+      summary: 出演順を隣と入れ替える(端なら何もしない)
+      tags:
+        - Manage/Stage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MoveInput'
+      responses:
+        '204':
+          description: 成功
+        '400':
+          description: 入力が不正
+        '403':
+          description: Admin 以外
+        '404':
+          description: 存在しない id
 
 components:
   securitySchemes:
@@ -570,24 +784,69 @@ components:
       enum: [0, 1, 2]
       description: 0=空いている, 1=少し混雑, 2=かなり混雑
 
-    LiveEvent:
+    StageSection:
       type: object
       properties:
-        id:
-          type: string
-        title:
-          type: string
-        description:
-          type: string
-        startTime:
-          type: string
-          format: date-time
-        endTime:
-          type: string
-          format: date-time
-        isCurrent:
-          type: boolean
-
+        id: {type: integer}
+        name: {type: string, example: Live1}
+        location: {type: string, example: 第一体育館}
+        sort_order: {type: integer}
+        blocks:
+          type: array
+          items:
+            $ref: '#/components/schemas/StageBlock'
+    StageBlock:
+      type: object
+      properties:
+        id: {type: integer}
+        section_id: {type: integer}
+        start_time: {type: string, format: date-time, example: '2026-10-31T13:00:00+09:00'}
+        end_time: {type: string, format: date-time}
+        current_order:
+          type: integer
+          description: 0 = まだ始まっていない、1〜出演者数 = その順番が演奏中、出演者数 + 1 = 終了
+        now_playing: {type: boolean}
+        performers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Performer'
+    Performer:
+      type: object
+      properties:
+        id: {type: integer}
+        block_id: {type: integer}
+        name: {type: string}
+        detail: {type: string}
+        thumbnail_url: {type: string}
+        perform_order: {type: integer}
+    StageSectionInput:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        location: {type: string}
+        sort_order: {type: integer}
+    StageBlockInput:
+      type: object
+      required: [start_time, end_time]
+      properties:
+        start_time: {type: string, format: date-time}
+        end_time: {type: string, format: date-time}
+    PerformerInput:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string}
+        detail: {type: string}
+        thumbnail_url: {type: string}
+    MoveInput:
+      type: object
+      properties:
+        direction: {type: string, enum: [up, down]}
+    CreatedID:
+      type: object
+      properties:
+        id: {type: integer}
     Announcement:
       type: object
       properties:
