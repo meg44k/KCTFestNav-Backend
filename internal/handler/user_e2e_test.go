@@ -343,6 +343,50 @@ func TestUserE2E(t *testing.T) {
 		assert.Equal(t, int32(999), dbBoothID.Int32)
 	})
 
+	t.Run("PUT /manage/users/:id - 更新したパスワードでログインできること", func(t *testing.T) {
+		loginBody, _ := json.Marshal(handler.LoginRequest{
+			LoginID:  "e2e_test_user_updated",
+			Password: "new_secure_password",
+		})
+		req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(loginBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+
+		if !assert.Equal(t, http.StatusOK, rec.Code) {
+			t.Logf("Response body: %s", rec.Body.String())
+		}
+		var res handler.LoginResponse
+		assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &res))
+		assert.NotEmpty(t, res.Token)
+	})
+
+	t.Run("PUT /manage/users/:id - パスワードが空なら今のパスワードのままであること", func(t *testing.T) {
+		updateBody, _ := json.Marshal(map[string]interface{}{
+			"name":              "E2Eテストユーザー(名前だけ変更)",
+			"login_id":          "e2e_test_user_updated",
+			"password":          "",
+			"assigned_booth_id": 999,
+			"role":              domain.RoleMember,
+		})
+		req := httptest.NewRequest(http.MethodPut, "/manage/users/"+createdUserID, bytes.NewReader(updateBody))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+adminToken)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusNoContent, rec.Code)
+
+		loginBody, _ := json.Marshal(handler.LoginRequest{
+			LoginID:  "e2e_test_user_updated",
+			Password: "new_secure_password",
+		})
+		req2 := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(loginBody))
+		req2.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec2 := httptest.NewRecorder()
+		e.ServeHTTP(rec2, req2)
+		assert.Equal(t, http.StatusOK, rec2.Code)
+	})
+
 	t.Run("DELETE /manage/users/:id - ユーザーを削除できること(Admin権限)", func(t *testing.T) {
 		// Adminユーザーでログインしてトークンを取得
 		loginReq := handler.LoginRequest{

@@ -75,6 +75,22 @@ func (uu *UserUsecase) Update(
 	if !ok || reqUser.Role != domain.RoleAdmin {
 		return ErrForbidden
 	}
+
+	// パスワードが空なら今のものを保つ。空でなければハッシュ化して保存する
+	if len(p.Password) == 0 {
+		current, err := uu.userRepo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		p.Password = current.Password
+	} else {
+		hashed, err := bcrypt.GenerateFromPassword(p.Password, bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		p.Password = hashed
+	}
+
 	user, err := domain.ReconstructUser(id, p)
 	if err != nil {
 		return err
