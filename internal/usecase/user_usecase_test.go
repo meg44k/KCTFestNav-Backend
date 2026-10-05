@@ -66,6 +66,9 @@ func (m *mockUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 }
 
 func TestUserUsecase_GetByID(t *testing.T) {
+	adminCtx := context.WithValue(context.Background(), usecase.ContextRequestUserKey,
+		usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin})
+
 	t.Run("正常系: リポジトリからユーザーを取得できること", func(t *testing.T) {
 		targetID := uuid.New()
 		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
@@ -84,7 +87,7 @@ func TestUserUsecase_GetByID(t *testing.T) {
 		}
 		uc := usecase.NewUserUsecase(mockRepo)
 
-		user, err := uc.GetByID(context.Background(), targetID)
+		user, err := uc.GetByID(adminCtx, targetID)
 		assert.NoError(t, err)
 		assert.Equal(t, dummyUser, user)
 	})
@@ -98,8 +101,35 @@ func TestUserUsecase_GetByID(t *testing.T) {
 		}
 		uc := usecase.NewUserUsecase(mockRepo)
 
-		user, err := uc.GetByID(context.Background(), targetID)
+		user, err := uc.GetByID(adminCtx, targetID)
 		assert.Error(t, err)
+		assert.Nil(t, user)
+	})
+
+	t.Run("異常系: Admin以外は取得できないこと", func(t *testing.T) {
+		for _, role := range []domain.Role{domain.RoleGakuseikai, domain.RoleStudent, domain.RoleMember} {
+			called := false
+			mockRepo := &mockUserRepository{
+				mockGetByID: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+					called = true
+					return nil, nil
+				},
+			}
+			uc := usecase.NewUserUsecase(mockRepo)
+			ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey,
+				usecase.RequestUser{ID: uuid.New(), Role: role})
+
+			user, err := uc.GetByID(ctx, uuid.New())
+			assert.ErrorIs(t, err, usecase.ErrForbidden, role)
+			assert.Nil(t, user)
+			assert.False(t, called, "権限が無いときはリポジトリを呼ばない")
+		}
+	})
+
+	t.Run("異常系: ログイン情報が無いときは取得できないこと", func(t *testing.T) {
+		uc := usecase.NewUserUsecase(&mockUserRepository{})
+		user, err := uc.GetByID(context.Background(), uuid.New())
+		assert.ErrorIs(t, err, usecase.ErrForbidden)
 		assert.Nil(t, user)
 	})
 }
