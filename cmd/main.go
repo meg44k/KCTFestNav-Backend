@@ -49,10 +49,6 @@ func main() {
 	})
 
 	// 依存関係注入
-	liveRepo := repository.NewLiveRepository(db, rdb)
-	liveUsecase := usecase.NewLiveUsecase(liveRepo)
-	liveHandler := handler.NewLiveHandler(liveUsecase)
-
 	boothRepo := repository.NewBoothRepository(db, rdb)
 	boothUsecase := usecase.NewBoothUsecase(boothRepo)
 	boothHandler := handler.NewBoothHandler(boothUsecase)
@@ -66,7 +62,6 @@ func main() {
 
 	// ハンドラをまとめてルーターに渡す(ここもっと良くなるかも)
 	handlers := &handler.Handlers{
-		Live:         liveHandler,
 		Booth:        boothHandler,
 		User:         userHandler,
 		Announcement: announceHandler,

@@ -23,11 +23,6 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	e.GET("/booths", h.Booth.GetAll)      // 全ブースの情報を取得
 	e.GET("/booths/:id", h.Booth.GetByID) // 特定のブースIDの情報を取得
 
-	// ライブイベント
-	e.GET("/lives", h.Live.GetAll)                 // 全ライブイベントの情報を取得
-	e.GET("/lives/:id", h.Live.GetByID)            // 特定のライブIDの情報を取得
-	e.GET("/lives/current", h.Live.GetCurrentLive) // 現在進行中のライブ情報を取得
-
 	// アナウンス
 	e.GET("/announcements", h.Announcement.Get) // 現在のお知らせを表示
 
@@ -47,9 +42,4 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	manage.POST("/users", h.User.Create)       // ユーザの追加
 	manage.PUT("/users/:id", h.User.Update)    // ユーザの更新
 	manage.DELETE("/users/:id", h.User.Delete) // ユーザの削除
-
-	manage.POST("/lives", h.Live.Create)
-	manage.PUT("/lives/:id", h.Live.Update)
-	manage.PATCH("/lives/:id/status", h.Live.UpdateLiveStatus)
-	manage.DELETE("/lives/:id", h.Live.Delete)
 }
