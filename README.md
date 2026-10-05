@@ -16,7 +16,7 @@ go run ./cmd              # APIサーバーを http://localhost:1323 で起動
 
 | DB | 用途 | 初期データ |
 |---|---|---|
-| `kctfestnav` | 開発用 | `db/init/03-seed.sql` のブース8件 |
+| `kctfestnav` | 開発用 | `db/init/03-seed.sql` のブース8件とライブ9件 |
 | `kctfest_test_handler` | `internal/handler` のe2eテスト用 | なし(テストが毎回TRUNCATEする) |
 | `kctfest_test_repository` | `internal/repository` のテスト用 | なし(同上) |
 
@@ -41,6 +41,7 @@ curl -s http://localhost:1323/booths | python3 -m json.tool
 - 開発用のため root はパスワード無し。`.env` の `DB_USER=root` / `DB_PASS=`(空) と、
   e2eテストがハードコードしている DSN に合わせている
 - `db/init/` はボリュームが空のときだけ実行される。スキーマやシードを変えたら
+- すでに DB がある場合にライブのモックだけを足すには `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/seed/lives.sql`（流すたびに増えるので 1 回だけ）
   `docker compose down -v && docker compose up -d` で作り直す
 - 混雑度は MySQL ではなく Redis (`congestion_status:{id}`) で管理している。
   未登録のブースは「空いている」扱いになる
