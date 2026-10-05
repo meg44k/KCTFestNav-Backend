@@ -114,7 +114,7 @@ func (h *LiveHandler) Update(c *echo.Context) error {
 }
 
 type UpdateLiveStatusRequest struct {
-	Status domain.Live `json:"status"`
+	Status domain.LiveStatus `json:"status"`
 }
 
 func (h *LiveHandler) UpdateLiveStatus(c *echo.Context) error {
@@ -122,12 +122,14 @@ func (h *LiveHandler) UpdateLiveStatus(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	var req UpdateLiveRequest
+	var req UpdateLiveStatusRequest
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
-	h.liveUsecase.UpdateLiveStatus(c.Request().Context(), id, req.Status)
-	return nil
+	if err := h.liveUsecase.UpdateLiveStatus(c.Request().Context(), id, req.Status); err != nil {
+		return err
+	}
+	return c.NoContent(http.StatusNoContent)
 }
 
 type LiveResponse struct {

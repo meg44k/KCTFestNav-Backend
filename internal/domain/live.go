@@ -107,9 +107,17 @@ func validateLive(
 }
 
 func (l *Live) SetStatus(status LiveStatus) error {
+	if err := ValidateLiveStatus(status); err != nil {
+		return err
+	}
+	l.status = status
+	return nil
+}
+
+// ライブの状態が 0(開演前)/1(公演中)/2(終了) のどれかか
+func ValidateLiveStatus(status LiveStatus) error {
 	switch status {
 	case LiveStatusUpcoming, LiveStatusOngoing, LiveStatusFinished:
-		l.status = status
 		return nil
 	default:
 		return ErrInvalidLiveStatus

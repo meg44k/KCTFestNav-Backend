@@ -208,6 +208,43 @@ func TestLiveE2E(t *testing.T) {
 		assert.Equal(t, domain.LiveStatus(1), res.Status)
 	})
 
+	t.Run("PATCH /manage/lives/:id/status - 状態を変えられること", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]int{"status": 2})
+		req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/manage/lives/%d/status", insertedLiveID), bytes.NewReader(body))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set("Authorization", authHeaderValue)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusNoContent, rec.Code)
+
+		var status int
+		assert.NoError(t, db.QueryRow("SELECT status FROM lives WHERE id = ?", insertedLiveID).Scan(&status))
+		assert.Equal(t, 2, status)
+	})
+
+	t.Run("PATCH /manage/lives/:id/status - 不正な値は400で保存しないこと", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]int{"status": 7})
+		req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/manage/lives/%d/status", insertedLiveID), bytes.NewReader(body))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set("Authorization", authHeaderValue)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+
+		var status int
+		assert.NoError(t, db.QueryRow("SELECT status FROM lives WHERE id = ?", insertedLiveID).Scan(&status))
+		assert.Equal(t, 2, status)
+	})
+
+	t.Run("PATCH /manage/lives/:id/status - トークンが無ければ401", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]int{"status": 1})
+		req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/manage/lives/%d/status", insertedLiveID), bytes.NewReader(body))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	})
+
 	t.Run("DELETE /manage/lives/:id - ライブの削除", func(t *testing.T) {
 		path := fmt.Sprintf("/manage/lives/%d", insertedLiveID)
 		req := httptest.NewRequest(http.MethodDelete, path, nil)
