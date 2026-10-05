@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 )
 
 // クラス展示、部活の出店などをあらわす型。
@@ -21,6 +22,8 @@ type Booth struct {
 	Z                float32 // Z座標
 	Latitude         float64 // 緯度
 	Longitude        float64 // 経度
+
+	CongestionUpdatedAt time.Time // 混雑度を最後に更新した時刻。未更新はゼロ値
 }
 
 type CongestionStatus int8

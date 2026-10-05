@@ -84,6 +84,9 @@ func (br *boothRepository) GetByID(ctx context.Context, id int) (*domain.Booth, 
 	if err != nil {
 		return nil, err
 	}
+	if booth.CongestionUpdatedAt, err = br.congestionUpdatedAt(ctx, id); err != nil {
+		return nil, err
+	}
 	return booth, nil
 }
 
@@ -126,6 +129,9 @@ func (br *boothRepository) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 		if err != nil {
 			return nil, err
 		}
+		if booth.CongestionUpdatedAt, err = br.congestionUpdatedAt(ctx, int(b.ID)); err != nil {
+			return nil, err
+		}
 		booths[i] = booth
 	}
 	return booths, nil
@@ -154,17 +160,32 @@ func (br *boothRepository) Update(ctx context.Context, b *domain.Booth) error {
 }
 
 func (br *boothRepository) UpdateCongestion(ctx context.Context, id int, congestionStatus domain.CongestionStatus) error {
-	if err := br.cache.Set(ctx, formatRedisCongestionStatusKey(id), int(congestionStatus), NoExpiration).Err(); err != nil {
-		return err
+	// 混雑度と更新時刻は必ず一緒に書く
+	_, err := br.cache.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+		pipe.Set(ctx, formatRedisCongestionStatusKey(id), int(congestionStatus), NoExpiration)
+		pipe.Set(ctx, formatRedisCongestionUpdatedAtKey(id), time.Now().Unix(), NoExpiration)
+		return nil
+	})
+	return err
+}
+
+// 混雑度の更新時刻を読む。未更新ならゼロ値
+func (br *boothRepository) congestionUpdatedAt(ctx context.Context, id int) (time.Time, error) {
+	unix, err := br.cache.Get(ctx, formatRedisCongestionUpdatedAtKey(id)).Int64()
+	if errors.Is(err, redis.Nil) {
+		return time.Time{}, nil
 	}
-	return nil
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(unix, 0), nil
 }
 
 func (br *boothRepository) Delete(ctx context.Context, id int) error {
 	if err := br.db.DeleteBooth(ctx, int32(id)); err != nil {
 		return err
 	}
-	br.cache.Del(ctx, formatRedisCongestionStatusKey(id))
+	br.cache.Del(ctx, formatRedisCongestionStatusKey(id), formatRedisCongestionUpdatedAtKey(id))
 	return nil
 }
 
@@ -184,4 +205,9 @@ func toNullFloat64(f float64) sql.NullFloat64 {
 // "congestion_status:{id}"がstring型で返される
 func formatRedisCongestionStatusKey(id int) string {
 	return fmt.Sprintf("congestion_status:%d", id)
+}
+
+// 混雑度を最後に更新した時刻(UNIX 秒)のキー。"congestion_updated_at:{id}"
+func formatRedisCongestionUpdatedAtKey(id int) string {
+	return fmt.Sprintf("congestion_updated_at:%d", id)
 }

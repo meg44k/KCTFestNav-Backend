@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"testing"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/redis/go-redis/v9"
@@ -255,5 +256,43 @@ func TestBoothRepository_UpdateCongestion(t *testing.T) {
 		val, err := rdb.Get(ctx, fmt.Sprintf("congestion_status:%d", id)).Int()
 		assert.NoError(t, err)
 		assert.Equal(t, 2, val)
+	})
+	t.Run("正常系: 混雑度を更新すると更新時刻も保存され、取得できる", func(t *testing.T) {
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
+		_, _ = db.Exec("TRUNCATE TABLE booths")
+		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, x, y, z) VALUES (?, ?, ?, ?, ?, ?)", "ブースA", "主催", "詳細", 0, 0, 0)
+		assert.NoError(t, err)
+		id, _ := res.LastInsertId()
+		// 前のテストで同じ ID の時刻が残っていると「未更新」を確かめられないので消す
+		rdb.Del(ctx, fmt.Sprintf("congestion_updated_at:%d", id))
+
+		before, err := repo.GetByID(ctx, int(id))
+		assert.NoError(t, err)
+		assert.True(t, before.CongestionUpdatedAt.IsZero(), "未更新ならゼロ値")
+
+		start := time.Now().Add(-time.Second)
+		assert.NoError(t, repo.UpdateCongestion(ctx, int(id), 1))
+
+		after, err := repo.GetByID(ctx, int(id))
+		assert.NoError(t, err)
+		assert.True(t, after.CongestionUpdatedAt.After(start), "更新した時刻が入る")
+
+		all, err := repo.GetAll(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, after.CongestionUpdatedAt.Unix(), all[0].CongestionUpdatedAt.Unix())
+	})
+
+	t.Run("正常系: ブースを削除すると更新時刻も消える", func(t *testing.T) {
+		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, x, y, z) VALUES (?, ?, ?, ?, ?, ?)", "ブースB", "主催", "詳細", 0, 0, 0)
+		assert.NoError(t, err)
+		id, _ := res.LastInsertId()
+		assert.NoError(t, repo.UpdateCongestion(ctx, int(id), 2))
+
+		assert.NoError(t, repo.Delete(ctx, int(id)))
+
+		n, err := rdb.Exists(ctx, fmt.Sprintf("congestion_updated_at:%d", id)).Result()
+		assert.NoError(t, err)
+		assert.Equal(t, int64(0), n)
 	})
 }
