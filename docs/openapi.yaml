@@ -98,7 +98,7 @@ paths:
       description: |
         セクション(sort_order 順) → ブロック(開始時刻順) → 出演者(出演順) の入れ子。
         時刻は +09:00。now_playing はブロックの時間内(開始 ≦ 今 < 終了)で
-        1 ≦ current_order ≦ 出演者数 のとき true。演奏中の出演者は perform_order == current_order。
+        1 ≦ current_order ≦ 出演者数 のとき true。演奏中の出演者は performers の current_order 番目(出演順の番号ではなく並びの位置)。
       tags:
         - Stage
       responses:
