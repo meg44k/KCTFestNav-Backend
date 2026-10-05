@@ -44,6 +44,9 @@ func (u *LiveUsecase) Update(
 	if !ok || (reqUser.Role != domain.RoleAdmin && reqUser.Role != domain.RoleGakuseikai) {
 		return ErrForbidden
 	}
+	if err := domain.ValidateLiveStatus(status); err != nil {
+		return err
+	}
 
 	live, err := domain.ReconstructLive(id, status, p)
 	if err != nil {
