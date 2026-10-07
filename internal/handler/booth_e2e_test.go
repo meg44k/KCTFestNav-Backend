@@ -152,7 +152,8 @@ func TestBoothE2E(t *testing.T) {
 
 		assert.Len(t, res.Booths, 1)
 		assert.Equal(t, "E2Eテストブース", res.Booths[0].Name)
-		assert.Equal(t, domain.CongestionStatus(0), res.Booths[0].CongestionStatus)
+		// まだ混雑度を一度も設定していないので準備中
+		assert.Equal(t, domain.BoothCongestionPreparing, res.Booths[0].CongestionStatus)
 		assert.Nil(t, res.Booths[0].CongestionUpdatedAt, "まだ混雑度を更新していないので null")
 	})
 
@@ -401,5 +402,26 @@ func TestBoothE2E(t *testing.T) {
 		var floor int
 		require.NoError(t, db.QueryRow("SELECT floor FROM booths WHERE id = ?", id).Scan(&floor))
 		assert.Equal(t, 3, floor)
+	})
+
+	t.Run("混雑度 3(準備中)を保存でき、4 は 400", func(t *testing.T) {
+		var id int
+		require.NoError(t, db.QueryRow("SELECT id FROM booths LIMIT 1").Scan(&id))
+		patch := func(status int) int {
+			b, _ := json.Marshal(map[string]int{"congestion_status": status})
+			req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/manage/booths/%d/congestion", id), bytes.NewReader(b))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			req.Header.Set("Authorization", adminAuthHeader)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
+			return rec.Code
+		}
+		assert.Less(t, patch(3), 300)
+		assert.Equal(t, http.StatusBadRequest, patch(4))
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, fmt.Sprintf("/booths/%d", id), nil))
+		var got handler.GetBoothResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+		assert.Equal(t, domain.CongestionStatus(3), got.CongestionStatus)
 	})
 }

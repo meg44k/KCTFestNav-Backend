@@ -793,8 +793,8 @@ components:
 
     CongestionStatus:
       type: integer
-      enum: [0, 1, 2]
-      description: 0=空いている, 1=少し混雑, 2=かなり混雑
+      enum: [0, 1, 2, 3]
+      description: 0=空いている, 1=少し混雑, 2=かなり混雑, 3=準備中(まだ一度も設定していないブースもこれ)
 
     StageSection:
       type: object

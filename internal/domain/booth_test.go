@@ -21,7 +21,7 @@ func TestBoothCongestionStatus(t *testing.T) {
 	})
 
 	t.Run("異常値のセットバリデーションチェック", func(t *testing.T) {
-		err := booth.SetCongestionStatus(3)
+		err := booth.SetCongestionStatus(4)
 		if err == nil {
 			t.Error("混雑度のバリデーションがうまくいってないよ")
 		}
@@ -48,4 +48,17 @@ func TestBoothFloor(t *testing.T) {
 			t.Fatalf("ReconstructBooth: %v", err)
 		}
 	})
+}
+
+func TestBoothCongestionPreparing(t *testing.T) {
+	booth, _ := NewBooth(BoothParams{Name: "x"})
+	if err := booth.SetCongestionStatus(BoothCongestionPreparing); err != nil || booth.CongestionStatus() != 3 {
+		t.Fatalf("準備中(3)をセットできない: %v", err)
+	}
+	if err := ValidateCongestionLevel(4); err == nil {
+		t.Fatal("4 はエラーにする")
+	}
+	if err := ValidateCongestionLevel(-1); err == nil {
+		t.Fatal("-1 はエラーにする")
+	}
 }
