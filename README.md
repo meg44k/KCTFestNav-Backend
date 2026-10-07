@@ -50,7 +50,7 @@ curl -s http://localhost:1323/booths | python3 -m json.tool
   を流す(既存のブースは 0 = 屋外/未設定になる)
   モックのブースを地図の棟の中(と中庭)に置き直すには、続けて `db/seed/booth-locations.sql` を同じ要領で流す
 - 混雑度は MySQL ではなく Redis (`congestion_status:{id}`) で管理している。
-  未登録のブースは「空いている」扱いになる
+  未登録のブースは「準備中」扱いになる
 - コンテナ内の mysql クライアントは既定で `character_set_client=latin1` になり、
   UTF-8のSQLを流すと二重エンコードで文字化けする。
   `docker/mysql-charset.cnf` で utf8mb4 に固定している
@@ -74,3 +74,9 @@ go test -v -count=1 ./internal/handler/ -run E2E
 1. `db/schema.sql` と `db/query.sql` を編集
 2. `sqlc generate` で `internal/database/` を再生成
 3. 既存DBには手動でマイグレーションを当てる(マイグレーションツールは未導入)
+
+## 本番
+
+Vercel(フロント)+ Cloud Run(この API)+ Cloud SQL + Upstash + Cloudflare(DNS・R2)。
+作り方・DB の変え方・当日の設定・片付けは [infra/README.md](infra/README.md)。
+main に push すると GitHub Actions がテストして Cloud Run に出す。
