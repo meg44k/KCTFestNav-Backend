@@ -76,10 +76,14 @@ resource "google_cloud_run_v2_service" "api" {
     }
   }
 
-  # Actions が出したイメージを terraform apply で hello に戻さない
+  # Actions(gcloud run deploy)が変える所は Terraform で戻さない。
+  # 当日に最低台数だけ変えるとき、plan に出るのが scaling だけになるように
   lifecycle {
     ignore_changes = [
       template[0].containers[0].image,
+      template[0].revision,
+      template[0].labels,
+      labels,
       client,
       client_version,
     ]

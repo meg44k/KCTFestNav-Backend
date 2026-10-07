@@ -47,3 +47,5 @@ jobs:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
           image: ${{ env.IMAGE }}
+          # ラベルを足さない(Terraform の plan に差が出ないように)
+          skip_default_labels: true

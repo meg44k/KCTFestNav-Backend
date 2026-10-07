@@ -112,8 +112,13 @@ kill %1
 develop を main にマージすると、GitHub Actions(`.github/workflows/deploy.yml`)がテストして Cloud Run に出す。
 
 ```sh
-curl -s https://api.kctfest.jp/booths
+curl -s "$(terraform output -raw api_url)/booths"
+curl -s https://api.kctfest.jp/booths   # 証明書ができるまで(数十分)はつながらない
 ```
+
+フロント(Vercel)の `NEXT_PUBLIC_API_BASE_URL` には `terraform output -raw api_url`(`https://kctfestnav-api-....run.app`)を入れる。
+API を呼ぶのは Vercel のサーバーだけなので、ブラウザ向けの名前は要らない。
+`api.kctfest.jp`(Cloud Run のドメインのひも付け)は Google がまだ「プレビュー」としている機能なので、本番の通り道には使わず、確かめる用に残す。
 
 ## 6. 当日(10/31・11/1)
 
@@ -136,7 +141,10 @@ terraform apply -var min_instances=1
    gcloud sql export sql kctfestnav gs://<project>-tfstate/backup/kctfestnav-$(date +%F).sql.gz --database=kctfestnav
    ```
 
-2. 片付ける(状態ファイルのバケットとドメインは残る)
+2. 写真のバケットを空にする(中身があると R2 のバケットは消せない)。残したい写真は先に手元へ落とす。
+   Cloudflare の画面の R2 → `kctfestnav-photos` → 全部選んで削除
+
+3. 片付ける(状態ファイルのバケットとドメインは残る)
 
    ```sh
    terraform destroy
