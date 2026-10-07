@@ -371,4 +371,35 @@ func TestBoothE2E(t *testing.T) {
 		// 404 NotFound が返ってくること
 		assert.Equal(t, http.StatusNotFound, rec.Code)
 	})
+
+	t.Run("floor を保存して返す。負の階は 400", func(t *testing.T) {
+		post := func(body any) *httptest.ResponseRecorder {
+			b, _ := json.Marshal(body)
+			req := httptest.NewRequest(http.MethodPost, "/manage/booths", bytes.NewReader(b))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			req.Header.Set("Authorization", adminAuthHeader)
+			rec := httptest.NewRecorder()
+			e.ServeHTTP(rec, req)
+			return rec
+		}
+		assert.Equal(t, http.StatusCreated, post(handler.CreateBoothRequest{Name: "階のあるブース", Floor: 2}).Code)
+		assert.Equal(t, http.StatusBadRequest, post(handler.CreateBoothRequest{Name: "負の階", Floor: -1}).Code)
+
+		var id int
+		require.NoError(t, db.QueryRow("SELECT id FROM booths WHERE name = ?", "階のあるブース").Scan(&id))
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, fmt.Sprintf("/booths/%d", id), nil))
+		var got handler.GetBoothResponse
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+		assert.Equal(t, 2, got.Floor)
+
+		b, _ := json.Marshal(handler.UpdateBoothRequest{Name: "階のあるブース", Floor: 3})
+		req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/manage/booths/%d", id), bytes.NewReader(b))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set("Authorization", adminAuthHeader)
+		e.ServeHTTP(httptest.NewRecorder(), req)
+		var floor int
+		require.NoError(t, db.QueryRow("SELECT floor FROM booths WHERE id = ?", id).Scan(&floor))
+		assert.Equal(t, 3, floor)
+	})
 }

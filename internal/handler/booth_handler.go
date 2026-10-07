@@ -53,6 +53,7 @@ type GetBoothResponse struct {
 	Z                float32                 `json:"z"`
 	Latitude         float64                 `json:"latitude"`
 	Longitude        float64                 `json:"longitude"`
+	Floor            int                     `json:"floor"` // 階。0 は屋外(または未設定)
 	// 混雑度を最後に更新した時刻。まだ一度も更新していなければ null
 	CongestionUpdatedAt *time.Time `json:"congestion_updated_at"`
 }
@@ -71,6 +72,7 @@ func toGetBoothResponse(b *domain.Booth) GetBoothResponse {
 		Z:                b.Z,
 		Latitude:         b.Latitude,
 		Longitude:        b.Longitude,
+		Floor:            b.Floor,
 	}
 	if !b.CongestionUpdatedAt.IsZero() {
 		t := b.CongestionUpdatedAt
@@ -122,6 +124,7 @@ type CreateBoothRequest struct {
 	Z                float32                 `json:"z"`
 	Latitude         float64                 `json:"latitude"`
 	Longitude        float64                 `json:"longitude"`
+	Floor            int                     `json:"floor"` // 階。0 は屋外(または未設定)
 }
 
 func (h *BoothHandler) Create(c *echo.Context) error {
@@ -142,6 +145,7 @@ func (h *BoothHandler) Create(c *echo.Context) error {
 			Z:         req.Z,
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
+			Floor:     req.Floor,
 		},
 	); err != nil {
 		return err
@@ -172,6 +176,7 @@ type UpdateBoothRequest struct {
 	Z                float32                 `json:"z"`
 	Latitude         float64                 `json:"latitude"`
 	Longitude        float64                 `json:"longitude"`
+	Floor            int                     `json:"floor"` // 階。0 は屋外(または未設定)
 }
 
 func (h *BoothHandler) Update(c *echo.Context) error {
@@ -201,6 +206,7 @@ func (h *BoothHandler) Update(c *echo.Context) error {
 			Z:         req.Z,
 			Latitude:  req.Latitude,
 			Longitude: req.Longitude,
+			Floor:     req.Floor,
 		},
 	); err != nil {
 		return err

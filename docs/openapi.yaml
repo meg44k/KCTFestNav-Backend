@@ -726,6 +726,10 @@ components:
         longitude:
           type: number
           description: 経度。未設定の場合は0
+        floor:
+          type: integer
+          minimum: 0
+          description: 階。0 は屋外(または未設定)、1 以上はその階
 
     NewBooth:
       type: object
@@ -751,6 +755,10 @@ components:
           type: number
         longitude:
           type: number
+        floor:
+          type: integer
+          minimum: 0
+          description: 階。0 は屋外(または未設定)、1 以上はその階
 
     UpdateBooth:
       type: object
@@ -778,6 +786,10 @@ components:
           type: number
         longitude:
           type: number
+        floor:
+          type: integer
+          minimum: 0
+          description: 階。0 は屋外(または未設定)、1 以上はその階
 
     CongestionStatus:
       type: integer

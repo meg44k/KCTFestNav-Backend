@@ -38,6 +38,7 @@ func (br *boothRepository) Create(ctx context.Context, b *domain.Booth) error {
 		Z:         float64(b.Z),
 		Latitude:  toNullFloat64(b.Latitude),
 		Longitude: toNullFloat64(b.Longitude),
+		Floor:     int32(b.Floor),
 	}
 	err := br.db.CreateBooth(ctx, arg)
 	if err != nil {
@@ -79,6 +80,7 @@ func (br *boothRepository) GetByID(ctx context.Context, id int) (*domain.Booth, 
 			Z:         float32(dbBooth.Z),
 			Latitude:  dbBooth.Latitude.Float64,
 			Longitude: dbBooth.Longitude.Float64,
+			Floor:     int(dbBooth.Floor),
 		},
 	)
 	if err != nil {
@@ -124,6 +126,7 @@ func (br *boothRepository) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 				Z:         float32(b.Z),
 				Latitude:  b.Latitude.Float64,
 				Longitude: b.Longitude.Float64,
+				Floor:     int(b.Floor),
 			},
 		)
 		if err != nil {
@@ -150,6 +153,7 @@ func (br *boothRepository) Update(ctx context.Context, b *domain.Booth) error {
 		Z:         float64(b.Z),
 		Latitude:  toNullFloat64(b.Latitude),
 		Longitude: toNullFloat64(b.Longitude),
+		Floor:     int32(b.Floor),
 		ID:        int32(b.ID),
 	}
 
