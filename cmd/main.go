@@ -7,11 +7,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v5"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/meg44k/KCTFestNav-Backend/internal/config"
 	"github.com/meg44k/KCTFestNav-Backend/internal/handler"
 	"github.com/meg44k/KCTFestNav-Backend/internal/repository"
 	"github.com/meg44k/KCTFestNav-Backend/internal/router"
@@ -29,25 +30,22 @@ func main() {
 	e := echo.New()
 	e.HTTPErrorHandler = handler.CustomHTTPErrorHandler
 
-	// MySQL設定
-	cfg := mysql.Config{
-		User:      os.Getenv("DB_USER"),
-		Passwd:    os.Getenv("DB_PASS"),
-		Net:       "tcp",
-		Addr:      os.Getenv("DB_HOST") + ":" + os.Getenv("DB_PORT"),
-		DBName:    os.Getenv("DB_NAME"),
-		ParseTime: true,
+	cfg, err := config.Load(os.Getenv)
+	if err != nil {
+		log.Fatalf("設定の読み込みに失敗: %v", err)
 	}
-	db, err := sql.Open("mysql", cfg.FormatDSN())
+
+	// MySQL設定
+	db, err := sql.Open("mysql", cfg.MySQL.FormatDSN())
 	if err != nil {
 		log.Printf("%v", err)
 	}
+	// Cloud SQL の小さい台はつなげる数が少ないので、1 台あたりの数を絞る
+	db.SetMaxOpenConns(cfg.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.MaxOpenConns)
+	db.SetConnMaxLifetime(5 * time.Minute)
 	// Redis設定
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     os.Getenv("REDIS_ADDR"),
-		Password: os.Getenv("REDIS_PASSWORD"),
-		DB:       0,
-	})
+	rdb := redis.NewClient(cfg.Redis)
 
 	// 依存関係注入
 	stageRepo := repository.NewStageRepository(db)
@@ -87,7 +85,7 @@ func main() {
 	}
 
 	// サーバーの起動
-	if err := e.Start(":1323"); err != nil {
+	if err := e.Start(":" + cfg.Port); err != nil {
 		e.Logger.Error("failed to start server", "error", err)
 	}
 }
