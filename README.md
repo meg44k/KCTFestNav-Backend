@@ -45,6 +45,9 @@ curl -s http://localhost:1323/booths | python3 -m json.tool
 - ライブ(lives)はステージ(セクション・ブロック・出演者)に置き換えた。既存のDBには
   `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/migrations/2026-10-05-stage.sql`
   を流す(lives を削除して新しい表を作る)。モックだけを足すには同じ要領で `db/seed/stage.sql` を 1 回だけ流す
+- ブースに階(floor)を足した。既存のDBには
+  `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/migrations/2026-10-07-booth-floor.sql`
+  を流す(既存のブースは 0 = 屋外/未設定になる)
 - 混雑度は MySQL ではなく Redis (`congestion_status:{id}`) で管理している。
   未登録のブースは「空いている」扱いになる
 - コンテナ内の mysql クライアントは既定で `character_set_client=latin1` になり、

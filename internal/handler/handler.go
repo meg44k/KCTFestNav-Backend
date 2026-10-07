@@ -38,7 +38,8 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 	case errors.Is(err, domain.ErrEndTimeAfterStartTime),
 		errors.Is(err, domain.ErrNameRequired),
 		errors.Is(err, domain.ErrContentRequired),
-		errors.Is(err, domain.ErrInvalidDirection):
+		errors.Is(err, domain.ErrInvalidDirection),
+		errors.Is(err, domain.ErrInvalidFloor):
 		code = http.StatusBadRequest
 		message = err.Error()
 
