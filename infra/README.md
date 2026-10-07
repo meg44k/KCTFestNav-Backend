@@ -3,11 +3,11 @@
 | 役割 | 使うもの |
 |---|---|
 | フロント | Vercel(東京 `hnd1`)。設定はフロントの README |
-| API | Cloud Run `kctfestnav-api`(`asia-northeast1`)→ `https://api.kctfest.jp` |
+| API | Cloud Run `kctfestnav-api`(`asia-northeast1`)→ `https://api.kctfes.app` |
 | DB | Cloud SQL for MySQL 8.4(`db-f1-micro`) |
 | Redis | Upstash(東京・TLS) |
-| 写真 | Cloudflare R2 `kctfestnav-photos` → `https://img.kctfest.jp` |
-| DNS | Cloudflare(ドメインは .jp を扱う登録業者で取り、ネームサーバーを Cloudflare に向ける) |
+| 写真 | Cloudflare R2 `kctfestnav-photos` → `https://img.kctfes.app` |
+| DNS | Cloudflare(ドメインはお名前.com で取り、ネームサーバーを Cloudflare に向ける) |
 
 Terraform が作るのは GCP と Cloudflare(DNS・R2)。Vercel と Upstash は画面で作る。
 状態ファイルは GCS のバケット(Terraform の外で作る)に置く。
@@ -21,7 +21,7 @@ brew install terraform cloud-sql-proxy mysql-client
 
 - GCP のプロジェクトと請求先アカウント
 - Cloudflare のアカウント
-- ドメイン `kctfest.jp`
+- ドメイン `kctfes.app`(お名前.com)
 
 ## 2. 最初の 1 回だけ
 
@@ -45,10 +45,10 @@ brew install terraform cloud-sql-proxy mysql-client
 4. Cloudflare で API トークンを作る(権限: Zone → DNS → 編集、Account → Workers R2 Storage → 編集)。
    ファイルには書かず、使うシェルで `export CLOUDFLARE_API_TOKEN=...`
 5. Upstash で Redis を作る(リージョンは東京、TLS あり)。Endpoint と Port を `redis_addr`(`xxxx.upstash.io:6379`)に使う
-6. `api.kctfest.jp` を Cloud Run にひも付けるため、ドメインの持ち主を確かめる
+6. `api.kctfes.app` を Cloud Run にひも付けるため、ドメインの持ち主を確かめる
 
    ```sh
-   gcloud domains verify kctfest.jp
+   gcloud domains verify kctfes.app
    ```
 
 7. 変数のファイルを作る
@@ -113,12 +113,12 @@ develop を main にマージすると、GitHub Actions(`.github/workflows/deplo
 
 ```sh
 curl -s "$(terraform output -raw api_url)/booths"
-curl -s https://api.kctfest.jp/booths   # 証明書ができるまで(数十分)はつながらない
+curl -s https://api.kctfes.app/booths   # 証明書ができるまで(数十分)はつながらない
 ```
 
 フロント(Vercel)の `NEXT_PUBLIC_API_BASE_URL` には `terraform output -raw api_url`(`https://kctfestnav-api-....run.app`)を入れる。
 API を呼ぶのは Vercel のサーバーだけなので、ブラウザ向けの名前は要らない。
-`api.kctfest.jp`(Cloud Run のドメインのひも付け)は Google がまだ「プレビュー」としている機能なので、本番の通り道には使わず、確かめる用に残す。
+`api.kctfes.app`(Cloud Run のドメインのひも付け)は Google がまだ「プレビュー」としている機能なので、本番の通り道には使わず、確かめる用に残す。
 
 ## 6. 当日(10/31・11/1)
 
@@ -152,5 +152,5 @@ terraform apply -var min_instances=1
 
 ## 費用の目安
 
-動かす 1 か月で 1,500〜2,000 円(ほぼ Cloud SQL)+ ドメイン年 3,000〜4,000 円。
+動かす 1 か月で 1,500〜2,000 円(ほぼ Cloud SQL)+ ドメイン(お名前.com、初年度 1 円。2 年目からは更新料がかかる)。
 予算アラート(月 3,000 円の 50%・90%・100%)が請求先アカウントの管理者にメールで届く。

@@ -104,7 +104,7 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
   member   = "allUsers"
 }
 
-# api.kctfest.jp。先に gcloud domains verify kctfest.jp でドメインの持ち主の確認が要る
+# api.kctfes.app。先に gcloud domains verify kctfes.app でドメインの持ち主の確認が要る
 resource "google_cloud_run_domain_mapping" "api" {
   name     = "api.${var.domain}"
   location = var.region

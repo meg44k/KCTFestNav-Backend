@@ -33,7 +33,7 @@ resource "cloudflare_r2_bucket" "photos" {
   location   = "apac"
 }
 
-# img.kctfest.jp(DNS のレコードは Cloudflare が作る)
+# img.kctfes.app(DNS のレコードは Cloudflare が作る)
 resource "cloudflare_r2_custom_domain" "img" {
   account_id  = var.cloudflare_account_id
   bucket_name = cloudflare_r2_bucket.photos.name
