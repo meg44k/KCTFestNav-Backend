@@ -85,14 +85,14 @@ SELECT * FROM booths;
 
 -- name: CreateBooth :exec
 INSERT INTO booths (
-name, organizer, detail, location, image_url, x, y, z, latitude, longitude
+name, organizer, detail, location, image_url, x, y, z, latitude, longitude, floor
 ) VALUES (
-?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 );
 
 -- name: UpdateBooth :exec
 UPDATE booths
-SET name = ?, organizer = ?, detail = ?, location = ?, image_url = ?, x = ?, y = ?, z = ?, latitude = ?, longitude = ?
+SET name = ?, organizer = ?, detail = ?, location = ?, image_url = ?, x = ?, y = ?, z = ?, latitude = ?, longitude = ?, floor = ?
 WHERE id = ?;
 
 -- name: DeleteBooth :exec

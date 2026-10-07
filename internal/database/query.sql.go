@@ -30,9 +30,9 @@ func (q *Queries) AdvanceBlock(ctx context.Context, arg AdvanceBlockParams) erro
 
 const createBooth = `-- name: CreateBooth :exec
 INSERT INTO booths (
-name, organizer, detail, location, image_url, x, y, z, latitude, longitude
+name, organizer, detail, location, image_url, x, y, z, latitude, longitude, floor
 ) VALUES (
-?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )
 `
 
@@ -47,6 +47,7 @@ type CreateBoothParams struct {
 	Z         float64
 	Latitude  sql.NullFloat64
 	Longitude sql.NullFloat64
+	Floor     int32
 }
 
 func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) error {
@@ -61,6 +62,7 @@ func (q *Queries) CreateBooth(ctx context.Context, arg CreateBoothParams) error 
 		arg.Z,
 		arg.Latitude,
 		arg.Longitude,
+		arg.Floor,
 	)
 	return err
 }
@@ -190,7 +192,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id string) error {
 }
 
 const getAllBooths = `-- name: GetAllBooths :many
-SELECT id, name, organizer, detail, location, image_url, x, y, z, latitude, longitude FROM booths
+SELECT id, name, organizer, detail, location, image_url, x, y, z, latitude, longitude, floor FROM booths
 `
 
 func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
@@ -214,6 +216,7 @@ func (q *Queries) GetAllBooths(ctx context.Context) ([]Booth, error) {
 			&i.Z,
 			&i.Latitude,
 			&i.Longitude,
+			&i.Floor,
 		); err != nil {
 			return nil, err
 		}
@@ -264,7 +267,7 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]User, error) {
 
 const getBoothByID = `-- name: GetBoothByID :one
 
-SELECT id, name, organizer, detail, location, image_url, x, y, z, latitude, longitude FROM booths WHERE id = ?
+SELECT id, name, organizer, detail, location, image_url, x, y, z, latitude, longitude, floor FROM booths WHERE id = ?
 `
 
 // ==========================================
@@ -285,6 +288,7 @@ func (q *Queries) GetBoothByID(ctx context.Context, id int32) (Booth, error) {
 		&i.Z,
 		&i.Latitude,
 		&i.Longitude,
+		&i.Floor,
 	)
 	return i, err
 }
@@ -563,7 +567,7 @@ func (q *Queries) SetPerformerOrder(ctx context.Context, arg SetPerformerOrderPa
 
 const updateBooth = `-- name: UpdateBooth :exec
 UPDATE booths
-SET name = ?, organizer = ?, detail = ?, location = ?, image_url = ?, x = ?, y = ?, z = ?, latitude = ?, longitude = ?
+SET name = ?, organizer = ?, detail = ?, location = ?, image_url = ?, x = ?, y = ?, z = ?, latitude = ?, longitude = ?, floor = ?
 WHERE id = ?
 `
 
@@ -578,6 +582,7 @@ type UpdateBoothParams struct {
 	Z         float64
 	Latitude  sql.NullFloat64
 	Longitude sql.NullFloat64
+	Floor     int32
 	ID        int32
 }
 
@@ -593,6 +598,7 @@ func (q *Queries) UpdateBooth(ctx context.Context, arg UpdateBoothParams) error 
 		arg.Z,
 		arg.Latitude,
 		arg.Longitude,
+		arg.Floor,
 		arg.ID,
 	)
 	return err

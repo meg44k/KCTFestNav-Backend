@@ -22,6 +22,7 @@ type Booth struct {
 	Z                float32 // Z座標
 	Latitude         float64 // 緯度
 	Longitude        float64 // 経度
+	Floor            int     // 階。0 は屋外(または未設定)、1 以上はその階
 
 	CongestionUpdatedAt time.Time // 混雑度を最後に更新した時刻。未更新はゼロ値
 }
@@ -45,6 +46,7 @@ type BoothParams struct {
 	Z         float32
 	Latitude  float64
 	Longitude float64
+	Floor     int
 }
 
 // 新規ブース作成用コンストラクタ
@@ -53,6 +55,9 @@ func NewBooth(p BoothParams) (*Booth, error) {
 	if strings.TrimSpace(p.Name) == "" {
 		return nil, ErrNameRequired
 
+	}
+	if p.Floor < 0 {
+		return nil, ErrInvalidFloor
 	}
 	return &Booth{
 		ID:               0,
@@ -67,6 +72,7 @@ func NewBooth(p BoothParams) (*Booth, error) {
 		Z:                p.Z,
 		Latitude:         p.Latitude,
 		Longitude:        p.Longitude,
+		Floor:            p.Floor,
 	}, nil
 }
 
@@ -77,6 +83,9 @@ func ReconstructBooth(
 	congestionStatus CongestionStatus,
 	p BoothParams,
 ) (*Booth, error) {
+	if p.Floor < 0 {
+		return nil, ErrInvalidFloor
+	}
 	return &Booth{
 		ID:               id,
 		Name:             p.Name,
@@ -90,6 +99,7 @@ func ReconstructBooth(
 		Z:                p.Z,
 		Latitude:         p.Latitude,
 		Longitude:        p.Longitude,
+		Floor:            p.Floor,
 	}, nil
 }
 

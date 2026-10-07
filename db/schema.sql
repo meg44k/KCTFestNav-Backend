@@ -9,7 +9,8 @@ CREATE TABLE booths(
   y FLOAT NOT NULL,
   z FLOAT NOT NULL,
   latitude DOUBLE,
-  longitude DOUBLE
+  longitude DOUBLE,
+  floor INT NOT NULL DEFAULT 0 /* 階。0 = 屋外(または未設定) */
 );
 
 CREATE TABLE users(

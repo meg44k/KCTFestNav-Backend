@@ -21,6 +21,7 @@ type Booth struct {
 	Z         float64
 	Latitude  sql.NullFloat64
 	Longitude sql.NullFloat64
+	Floor     int32
 }
 
 type Performer struct {

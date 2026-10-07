@@ -296,3 +296,26 @@ func TestBoothRepository_UpdateCongestion(t *testing.T) {
 		assert.Equal(t, int64(0), n)
 	})
 }
+
+func TestBoothRepository_Floor(t *testing.T) {
+	db, rdb := setupBoothTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+	repo := NewBoothRepository(db, rdb)
+	ctx := context.Background()
+
+	booth, _ := domain.NewBooth(domain.BoothParams{Name: "3-1 展示", Floor: 2})
+	assert.NoError(t, repo.Create(ctx, booth))
+	var id int
+	assert.NoError(t, db.QueryRow("SELECT id FROM booths LIMIT 1").Scan(&id))
+
+	got, err := repo.GetByID(ctx, id)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, got.Floor)
+
+	updated, _ := domain.ReconstructBooth(id, domain.BoothCongestionEmpty, domain.BoothParams{Name: "3-1 展示", Floor: 3})
+	assert.NoError(t, repo.Update(ctx, updated))
+	all, err := repo.GetAll(ctx)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, all[0].Floor)
+}
