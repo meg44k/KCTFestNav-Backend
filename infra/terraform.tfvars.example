@@ -1,0 +1,8 @@
+project_id            = "kctfestnav-xxxx"
+billing_account_id    = "XXXXXX-XXXXXX-XXXXXX"
+cloudflare_account_id = "..."
+cloudflare_zone_id    = "..."
+redis_addr            = "xxxx.upstash.io:6379"
+init_admin_id         = "admin"
+# 当日(10/31・11/1)だけ 1 にする
+# min_instances = 1
