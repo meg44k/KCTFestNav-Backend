@@ -2,7 +2,6 @@ package domain
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 )
@@ -14,7 +13,7 @@ type Booth struct {
 	Name             string           // ブース名
 	Organizer        string           // ブースの主催者(ex. 1-1, 陸上部...)
 	Detail           string           // ブースの説明
-	congestionStatus CongestionStatus // 0: 空き 1: 少し混雑している 2: かなり混雑している]
+	congestionStatus CongestionStatus // 0: 空き 1: 少し混雑している 2: かなり混雑している 3: 準備中
 	Location         string
 	ImageURL         string  // ブースの紹介画像のURL(未設定なら空文字)
 	X                float32 // X座標
@@ -33,6 +32,8 @@ const (
 	BoothCongestionEmpty           CongestionStatus = 0
 	BoothCongestionSlightlyCrowded CongestionStatus = 1
 	BoothCongestionVeryCrowded     CongestionStatus = 2
+	// 準備中。まだ一度も混雑度を設定していないブースもこれ
+	BoothCongestionPreparing CongestionStatus = 3
 )
 
 type BoothParams struct {
@@ -125,8 +126,8 @@ func (b *Booth) SetCongestionStatus(congestionStatus CongestionStatus) error {
 }
 
 func ValidateCongestionLevel(congestionLevel CongestionStatus) error {
-	if 0 > congestionLevel || congestionLevel > 2 {
-		return errors.New("Congestion level must be between 0 and 2")
+	if 0 > congestionLevel || congestionLevel > BoothCongestionPreparing {
+		return ErrInvalidCongestion
 	}
 	return nil
 }

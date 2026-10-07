@@ -57,8 +57,8 @@ func (br *boothRepository) GetByID(ctx context.Context, id int) (*domain.Booth, 
 	rawStatus, err := br.cache.Get(ctx, formatRedisCongestionStatusKey(id)).Int()
 	var congestionStatus domain.CongestionStatus
 	if err != nil {
-		if errors.Is(err, redis.Nil) { // congestionStatusが登録されていなかった時、空きにする
-			congestionStatus = domain.BoothCongestionEmpty
+		if errors.Is(err, redis.Nil) { // congestionStatusが登録されていなかった時(まだ一度も設定していない)、準備中にする
+			congestionStatus = domain.BoothCongestionPreparing
 		} else {
 			return nil, err
 		}
@@ -103,8 +103,8 @@ func (br *boothRepository) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 		rawStatus, err := br.cache.Get(ctx, formatRedisCongestionStatusKey(int(b.ID))).Int()
 		var congestionStatus domain.CongestionStatus
 		if err != nil {
-			if errors.Is(err, redis.Nil) { // congestionStatusが登録されていなかった時、空きにする
-				congestionStatus = domain.BoothCongestionEmpty
+			if errors.Is(err, redis.Nil) { // congestionStatusが登録されていなかった時(まだ一度も設定していない)、準備中にする
+				congestionStatus = domain.BoothCongestionPreparing
 			} else {
 				return nil, err
 			}

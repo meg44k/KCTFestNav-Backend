@@ -255,11 +255,12 @@ func TestBoothUsecase_UpdateCongestion(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("異常系: 不正な混雑度(3)", func(t *testing.T) {
+	t.Run("異常系: 不正な混雑度(4)", func(t *testing.T) {
 		ctx := boothCtxWithRequestUser(domain.RoleGakuseikai, 1)
 		uc := NewBoothUsecase(&mockBoothRepository{})
 
-		err := uc.UpdateCongestion(ctx, 1, 3)
+		// 3 は準備中として使うので、4 が範囲外
+		err := uc.UpdateCongestion(ctx, 1, 4)
 
 		require.Error(t, err)
 		// ドメインバリデーションエラーになるはず
