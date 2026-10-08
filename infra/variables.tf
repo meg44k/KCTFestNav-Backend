@@ -6,7 +6,7 @@ variable "region" {
 }
 variable "domain" {
   type    = string
-  default = "kctfest.jp"
+  default = "kctfes.app"
 }
 variable "cloudflare_account_id" { type = string }
 variable "cloudflare_zone_id" { type = string }
@@ -41,7 +41,7 @@ variable "budget_currency" {
   default     = "JPY"
 }
 variable "vercel_apex_ip" {
-  description = "Vercel の画面に出る kctfest.jp 用の A レコードの値"
+  description = "Vercel の画面に出る kctfes.app 用の A レコードの値"
   type        = string
   default     = "76.76.21.21"
 }
