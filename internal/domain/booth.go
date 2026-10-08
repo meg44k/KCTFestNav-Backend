@@ -1,0 +1,133 @@
+package domain
+
+import (
+	"context"
+	"strings"
+	"time"
+)
+
+// クラス展示、部活の出店などをあらわす型。
+// 混雑度は専用メソッドから読み取り、書き込みを行う必要があります。
+type Booth struct {
+	ID               int              // ブースID
+	Name             string           // ブース名
+	Organizer        string           // ブースの主催者(ex. 1-1, 陸上部...)
+	Detail           string           // ブースの説明
+	congestionStatus CongestionStatus // 0: 空き 1: 少し混雑している 2: かなり混雑している 3: 準備中
+	Location         string
+	ImageURL         string  // ブースの紹介画像のURL(未設定なら空文字)
+	X                float32 // X座標
+	Y                float32 // Y座標
+	Z                float32 // Z座標
+	Latitude         float64 // 緯度
+	Longitude        float64 // 経度
+	Floor            int     // 階。0 は屋外(または未設定)、1 以上はその階
+
+	CongestionUpdatedAt time.Time // 混雑度を最後に更新した時刻。未更新はゼロ値
+}
+
+type CongestionStatus int8
+
+const (
+	BoothCongestionEmpty           CongestionStatus = 0
+	BoothCongestionSlightlyCrowded CongestionStatus = 1
+	BoothCongestionVeryCrowded     CongestionStatus = 2
+	// 準備中。まだ一度も混雑度を設定していないブースもこれ
+	BoothCongestionPreparing CongestionStatus = 3
+)
+
+type BoothParams struct {
+	Name      string
+	Organizer string
+	Detail    string
+	Location  string
+	ImageURL  string
+	X         float32
+	Y         float32
+	Z         float32
+	Latitude  float64
+	Longitude float64
+	Floor     int
+}
+
+// 新規ブース作成用コンストラクタ
+// IDがDB側で採番されるため、デフォルトではID=0となっている
+func NewBooth(p BoothParams) (*Booth, error) {
+	if strings.TrimSpace(p.Name) == "" {
+		return nil, ErrNameRequired
+
+	}
+	if p.Floor < 0 {
+		return nil, ErrInvalidFloor
+	}
+	return &Booth{
+		ID:               0,
+		Name:             p.Name,
+		Organizer:        p.Organizer,
+		Detail:           p.Detail,
+		Location:         p.Location,
+		ImageURL:         p.ImageURL,
+		congestionStatus: BoothCongestionEmpty,
+		X:                p.X,
+		Y:                p.Y,
+		Z:                p.Z,
+		Latitude:         p.Latitude,
+		Longitude:        p.Longitude,
+		Floor:            p.Floor,
+	}, nil
+}
+
+// DBからの復元用コンストラクタ
+// IDがDB側から採択されたものがIDに入っている
+func ReconstructBooth(
+	id int,
+	congestionStatus CongestionStatus,
+	p BoothParams,
+) (*Booth, error) {
+	if p.Floor < 0 {
+		return nil, ErrInvalidFloor
+	}
+	return &Booth{
+		ID:               id,
+		Name:             p.Name,
+		Organizer:        p.Organizer,
+		Detail:           p.Detail,
+		Location:         p.Location,
+		ImageURL:         p.ImageURL,
+		congestionStatus: congestionStatus,
+		X:                p.X,
+		Y:                p.Y,
+		Z:                p.Z,
+		Latitude:         p.Latitude,
+		Longitude:        p.Longitude,
+		Floor:            p.Floor,
+	}, nil
+}
+
+type BoothRepository interface {
+	Create(ctx context.Context, booth *Booth) error
+	GetByID(ctx context.Context, id int) (*Booth, error)
+	Update(ctx context.Context, booth *Booth) error
+	UpdateCongestion(ctx context.Context, id int, congestionStatus CongestionStatus) error
+	GetAll(ctx context.Context) ([]*Booth, error)
+	Delete(ctx context.Context, id int) error
+}
+
+func (b *Booth) CongestionStatus() CongestionStatus {
+	return b.congestionStatus
+}
+
+func (b *Booth) SetCongestionStatus(congestionStatus CongestionStatus) error {
+	if err := ValidateCongestionLevel(congestionStatus); err != nil {
+		return err
+	}
+	b.congestionStatus = congestionStatus
+	return nil
+}
+
+func ValidateCongestionLevel(congestionLevel CongestionStatus) error {
+	if 0 > congestionLevel || congestionLevel > BoothCongestionPreparing {
+		return ErrInvalidCongestion
+	}
+	return nil
+}

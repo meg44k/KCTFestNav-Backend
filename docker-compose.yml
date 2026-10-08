@@ -1,0 +1,46 @@
+# ローカル開発用の MySQL と Redis。
+# パスワード無しの root で立てているので開発専用。本番には使わないこと。
+# .env の DB_USER=root / DB_PASS=(空) / DB_PORT=3306 と、
+# e2eテストがハードコードしている DSN
+# root:@tcp(127.0.0.1:3306)/kctfest_test に合わせてある。
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: kctfestnav-mysql
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: kctfestnav # 開発用DB。テスト用DBは db/init/01 で作る
+      TZ: Asia/Tokyo
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # 初回起動時(ボリュームが空のとき)に一度だけ、名前順で実行される
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      # 02-schema.sh から読ませる。initdb.d 直下に置くと
+      # 開発用DBに対して勝手に実行されてしまうため別の場所に置く
+      - ./db/schema.sql:/etc/kctfestnav/schema.sql:ro
+      # mysql クライアントの文字セットを utf8mb4 に固定する
+      - ./docker/mysql-charset.cnf:/etc/mysql/conf.d/charset.cnf:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: kctfestnav-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  mysql-data:
+  redis-data:

@@ -1,0 +1,9 @@
+.git
+.env
+*.env
+dump.rdb
+infra
+docs
+.vscode
+.DS_Store
+main

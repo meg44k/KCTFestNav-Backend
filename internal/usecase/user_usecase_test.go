@@ -1,0 +1,441 @@
+package usecase_test
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
+	"github.com/meg44k/KCTFestNav-Backend/internal/repository"
+	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
+)
+
+// モック用のRepository
+type mockUserRepository struct {
+	mockCreate       func(ctx context.Context, user *domain.User) error
+	mockGetByID      func(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	mockGetByLoginID func(ctx context.Context, loginID string) (*domain.User, error)
+	mockGetAll       func(ctx context.Context) ([]*domain.User, error)
+	mockUpdate       func(ctx context.Context, user *domain.User) error
+	mockDelete       func(ctx context.Context, id uuid.UUID) error
+}
+
+func (m *mockUserRepository) Create(ctx context.Context, user *domain.User) error {
+	if m.mockCreate != nil {
+		return m.mockCreate(ctx, user)
+	}
+	return nil
+}
+
+func (m *mockUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	if m.mockGetByID != nil {
+		return m.mockGetByID(ctx, id)
+	}
+	return nil, nil
+}
+
+func (m *mockUserRepository) GetByLoginID(ctx context.Context, loginID string) (*domain.User, error) {
+	if m.mockGetByLoginID != nil {
+		return m.mockGetByLoginID(ctx, loginID)
+	}
+	return nil, nil
+}
+
+func (m *mockUserRepository) GetAll(ctx context.Context) ([]*domain.User, error) {
+	if m.mockGetAll != nil {
+		return m.mockGetAll(ctx)
+	}
+	return nil, nil
+}
+
+func (m *mockUserRepository) Update(ctx context.Context, user *domain.User) error {
+	if m.mockUpdate != nil {
+		return m.mockUpdate(ctx, user)
+	}
+	return nil
+}
+
+func (m *mockUserRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	if m.mockDelete != nil {
+		return m.mockDelete(ctx, id)
+	}
+	return nil
+}
+
+func TestUserUsecase_GetByID(t *testing.T) {
+	adminCtx := context.WithValue(context.Background(), usecase.ContextRequestUserKey,
+		usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin})
+
+	t.Run("正常系: リポジトリからユーザーを取得できること", func(t *testing.T) {
+		targetID := uuid.New()
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テスト",
+			LoginID:         "test",
+			Password:        []byte("hash"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+
+		mockRepo := &mockUserRepository{
+			mockGetByID: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+				assert.Equal(t, targetID, id)
+				return dummyUser, nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		user, err := uc.GetByID(adminCtx, targetID)
+		assert.NoError(t, err)
+		assert.Equal(t, dummyUser, user)
+	})
+
+	t.Run("異常系: リポジトリがエラーを返した場合はそのままエラーを返すこと", func(t *testing.T) {
+		targetID := uuid.New()
+		mockRepo := &mockUserRepository{
+			mockGetByID: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		user, err := uc.GetByID(adminCtx, targetID)
+		assert.Error(t, err)
+		assert.Nil(t, user)
+	})
+
+	t.Run("異常系: Admin以外は取得できないこと", func(t *testing.T) {
+		for _, role := range []domain.Role{domain.RoleGakuseikai, domain.RoleStudent, domain.RoleMember} {
+			called := false
+			mockRepo := &mockUserRepository{
+				mockGetByID: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+					called = true
+					return nil, nil
+				},
+			}
+			uc := usecase.NewUserUsecase(mockRepo)
+			ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey,
+				usecase.RequestUser{ID: uuid.New(), Role: role})
+
+			user, err := uc.GetByID(ctx, uuid.New())
+			assert.ErrorIs(t, err, usecase.ErrForbidden, role)
+			assert.Nil(t, user)
+			assert.False(t, called, "権限が無いときはリポジトリを呼ばない")
+		}
+	})
+
+	t.Run("異常系: ログイン情報が無いときは取得できないこと", func(t *testing.T) {
+		uc := usecase.NewUserUsecase(&mockUserRepository{})
+		user, err := uc.GetByID(context.Background(), uuid.New())
+		assert.ErrorIs(t, err, usecase.ErrForbidden)
+		assert.Nil(t, user)
+	})
+}
+
+func TestUserUsecase_GetMe(t *testing.T) {
+	t.Run("正常系: コンテキストからRequestUserを取り出してユーザーを取得できること", func(t *testing.T) {
+		targetID := uuid.New()
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テスト",
+			LoginID:         "test",
+			Password:        []byte("hash"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+
+		mockRepo := &mockUserRepository{
+			mockGetByID: func(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+				assert.Equal(t, targetID, id)
+				return dummyUser, nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: targetID, Role: domain.RoleStudent, AssignedBoothID: 1}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		user, err := uc.GetMe(ctx)
+		assert.NoError(t, err)
+		assert.Equal(t, dummyUser, user)
+	})
+
+	t.Run("異常系: コンテキストに情報がない場合は ErrUnauthorized を返すこと", func(t *testing.T) {
+		uc := usecase.NewUserUsecase(&mockUserRepository{})
+		user, err := uc.GetMe(context.Background())
+		assert.ErrorIs(t, err, usecase.ErrUnauthorized)
+		assert.Nil(t, user)
+	})
+}
+
+func TestUserUsecase_Authenticate(t *testing.T) {
+	t.Run("正常系: パスワードが一致すればユーザーを返すこと", func(t *testing.T) {
+		rawPassword := "mypassword"
+		hashed, _ := bcrypt.GenerateFromPassword([]byte(rawPassword), bcrypt.MinCost)
+		targetID := uuid.New()
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テスト",
+			LoginID:         "test",
+			Password:        hashed,
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+
+		mockRepo := &mockUserRepository{
+			mockGetByLoginID: func(ctx context.Context, loginID string) (*domain.User, error) {
+				assert.Equal(t, "test", loginID)
+				return dummyUser, nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		user, err := uc.Authenticate(context.Background(), "test", []byte(rawPassword))
+		assert.NoError(t, err)
+		assert.Equal(t, dummyUser, user)
+	})
+
+	t.Run("異常系: ユーザーが見つからない場合は ErrUnauthorized を返すこと", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			mockGetByLoginID: func(ctx context.Context, loginID string) (*domain.User, error) {
+				return nil, repository.ErrNotFound
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		user, err := uc.Authenticate(context.Background(), "test", []byte("mypassword"))
+		assert.ErrorIs(t, err, usecase.ErrUnauthorized)
+		assert.Nil(t, user)
+	})
+
+	t.Run("異常系: パスワードが間違っている場合は ErrUnauthorized を返すこと", func(t *testing.T) {
+		hashed, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), bcrypt.MinCost)
+		targetID := uuid.New()
+		dummyUser, _ := domain.ReconstructUser(targetID, domain.UserParams{
+			Name:            "テスト",
+			LoginID:         "test",
+			Password:        hashed,
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+
+		mockRepo := &mockUserRepository{
+			mockGetByLoginID: func(ctx context.Context, loginID string) (*domain.User, error) {
+				return dummyUser, nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		user, err := uc.Authenticate(context.Background(), "test", []byte("wrongpassword"))
+		assert.ErrorIs(t, err, usecase.ErrUnauthorized)
+		assert.Nil(t, user)
+	})
+}
+
+func TestUserUsecase_GetAll(t *testing.T) {
+	t.Run("正常系: リポジトリから全てのユーザーを取得できること", func(t *testing.T) {
+		dummyUser1, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "テスト1",
+			LoginID:         "test1",
+			Password:        []byte("hash"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+		dummyUser2, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
+			Name:            "テスト2",
+			LoginID:         "test2",
+			Password:        []byte("hash"),
+			AssignedBoothID: 2,
+			Role:            domain.RoleStudent,
+		})
+		dummyUsers := []*domain.User{dummyUser1, dummyUser2}
+
+		mockRepo := &mockUserRepository{
+			mockGetAll: func(ctx context.Context) ([]*domain.User, error) {
+				return dummyUsers, nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		users, err := uc.GetAll(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, users, 2)
+		assert.Equal(t, "テスト1", users[0].Name)
+		assert.Equal(t, "テスト2", users[1].Name)
+	})
+
+	t.Run("異常系: リポジトリがエラーを返した場合はそのままエラーを返すこと", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			mockGetAll: func(ctx context.Context) ([]*domain.User, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		users, err := uc.GetAll(ctx)
+		assert.Error(t, err)
+		assert.Nil(t, users)
+	})
+}
+
+func TestUserUsecase_Update(t *testing.T) {
+	t.Run("正常系: Admin権限であれば更新できること", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			mockUpdate: func(ctx context.Context, user *domain.User) error {
+				assert.Equal(t, "更新後の名前", user.Name)
+				assert.Equal(t, "new_login", user.LoginID)
+				return nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Update(ctx, uuid.New(), domain.UserParams{
+			Name:            "更新後の名前",
+			LoginID:         "new_login",
+			Password:        []byte("pass"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: パスワードはハッシュ化して保存すること", func(t *testing.T) {
+		var saved *domain.User
+		mockRepo := &mockUserRepository{
+			mockUpdate: func(ctx context.Context, user *domain.User) error {
+				saved = user
+				return nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey,
+			usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin})
+
+		err := uc.Update(ctx, uuid.New(), domain.UserParams{
+			Name: "担当", LoginID: "booth-1", Password: []byte("new-pass"),
+			AssignedBoothID: 1, Role: domain.RoleStudent,
+		})
+		assert.NoError(t, err)
+		assert.NotEqual(t, []byte("new-pass"), saved.Password)
+		assert.NoError(t, bcrypt.CompareHashAndPassword(saved.Password, []byte("new-pass")))
+	})
+
+	t.Run("正常系: パスワードが空なら今のパスワードを保つこと", func(t *testing.T) {
+		id := uuid.New()
+		current, _ := domain.ReconstructUser(id, domain.UserParams{
+			Name: "担当", LoginID: "booth-1", Password: []byte("existing-hash"),
+			AssignedBoothID: 1, Role: domain.RoleStudent,
+		})
+		var saved *domain.User
+		mockRepo := &mockUserRepository{
+			mockGetByID: func(ctx context.Context, gotID uuid.UUID) (*domain.User, error) {
+				assert.Equal(t, id, gotID)
+				return current, nil
+			},
+			mockUpdate: func(ctx context.Context, user *domain.User) error {
+				saved = user
+				return nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey,
+			usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin})
+
+		err := uc.Update(ctx, id, domain.UserParams{
+			Name: "名前だけ変更", LoginID: "booth-1", AssignedBoothID: 1, Role: domain.RoleStudent,
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, "名前だけ変更", saved.Name)
+		assert.Equal(t, []byte("existing-hash"), saved.Password)
+	})
+
+	t.Run("異常系: Admin権限でない場合は ErrForbidden が返ること", func(t *testing.T) {
+		uc := usecase.NewUserUsecase(&mockUserRepository{})
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleStudent, AssignedBoothID: 1}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Update(ctx, uuid.New(), domain.UserParams{
+			Name:            "更新後の名前",
+			LoginID:         "new_login",
+			Password:        []byte("pass"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+		assert.ErrorIs(t, err, usecase.ErrForbidden)
+	})
+
+	t.Run("異常系: リポジトリがエラーを返した場合はそのままエラーを返すこと", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			mockUpdate: func(ctx context.Context, user *domain.User) error {
+				return errors.New("db error")
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Update(ctx, uuid.New(), domain.UserParams{
+			Name:            "更新後の名前",
+			LoginID:         "new_login",
+			Password:        []byte("pass"),
+			AssignedBoothID: 1,
+			Role:            domain.RoleStudent,
+		})
+		assert.Error(t, err)
+	})
+}
+
+func TestUserUsecase_Delete(t *testing.T) {
+	t.Run("正常系: Admin権限であれば削除できること", func(t *testing.T) {
+		targetID := uuid.New()
+		mockRepo := &mockUserRepository{
+			mockDelete: func(ctx context.Context, id uuid.UUID) error {
+				assert.Equal(t, targetID, id)
+				return nil
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Delete(ctx, targetID)
+		assert.NoError(t, err)
+	})
+
+	t.Run("異常系: Admin権限でない場合は ErrForbidden が返ること", func(t *testing.T) {
+		uc := usecase.NewUserUsecase(&mockUserRepository{})
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleStudent, AssignedBoothID: 1}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Delete(ctx, uuid.New())
+		assert.ErrorIs(t, err, usecase.ErrForbidden)
+	})
+
+	t.Run("異常系: リポジトリがエラーを返した場合はそのままエラーを返すこと", func(t *testing.T) {
+		mockRepo := &mockUserRepository{
+			mockDelete: func(ctx context.Context, id uuid.UUID) error {
+				return errors.New("db error")
+			},
+		}
+		uc := usecase.NewUserUsecase(mockRepo)
+
+		reqUser := usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin, AssignedBoothID: 0}
+		ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, reqUser)
+
+		err := uc.Delete(ctx, uuid.New())
+		assert.Error(t, err)
+	})
+}

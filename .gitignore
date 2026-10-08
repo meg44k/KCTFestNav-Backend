@@ -1,0 +1,10 @@
+.env
+.antigravitycli
+.vscode
+TODO
+NOTE.md
+main
+dump.rdb
+infra/.terraform/
+infra/*.tfvars
+infra/*.tfstate*
