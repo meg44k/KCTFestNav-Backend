@@ -17,6 +17,7 @@ Terraform が作るのは GCP と Cloudflare(DNS・R2)。Vercel と Upstash は�
 ```sh
 brew install --cask google-cloud-sdk
 brew install terraform cloud-sql-proxy mysql-client
+# mysql-client は PATH に入らないので: export PATH=/opt/homebrew/opt/mysql-client/bin:$PATH
 ```
 
 - GCP のプロジェクトと請求先アカウント
@@ -93,13 +94,16 @@ Cloud SQL Auth Proxy で手元からつなぐ。
 
 ```sh
 cloud-sql-proxy "$(terraform output -raw sql_connection_name)" --port 3307 &
-DBPASS="$(gcloud secrets versions access latest --secret=db-pass)"
+# パスワードはコマンドの引数に書かない(ps で見える)
+export MYSQL_PWD="$(gcloud secrets versions access latest --secret=db-pass)"
+# MySQL 8.4 の caching_sha2_password は、Proxy 越し(TLS なし)だとサーバーの公開鍵が要る
+m() { mysql --get-server-public-key --default-character-set=utf8mb4 -h127.0.0.1 -P3307 -ukctfestnav kctfestnav "$@"; }
 
 # 最初の 1 回だけ: 最新の形
-mysql --default-character-set=utf8mb4 -h127.0.0.1 -P3307 -ukctfestnav -p"$DBPASS" kctfestnav < ../db/schema.sql
+m < ../db/schema.sql
 
-# 以後の変更: db/migrations/ のファイルを同じ要領で
-unset DBPASS
+# 以後の変更: db/migrations/ のファイルを同じ要領で(m < ../db/migrations/xxxx.sql)
+unset MYSQL_PWD
 kill %1
 ```
 
