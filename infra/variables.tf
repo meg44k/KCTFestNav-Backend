@@ -45,3 +45,8 @@ variable "vercel_apex_ip" {
   type        = string
   default     = "76.76.21.21"
 }
+variable "vercel_www_cname" {
+  description = "Vercel の画面に出る www.kctfes.app 用の CNAME の値"
+  type        = string
+  default     = "cname.vercel-dns.com"
+}
