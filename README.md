@@ -53,6 +53,9 @@ curl -s http://localhost:1323/booths | python3 -m json.tool
   `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/migrations/2026-10-09-likes.sql`
   を流す(テスト用の kctfest_test_handler・kctfest_test_repository にも同じ要領で流す)。
   手元でいいねを試すには `.env` に `INTERNAL_API_KEY` と `VOTER_SECRET`(どちらも好きな文字列)を足す
+- ブース・出演者の写真は、手元では `./uploads`(git に入らない)に置かれ、バックエンドの `/images/*` で配られる。
+  フロントの開発サーバー(https)が `/dev-images/*` を中継するので、URL は `https://localhost:3000/dev-images/...` になる。
+  本番は R2(`R2_*` の環境変数)に置き、`https://img.kctfes.app/...` で配る
 - 混雑度は MySQL ではなく Redis (`congestion_status:{id}`) で管理している。
   未登録のブースは「準備中」扱いになる
 - コンテナ内の mysql クライアントは既定で `character_set_client=latin1` になり、

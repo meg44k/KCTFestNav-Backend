@@ -111,6 +111,19 @@ kill %1
 - `db/seed/*.sql` は本物のデータか確かめてから流す
 - 最初の管理者は Cloud Run の起動時に `INIT_ADMIN_ID` と `init-admin-password` から作られる
 
+### 写真の置き場所(R2)の鍵を入れる
+
+Cloudflare の画面で R2 → 「R2 API トークンを管理」→「API トークンを作成」。
+権限は「オブジェクトの読み取りと書き込み」、対象は `kctfestnav-photos` だけ。
+出てくる「アクセスキー ID」と「シークレットアクセスキー」を、画面に出さずに入れる:
+
+```sh
+terraform apply -target=google_secret_manager_secret.s   # 入れ物(R2_* の 2 つ)
+read -s P && printf %s "$P" | gcloud secrets versions add r2-access-key-id --data-file=- ; unset P
+read -s P && printf %s "$P" | gcloud secrets versions add r2-secret-access-key --data-file=- ; unset P
+terraform apply
+```
+
 ### いいねの合言葉を Vercel に入れる
 
 `internal-api-key` は Terraform が作る。Vercel の Settings → Environment Variables に

@@ -804,6 +804,42 @@ paths:
           description: 時刻の形が違う、または from >= to
         '403':
           description: Admin と学生会以外
+  /manage/images:
+    post:
+      summary: ブース・出演者の写真を上げる(権限はそれぞれを更新できる人と同じ)。URL を返すだけで、ブースや出演者の画像はまだ変えない
+      tags:
+        - Manage/Images
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: JPEG・PNG・WebP、2MB まで
+                target:
+                  type: string
+                  description: booth:<ID> か performer:<ID>
+      responses:
+        '201':
+          description: 置いた画像の URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+        '400':
+          description: 画像でない・大きすぎる・target が違う
+        '403':
+          description: その物を更新できない
+        '404':
+          description: ブース・出演者が無い
 components:
   securitySchemes:
     bearerAuth:
