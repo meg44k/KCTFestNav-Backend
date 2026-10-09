@@ -18,6 +18,7 @@ type Handlers struct {
 	User         *UserHandler
 	Announcement *AnnouncementHandler
 	Like         *LikeHandler
+	Image        *ImageHandler
 }
 
 func OK(c *echo.Context) error {
@@ -45,7 +46,9 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 		errors.Is(err, domain.ErrNotClassBooth),
 		errors.Is(err, domain.ErrInvalidRange),
 		errors.Is(err, domain.ErrLoginIDRequired),
-		errors.Is(err, domain.ErrCannotDeleteSelf):
+		errors.Is(err, domain.ErrCannotDeleteSelf),
+		errors.Is(err, domain.ErrInvalidImage),
+		errors.Is(err, domain.ErrInvalidImageTarget):
 		code = http.StatusBadRequest
 		message = err.Error()
 

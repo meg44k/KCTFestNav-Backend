@@ -13,9 +13,11 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/config"
+	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/meg44k/KCTFestNav-Backend/internal/handler"
 	"github.com/meg44k/KCTFestNav-Backend/internal/repository"
 	"github.com/meg44k/KCTFestNav-Backend/internal/router"
+	"github.com/meg44k/KCTFestNav-Backend/internal/storage"
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
 )
 
@@ -47,13 +49,23 @@ func main() {
 	// Redis設定
 	rdb := redis.NewClient(cfg.Redis)
 
+	// 画像の置き場所。R2 の設定が無ければ手元のフォルダに置いて /images/* で配る
+	var images domain.ImageStore
+	if cfg.Images.R2Bucket != "" {
+		images = storage.NewR2(cfg.Images.R2AccountID, cfg.Images.R2Bucket, cfg.Images.R2KeyID, cfg.Images.R2Secret, cfg.Images.BaseURL)
+	} else {
+		images = storage.NewLocal(cfg.Images.UploadDir, cfg.Images.BaseURL)
+		e.Static("/images", cfg.Images.UploadDir)
+		log.Printf("画像は %s に置き、%s で配ります", cfg.Images.UploadDir, cfg.Images.BaseURL)
+	}
+
 	// 依存関係注入
 	stageRepo := repository.NewStageRepository(db)
-	stageUsecase := usecase.NewStageUsecase(stageRepo)
+	stageUsecase := usecase.NewStageUsecase(stageRepo).WithImages(images)
 	stageHandler := handler.NewStageHandler(stageUsecase, time.Now)
 
 	boothRepo := repository.NewBoothRepository(db, rdb)
-	boothUsecase := usecase.NewBoothUsecase(boothRepo)
+	boothUsecase := usecase.NewBoothUsecase(boothRepo).WithImages(images)
 	boothHandler := handler.NewBoothHandler(boothUsecase)
 
 	userRepo := repository.NewUserRepository(db, rdb)
@@ -65,6 +77,7 @@ func main() {
 
 	likeUsecase := usecase.NewLikeUsecase(repository.NewLikeRepository(db, rdb), boothRepo, cfg.VoterSecret, time.Now)
 	likeHandler := handler.NewLikeHandler(likeUsecase)
+	imageHandler := handler.NewImageHandler(usecase.NewImageUsecase(images, boothRepo, stageRepo))
 
 	// ハンドラをまとめてルーターに渡す(ここもっと良くなるかも)
 	handlers := &handler.Handlers{
@@ -73,6 +86,7 @@ func main() {
 		User:         userHandler,
 		Announcement: announceHandler,
 		Like:         likeHandler,
+		Image:        imageHandler,
 	}
 
 	router.InitRoutes(e, handlers)
