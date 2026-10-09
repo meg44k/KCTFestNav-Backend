@@ -439,3 +439,30 @@ func TestUserUsecase_Delete(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestUserUsecase_自分自身は削除できない(t *testing.T) {
+	me := uuid.New()
+	deleted := false
+	uc := usecase.NewUserUsecase(&mockUserRepository{mockDelete: func(context.Context, uuid.UUID) error { deleted = true; return nil }})
+	ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, usecase.RequestUser{ID: me, Role: domain.RoleAdmin})
+
+	assert.ErrorIs(t, uc.Delete(ctx, me), domain.ErrCannotDeleteSelf)
+	assert.False(t, deleted)
+
+	assert.NoError(t, uc.Delete(ctx, uuid.New()), "ほかの人は消せる")
+	assert.True(t, deleted)
+}
+
+func TestUserUsecase_ログインIDが空の更新はできない(t *testing.T) {
+	updated := false
+	uc := usecase.NewUserUsecase(&mockUserRepository{
+		mockGetByID: func(context.Context, uuid.UUID) (*domain.User, error) {
+			return &domain.User{Password: []byte("h")}, nil
+		},
+		mockUpdate: func(context.Context, *domain.User) error { updated = true; return nil },
+	})
+	ctx := context.WithValue(context.Background(), usecase.ContextRequestUserKey, usecase.RequestUser{ID: uuid.New(), Role: domain.RoleAdmin})
+	err := uc.Update(ctx, uuid.New(), domain.UserParams{Name: "n", LoginID: "  ", Role: domain.RoleStudent})
+	assert.ErrorIs(t, err, domain.ErrLoginIDRequired)
+	assert.False(t, updated)
+}

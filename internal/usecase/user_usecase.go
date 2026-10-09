@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
@@ -76,6 +77,11 @@ func (uu *UserUsecase) Update(
 		return ErrForbidden
 	}
 
+	p.LoginID = strings.TrimSpace(p.LoginID)
+	if p.LoginID == "" {
+		return domain.ErrLoginIDRequired
+	}
+
 	// パスワードが空なら今のものを保つ。空でなければハッシュ化して保存する
 	if len(p.Password) == 0 {
 		current, err := uu.userRepo.GetByID(ctx, id)
@@ -102,6 +108,10 @@ func (uu *UserUsecase) Delete(ctx context.Context, id uuid.UUID) error {
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
 	if !ok || reqUser.Role != domain.RoleAdmin {
 		return ErrForbidden
+	}
+	// 自分を消すとその場で入れなくなる(最後の管理者なら誰も入れなくなる)
+	if reqUser.ID == id {
+		return domain.ErrCannotDeleteSelf
 	}
 	return uu.userRepo.Delete(ctx, id)
 }
