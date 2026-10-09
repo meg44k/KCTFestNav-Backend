@@ -131,3 +131,23 @@ SET
     password = ?,
     role = ?
 WHERE id = ?;
+-- name: InsertLike :exec
+INSERT IGNORE INTO likes (booth_id, voter_id, created_at) VALUES (?, ?, ?);
+
+-- name: DeleteLike :exec
+DELETE FROM likes WHERE booth_id = ? AND voter_id = ?;
+
+-- name: ListLikedBoothIDs :many
+SELECT booth_id FROM likes WHERE voter_id = ? ORDER BY booth_id;
+
+-- name: ListLikeTimes :many
+SELECT booth_id, created_at FROM likes ORDER BY booth_id, created_at;
+
+-- name: DeleteLikesInRange :execrows
+DELETE FROM likes WHERE booth_id = ? AND created_at >= ? AND created_at < ?;
+
+-- name: DeleteAllLikes :execrows
+DELETE FROM likes;
+
+-- name: InsertLikeRemoval :exec
+INSERT INTO like_removals (booth_id, from_at, to_at, removed, removed_by, created_at) VALUES (?, ?, ?, ?, ?, ?);

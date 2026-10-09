@@ -66,3 +66,18 @@ func TestLoad_不正な値はエラー(t *testing.T) {
 		}
 	}
 }
+
+func TestLoad_いいねの秘密(t *testing.T) {
+	c, err := Load(env(map[string]string{"VOTER_SECRET": "vs"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(c.VoterSecret) != "vs" {
+		t.Errorf("VoterSecret = %q", c.VoterSecret)
+	}
+	// 無くても起動はできる(いいねが 401 になるだけ)
+	c, err = Load(env(map[string]string{}))
+	if err != nil || len(c.VoterSecret) != 0 {
+		t.Errorf("空でよい: %v %q", err, c.VoterSecret)
+	}
+}

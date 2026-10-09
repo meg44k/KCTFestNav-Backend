@@ -49,6 +49,10 @@ curl -s http://localhost:1323/booths | python3 -m json.tool
   `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/migrations/2026-10-07-booth-floor.sql`
   を流す(既存のブースは 0 = 屋外/未設定になる)
   モックのブースを地図の棟の中(と中庭)に置き直すには、続けて `db/seed/booth-locations.sql` を同じ要領で流す
+- クラス展示のいいねの表(likes・like_removals)を足した。既存のDBには
+  `docker compose exec -T mysql mysql --default-character-set=utf8mb4 -uroot kctfestnav < db/migrations/2026-10-09-likes.sql`
+  を流す(テスト用の kctfest_test_handler・kctfest_test_repository にも同じ要領で流す)。
+  手元でいいねを試すには `.env` に `INTERNAL_API_KEY` と `VOTER_SECRET`(どちらも好きな文字列)を足す
 - 混雑度は MySQL ではなく Redis (`congestion_status:{id}`) で管理している。
   未登録のブースは「準備中」扱いになる
 - コンテナ内の mysql クライアントは既定で `character_set_client=latin1` になり、

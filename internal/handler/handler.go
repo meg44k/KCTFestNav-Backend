@@ -17,6 +17,7 @@ type Handlers struct {
 	Booth        *BoothHandler
 	User         *UserHandler
 	Announcement *AnnouncementHandler
+	Like         *LikeHandler
 }
 
 func OK(c *echo.Context) error {
@@ -40,7 +41,9 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 		errors.Is(err, domain.ErrContentRequired),
 		errors.Is(err, domain.ErrInvalidDirection),
 		errors.Is(err, domain.ErrInvalidFloor),
-		errors.Is(err, domain.ErrInvalidCongestion):
+		errors.Is(err, domain.ErrInvalidCongestion),
+		errors.Is(err, domain.ErrNotClassBooth),
+		errors.Is(err, domain.ErrInvalidRange):
 		code = http.StatusBadRequest
 		message = err.Error()
 
@@ -54,6 +57,9 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 	case errors.Is(err, usecase.ErrUnauthorized):
 		code = http.StatusUnauthorized
 		message = "unauthorized"
+	case errors.Is(err, usecase.ErrTooMany):
+		code = http.StatusTooManyRequests
+		message = err.Error()
 
 	// パスワード系
 	case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):

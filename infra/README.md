@@ -111,6 +111,17 @@ kill %1
 - `db/seed/*.sql` は本物のデータか確かめてから流す
 - 最初の管理者は Cloud Run の起動時に `INIT_ADMIN_ID` と `init-admin-password` から作られる
 
+### いいねの合言葉を Vercel に入れる
+
+`internal-api-key` は Terraform が作る。Vercel の Settings → Environment Variables に
+`INTERNAL_API_KEY`(Production だけ、`NEXT_PUBLIC_` は付けない)として入れる。値は次でクリップボードに写す(画面には出さない):
+
+```sh
+gcloud secrets versions access latest --secret=internal-api-key | pbcopy 
+```
+
+いいねの表は `m < ../db/migrations/2026-10-09-likes.sql` で本番の DB に足す(上の Proxy の手順で)。
+
 ## 5. 出す
 
 develop を main にマージすると、GitHub Actions(`.github/workflows/deploy.yml`)がテストして Cloud Run に出す。

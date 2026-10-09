@@ -16,6 +16,8 @@ type Config struct {
 	MySQL        *mysql.Config
 	MaxOpenConns int
 	Redis        *redis.Options
+	// いいねの投票者番号に署名する秘密。空ならいいねは全部 401 になる
+	VoterSecret []byte
 }
 
 func Load(getenv func(string) string) (*Config, error) {
@@ -63,5 +65,5 @@ func Load(getenv func(string) string) (*Config, error) {
 		}
 	}
 
-	return &Config{Port: port, MySQL: my, MaxOpenConns: maxOpen, Redis: rd}, nil
+	return &Config{Port: port, MySQL: my, MaxOpenConns: maxOpen, Redis: rd, VoterSecret: []byte(getenv("VOTER_SECRET"))}, nil
 }
