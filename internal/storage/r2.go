@@ -3,11 +3,13 @@ package storage
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 // 本番の置き場所。Cloudflare R2(S3 互換)。来場者には baseURL(img.kctfes.app)から配る
@@ -51,7 +53,17 @@ func (s *R2) Delete(ctx context.Context, url string) error {
 	return err
 }
 
-func (s *R2) Owns(url string) bool {
-	_, ok := keyOf(s.baseURL, url)
-	return ok
+func (s *R2) KeyOf(url string) (string, bool) { return keyOf(s.baseURL, url) }
+
+func (s *R2) Exists(ctx context.Context, url string) (bool, error) {
+	key, ok := keyOf(s.baseURL, url)
+	if !ok {
+		return false, nil
+	}
+	_, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
+	var nf *types.NotFound
+	if errors.As(err, &nf) {
+		return false, nil
+	}
+	return err == nil, err
 }

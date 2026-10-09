@@ -49,7 +49,7 @@ func CheckImage(data []byte) (ext string, contentType string, err error) {
 
 // 置き場所の名前。booths/3/<UUID>.webp
 func ImageKey(t ImageTarget, ext string) string {
-	return t.Kind + "s/" + strconv.Itoa(t.ID) + "/" + uuid.NewString() + "." + ext
+	return ImagePrefix(t) + uuid.NewString() + "." + ext
 }
 
 // 画像の置き場所(本番は R2、手元はフォルダ)
@@ -58,6 +58,13 @@ type ImageStore interface {
 	Put(ctx context.Context, key, contentType string, data []byte) (string, error)
 	// 自分の置き場所の URL なら消す(無くてもエラーにしない)。それ以外は何もしない
 	Delete(ctx context.Context, url string) error
-	// この URL が自分の置き場所のものか
-	Owns(url string) bool
+	// 自分の置き場所の URL なら、置き場所の名前(booths/3/x.webp)を返す
+	KeyOf(url string) (key string, ok bool)
+	// 自分の置き場所にまだあるか
+	Exists(ctx context.Context, url string) (bool, error)
+}
+
+// その物の写真を置く場所の頭。booths/3/
+func ImagePrefix(t ImageTarget) string {
+	return t.Kind + "s/" + strconv.Itoa(t.ID) + "/"
 }

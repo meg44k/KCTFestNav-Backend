@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
@@ -59,9 +60,38 @@ func (u *ImageUsecase) canEdit(ctx context.Context, t domain.ImageTarget) error 
 	}
 }
 
-// 画像が変わったら、前の画像(自分の置き場所のものだけ)を消す。消せなくても更新は成功のまま
-func removeReplacedImage(ctx context.Context, store domain.ImageStore, before, after string) {
-	if store == nil || before == "" || before == after || !store.Owns(before) {
+// 保存しようとしている画像を確かめる。自分の置き場所の画像なら、その物の置き場所のもので、まだあること。
+// 外の URL や空はそのまま通す
+func checkImageURL(ctx context.Context, store domain.ImageStore, t domain.ImageTarget, url string) error {
+	if store == nil || url == "" {
+		return nil
+	}
+	key, ok := store.KeyOf(url)
+	if !ok {
+		return nil
+	}
+	// ほかのブース・出演者の写真は使えない(使えると、外したときにその写真を消してしまう)
+	if !strings.HasPrefix(key, domain.ImagePrefix(t)) {
+		return domain.ErrInvalidImage
+	}
+	// フォームを開いている間にほかの人が写真を変え、前の写真が消えていた
+	exists, err := store.Exists(ctx, url)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return domain.ErrImageChanged
+	}
+	return nil
+}
+
+// 画像が変わったら、前の画像(その物の置き場所のものだけ)を消す。消せなくても更新は成功のまま
+func removeReplacedImage(ctx context.Context, store domain.ImageStore, t domain.ImageTarget, before, after string) {
+	if store == nil || before == "" || before == after {
+		return
+	}
+	key, ok := store.KeyOf(before)
+	if !ok || !strings.HasPrefix(key, domain.ImagePrefix(t)) {
 		return
 	}
 	if err := store.Delete(ctx, before); err != nil {

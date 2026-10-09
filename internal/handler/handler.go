@@ -62,7 +62,7 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 	case errors.Is(err, usecase.ErrUnauthorized):
 		code = http.StatusUnauthorized
 		message = "unauthorized"
-	case errors.Is(err, domain.ErrLoginIDTaken):
+	case errors.Is(err, domain.ErrLoginIDTaken), errors.Is(err, domain.ErrImageChanged):
 		code = http.StatusConflict
 		message = err.Error()
 	case errors.Is(err, usecase.ErrTooMany):

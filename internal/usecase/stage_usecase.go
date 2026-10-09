@@ -135,6 +135,10 @@ func (u *StageUsecase) UpdatePerformer(ctx context.Context, id int, in Performer
 		return err
 	}
 	p.ID = id
+	target := domain.ImageTarget{Kind: "performer", ID: id}
+	if err := checkImageURL(ctx, u.images, target, p.ThumbnailURL); err != nil {
+		return err
+	}
 	var before string
 	if u.images != nil {
 		current, err := u.repo.GetPerformer(ctx, id)
@@ -146,7 +150,7 @@ func (u *StageUsecase) UpdatePerformer(ctx context.Context, id int, in Performer
 	if err := u.repo.UpdatePerformer(ctx, p); err != nil {
 		return err
 	}
-	removeReplacedImage(ctx, u.images, before, p.ThumbnailURL)
+	removeReplacedImage(ctx, u.images, target, before, p.ThumbnailURL)
 	return nil
 }
 

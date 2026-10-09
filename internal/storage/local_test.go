@@ -43,12 +43,28 @@ func TestLocal_自分の置き場所だけ(t *testing.T) {
 		"https://localhost:3000/dev-images/../secret":       false,
 		"": false,
 	} {
-		if got := s.Owns(url); got != want {
+		if _, got := s.KeyOf(url); got != want {
 			t.Errorf("%q: %v", url, got)
 		}
 	}
 	// 自分のでない URL を消そうとしても何もしない
 	if err := s.Delete(context.Background(), "https://example.com/a.png"); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestLocal_まだあるか(t *testing.T) {
+	s := NewLocal(t.TempDir(), "https://b")
+	ctx := context.Background()
+	url, _ := s.Put(ctx, "booths/3/a.webp", "image/webp", []byte("x"))
+	if ok, err := s.Exists(ctx, url); !ok || err != nil {
+		t.Errorf("あるはず: %v %v", ok, err)
+	}
+	_ = s.Delete(ctx, url)
+	if ok, _ := s.Exists(ctx, url); ok {
+		t.Error("消えたはず")
+	}
+	if ok, _ := s.Exists(ctx, "https://example.com/a.png"); ok {
+		t.Error("外の URL は無い扱い")
 	}
 }

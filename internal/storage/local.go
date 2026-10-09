@@ -43,15 +43,25 @@ func (s *Local) Delete(_ context.Context, url string) error {
 	return err
 }
 
-func (s *Local) Owns(url string) bool {
-	_, ok := keyOf(s.baseURL, url)
-	return ok
+func (s *Local) KeyOf(url string) (string, bool) { return keyOf(s.baseURL, url) }
+
+func (s *Local) Exists(_ context.Context, url string) (bool, error) {
+	key, ok := keyOf(s.baseURL, url)
+	if !ok {
+		return false, nil
+	}
+	_, err := os.Stat(filepath.Join(s.dir, filepath.FromSlash(key)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // base/ の後ろの部分。自分の置き場所の URL でなければ ok=false
 func keyOf(base, url string) (string, bool) {
 	key, ok := strings.CutPrefix(url, base+"/")
-	if !ok || key == "" || strings.Contains(key, "..") {
+	// booths/3/x.webp のように必ずフォルダを含む。.. や「.」だけのものは通さない
+	if !ok || !strings.Contains(key, "/") || strings.Contains(key, "..") {
 		return "", false
 	}
 	return key, true

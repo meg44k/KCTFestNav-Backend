@@ -14,11 +14,12 @@ import (
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
 
-// 画像の置き場所の作りもの。https://img/ で始まる URL を自分のものとする
+// 画像の置き場所の作りもの。https://img/ で始まる URL を自分のものとする。missing に入れた URL は「もう無い」
 type fakeImageStore struct {
 	put       []string
 	deleted   []string
 	deleteErr error
+	missing   map[string]bool
 }
 
 func (s *fakeImageStore) Put(_ context.Context, key, _ string, _ []byte) (string, error) {
@@ -29,7 +30,13 @@ func (s *fakeImageStore) Delete(_ context.Context, url string) error {
 	s.deleted = append(s.deleted, url)
 	return s.deleteErr
 }
-func (s *fakeImageStore) Owns(url string) bool { return strings.HasPrefix(url, "https://img/") }
+func (s *fakeImageStore) KeyOf(url string) (string, bool) {
+	k, ok := strings.CutPrefix(url, "https://img/")
+	return k, ok && k != ""
+}
+func (s *fakeImageStore) Exists(_ context.Context, url string) (bool, error) {
+	return !s.missing[url], nil
+}
 
 // 出演者だけ持つステージのリポジトリ
 type imageStageRepo struct {
@@ -145,4 +152,38 @@ func TestStageUsecase_出演者の画像を差し替えたら古い画像を消�
 	require.NoError(t, uc.UpdatePerformer(asRole(domain.RoleAdmin, 0), 12, PerformerInput{Name: "p", ThumbnailURL: "https://img/performers/12/new.webp"}))
 	assert.Equal(t, []string{"https://img/performers/12/old.webp"}, store.deleted)
 	assert.Equal(t, "https://img/performers/12/new.webp", stage.updated.ThumbnailURL)
+}
+
+func TestBoothUsecase_ほかのブースの写真は使えず消さない(t *testing.T) {
+	store := &fakeImageStore{}
+	uc := NewBoothUsecase(imageBooths("https://img/booths/3/mine.webp")).WithImages(store)
+	// ブース 4 の担当が、ブース 3 の写真の URL を入れる
+	err := uc.Update(asRole(domain.RoleStudent, 4), 4, domain.BoothCongestionEmpty, boothParams("https://img/booths/3/mine.webp"))
+	assert.ErrorIs(t, err, domain.ErrInvalidImage)
+	assert.Empty(t, store.deleted)
+
+	// 前の画像がほかのブースの置き場所のものなら、外しても消さない
+	uc = NewBoothUsecase(imageBooths("https://img/booths/3/other.webp")).WithImages(store)
+	require.NoError(t, uc.Update(asRole(domain.RoleAdmin, 0), 4, domain.BoothCongestionEmpty, boothParams("")))
+	assert.Empty(t, store.deleted)
+}
+
+func TestBoothUsecase_開いている間に写真が変えられていたら断る(t *testing.T) {
+	// 開いたときは X。その間にほかの人が Y にして X は消えた。古いフォームが X のまま保存する
+	store := &fakeImageStore{missing: map[string]bool{"https://img/booths/3/x.webp": true}}
+	updated := false
+	repo := imageBooths("https://img/booths/3/y.webp")
+	repo.updateFn = func(context.Context, *domain.Booth) error { updated = true; return nil }
+	uc := NewBoothUsecase(repo).WithImages(store)
+	err := uc.Update(asRole(domain.RoleAdmin, 0), 3, domain.BoothCongestionEmpty, boothParams("https://img/booths/3/x.webp"))
+	assert.ErrorIs(t, err, domain.ErrImageChanged)
+	assert.False(t, updated, "保存しない")
+	assert.Empty(t, store.deleted, "Y を消さない")
+}
+
+func TestStageUsecase_ほかの出演者の写真は使えない(t *testing.T) {
+	stage := &imageStageRepo{performers: map[int]*domain.Performer{12: {ID: 12, Name: "p"}}}
+	uc := NewStageUsecase(stage).WithImages(&fakeImageStore{})
+	err := uc.UpdatePerformer(asRole(domain.RoleAdmin, 0), 12, PerformerInput{Name: "p", ThumbnailURL: "https://img/performers/99/a.webp"})
+	assert.ErrorIs(t, err, domain.ErrInvalidImage)
 }

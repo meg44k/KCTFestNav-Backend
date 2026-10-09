@@ -58,6 +58,10 @@ func (u *BoothUsecase) Update(
 	if err != nil {
 		return err
 	}
+	target := domain.ImageTarget{Kind: "booth", ID: id}
+	if err := checkImageURL(ctx, u.images, target, booth.ImageURL); err != nil {
+		return err
+	}
 	var before string
 	if u.images != nil {
 		current, err := u.boothRepo.GetByID(ctx, id)
@@ -69,7 +73,7 @@ func (u *BoothUsecase) Update(
 	if err := u.boothRepo.Update(ctx, booth); err != nil {
 		return err
 	}
-	removeReplacedImage(ctx, u.images, before, booth.ImageURL)
+	removeReplacedImage(ctx, u.images, target, before, booth.ImageURL)
 	return nil
 }
 
