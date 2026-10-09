@@ -146,6 +146,18 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
+const deleteAllLikes = `-- name: DeleteAllLikes :execrows
+DELETE FROM likes
+`
+
+func (q *Queries) DeleteAllLikes(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAllLikes)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteBooth = `-- name: DeleteBooth :exec
 DELETE FROM booths WHERE id = ?
 `
@@ -153,6 +165,38 @@ DELETE FROM booths WHERE id = ?
 func (q *Queries) DeleteBooth(ctx context.Context, id int32) error {
 	_, err := q.db.ExecContext(ctx, deleteBooth, id)
 	return err
+}
+
+const deleteLike = `-- name: DeleteLike :exec
+DELETE FROM likes WHERE booth_id = ? AND voter_id = ?
+`
+
+type DeleteLikeParams struct {
+	BoothID int32
+	VoterID string
+}
+
+func (q *Queries) DeleteLike(ctx context.Context, arg DeleteLikeParams) error {
+	_, err := q.db.ExecContext(ctx, deleteLike, arg.BoothID, arg.VoterID)
+	return err
+}
+
+const deleteLikesInRange = `-- name: DeleteLikesInRange :execrows
+DELETE FROM likes WHERE booth_id = ? AND created_at >= ? AND created_at < ?
+`
+
+type DeleteLikesInRangeParams struct {
+	BoothID     int32
+	CreatedAt   time.Time
+	CreatedAt_2 time.Time
+}
+
+func (q *Queries) DeleteLikesInRange(ctx context.Context, arg DeleteLikesInRangeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteLikesInRange, arg.BoothID, arg.CreatedAt, arg.CreatedAt_2)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deletePerformer = `-- name: DeletePerformer :exec
@@ -382,6 +426,105 @@ func (q *Queries) GetUserByLoginID(ctx context.Context, loginID string) (User, e
 		&i.Role,
 	)
 	return i, err
+}
+
+const insertLike = `-- name: InsertLike :exec
+INSERT IGNORE INTO likes (booth_id, voter_id, created_at) VALUES (?, ?, ?)
+`
+
+type InsertLikeParams struct {
+	BoothID   int32
+	VoterID   string
+	CreatedAt time.Time
+}
+
+func (q *Queries) InsertLike(ctx context.Context, arg InsertLikeParams) error {
+	_, err := q.db.ExecContext(ctx, insertLike, arg.BoothID, arg.VoterID, arg.CreatedAt)
+	return err
+}
+
+const insertLikeRemoval = `-- name: InsertLikeRemoval :exec
+INSERT INTO like_removals (booth_id, from_at, to_at, removed, removed_by, created_at) VALUES (?, ?, ?, ?, ?, ?)
+`
+
+type InsertLikeRemovalParams struct {
+	BoothID   sql.NullInt32
+	FromAt    sql.NullTime
+	ToAt      sql.NullTime
+	Removed   int32
+	RemovedBy string
+	CreatedAt time.Time
+}
+
+func (q *Queries) InsertLikeRemoval(ctx context.Context, arg InsertLikeRemovalParams) error {
+	_, err := q.db.ExecContext(ctx, insertLikeRemoval,
+		arg.BoothID,
+		arg.FromAt,
+		arg.ToAt,
+		arg.Removed,
+		arg.RemovedBy,
+		arg.CreatedAt,
+	)
+	return err
+}
+
+const listLikeTimes = `-- name: ListLikeTimes :many
+SELECT booth_id, created_at FROM likes ORDER BY booth_id, created_at
+`
+
+type ListLikeTimesRow struct {
+	BoothID   int32
+	CreatedAt time.Time
+}
+
+func (q *Queries) ListLikeTimes(ctx context.Context) ([]ListLikeTimesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listLikeTimes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLikeTimesRow
+	for rows.Next() {
+		var i ListLikeTimesRow
+		if err := rows.Scan(&i.BoothID, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLikedBoothIDs = `-- name: ListLikedBoothIDs :many
+SELECT booth_id FROM likes WHERE voter_id = ? ORDER BY booth_id
+`
+
+func (q *Queries) ListLikedBoothIDs(ctx context.Context, voterID string) ([]int32, error) {
+	rows, err := q.db.QueryContext(ctx, listLikedBoothIDs, voterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int32
+	for rows.Next() {
+		var booth_id int32
+		if err := rows.Scan(&booth_id); err != nil {
+			return nil, err
+		}
+		items = append(items, booth_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPerformers = `-- name: ListPerformers :many

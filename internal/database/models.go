@@ -24,6 +24,22 @@ type Booth struct {
 	Floor     int32
 }
 
+type Like struct {
+	BoothID   int32
+	VoterID   string
+	CreatedAt time.Time
+}
+
+type LikeRemoval struct {
+	ID        int32
+	BoothID   sql.NullInt32
+	FromAt    sql.NullTime
+	ToAt      sql.NullTime
+	Removed   int32
+	RemovedBy string
+	CreatedAt time.Time
+}
+
 type Performer struct {
 	ID           int32
 	BlockID      int32
