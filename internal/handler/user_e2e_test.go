@@ -36,9 +36,7 @@ func setupUserE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client) {
 	}
 
 	// テーブルを初期化（usersテーブルを空にする）
-	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	_, err = db.Exec("TRUNCATE TABLE users")
-	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+	err = truncateTables(db, "users")
 	if err != nil {
 		t.Fatalf("usersテーブルの初期化に失敗しました: %v", err)
 	}

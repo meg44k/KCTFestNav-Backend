@@ -37,9 +37,7 @@ func setupBoothE2ETest(t *testing.T) (*echo.Echo, *sql.DB, *redis.Client, []byte
 	}
 
 	// テーブルを初期化 (外部キー制約を一時的に無視する)
-	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	_, err = db.Exec("TRUNCATE TABLE booths")
-	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+	err = truncateTables(db, "booths")
 	require.NoError(t, err)
 
 	// Redisの初期化

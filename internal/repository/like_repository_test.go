@@ -28,10 +28,7 @@ func setupLikeTest(t *testing.T) (*sql.DB, *redis.Client, int) {
 	}
 	t.Cleanup(func() { db.Close(); rdb.Close() })
 	require.NoError(t, rdb.FlushDB(context.Background()).Err())
-	for _, q := range []string{"SET FOREIGN_KEY_CHECKS = 0", "TRUNCATE TABLE likes", "TRUNCATE TABLE like_removals", "TRUNCATE TABLE booths", "SET FOREIGN_KEY_CHECKS = 1"} {
-		_, err := db.Exec(q)
-		require.NoError(t, err)
-	}
+	require.NoError(t, truncateTables(db, "likes", "like_removals", "booths"))
 	res, err := db.Exec(`INSERT INTO booths (name, organizer, detail, x, y, z) VALUES ('お化け屋敷', '3-2', '', 0, 0, 0)`)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()

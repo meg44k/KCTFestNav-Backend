@@ -49,10 +49,7 @@ func setupLikeE2E(t *testing.T) likeEnv {
 	}
 	t.Cleanup(func() { db.Close(); rdb.Close() })
 	require.NoError(t, rdb.FlushDB(context.Background()).Err())
-	for _, q := range []string{"SET FOREIGN_KEY_CHECKS = 0", "TRUNCATE TABLE likes", "TRUNCATE TABLE like_removals", "TRUNCATE TABLE booths", "SET FOREIGN_KEY_CHECKS = 1"} {
-		_, err := db.Exec(q)
-		require.NoError(t, err)
-	}
+	require.NoError(t, truncateTables(db, "likes", "like_removals", "booths"))
 	insert := func(name, org string) int {
 		res, err := db.Exec(`INSERT INTO booths (name, organizer, detail, x, y, z) VALUES (?, ?, '', 0, 0, 0)`, name, org)
 		require.NoError(t, err)
