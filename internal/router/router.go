@@ -46,6 +46,9 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	manage.DELETE("/users/:id", h.User.Delete) // ユーザの削除
 
 	StageRoutes(e, manage, h.Stage)
+	if h.Image != nil {
+		ImageRoutes(manage, h.Image)
+	}
 	if h.Like != nil {
 		LikeRoutes(e, manage, h.Like, os.Getenv("INTERNAL_API_KEY"))
 	}
@@ -85,4 +88,9 @@ func StageRoutes(e *echo.Echo, manage *echo.Group, h *handler.StageHandler) {
 	manage.PUT("/stage/performers/:id", h.UpdatePerformer)
 	manage.DELETE("/stage/performers/:id", h.DeletePerformer)
 	manage.POST("/stage/performers/:id/move", h.MovePerformer) // 出演順を上下に入れ替える
+}
+
+// ブース・出演者の写真を上げる。1 枚 2MB まで(multipart の分の余裕を見て 3MB で切る)
+func ImageRoutes(manage *echo.Group, h *handler.ImageHandler) {
+	manage.POST("/images", h.Upload, middleware.BodyLimit(3<<20))
 }

@@ -8,6 +8,13 @@ import (
 
 type BoothUsecase struct {
 	boothRepo domain.BoothRepository
+	images    domain.ImageStore // 差し替えたときに古い画像を消す。nil なら消さない
+}
+
+// 画像の置き場所をつなぐ(更新で画像が変わったら古い画像を消す)
+func (u *BoothUsecase) WithImages(store domain.ImageStore) *BoothUsecase {
+	u.images = store
+	return u
 }
 
 func NewBoothUsecase(repo domain.BoothRepository) *BoothUsecase {
@@ -51,7 +58,23 @@ func (u *BoothUsecase) Update(
 	if err != nil {
 		return err
 	}
-	return u.boothRepo.Update(ctx, booth)
+	target := domain.ImageTarget{Kind: "booth", ID: id}
+	if err := checkImageURL(ctx, u.images, target, booth.ImageURL); err != nil {
+		return err
+	}
+	var before string
+	if u.images != nil {
+		current, err := u.boothRepo.GetByID(ctx, id)
+		if err != nil {
+			return err
+		}
+		before = current.ImageURL
+	}
+	if err := u.boothRepo.Update(ctx, booth); err != nil {
+		return err
+	}
+	removeReplacedImage(ctx, u.images, target, before, booth.ImageURL)
+	return nil
 }
 
 // REF: これBooth.CogestionStatusをカプセル化した意味がなくなっちゃってる。Redisで管理したいけど、どうするのがベストなんだろう...

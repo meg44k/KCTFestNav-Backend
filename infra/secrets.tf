@@ -7,7 +7,8 @@ locals {
     VOTER_SECRET     = random_password.voter.result
   }
   # 本人が gcloud で手で入れる値(Terraform に書かない)
-  manual_secrets = ["REDIS_PASSWORD", "INIT_ADMIN_PASSWORD"]
+  # R2_* は Cloudflare の画面で作る R2 の API トークン(写真の置き場所の読み書き)
+  manual_secrets = ["REDIS_PASSWORD", "INIT_ADMIN_PASSWORD", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"]
   all_secrets    = concat(keys(local.generated_secrets), local.manual_secrets)
 }
 
