@@ -314,6 +314,8 @@ paths:
           schema:
             type: string
       responses:
+        '409':
+          description: そのログイン ID はもう使われている
         '204':
           description: 削除成功
 

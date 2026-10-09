@@ -43,7 +43,9 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 		errors.Is(err, domain.ErrInvalidFloor),
 		errors.Is(err, domain.ErrInvalidCongestion),
 		errors.Is(err, domain.ErrNotClassBooth),
-		errors.Is(err, domain.ErrInvalidRange):
+		errors.Is(err, domain.ErrInvalidRange),
+		errors.Is(err, domain.ErrLoginIDRequired),
+		errors.Is(err, domain.ErrCannotDeleteSelf):
 		code = http.StatusBadRequest
 		message = err.Error()
 
@@ -57,6 +59,9 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 	case errors.Is(err, usecase.ErrUnauthorized):
 		code = http.StatusUnauthorized
 		message = "unauthorized"
+	case errors.Is(err, domain.ErrLoginIDTaken):
+		code = http.StatusConflict
+		message = err.Error()
 	case errors.Is(err, usecase.ErrTooMany):
 		code = http.StatusTooManyRequests
 		message = err.Error()

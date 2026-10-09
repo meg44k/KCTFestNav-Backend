@@ -289,3 +289,22 @@ func TestUserRepository_Delete(t *testing.T) {
 		assert.Error(t, err) // 取得できないためエラーになるはず
 	})
 }
+
+func TestUserRepository_ログインIDの重複(t *testing.T) {
+	db, rdb := setupUserTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+	repo := repository.NewUserRepository(db, rdb)
+	ctx := context.Background()
+
+	a, _ := domain.NewUser(domain.UserParams{Name: "a", LoginID: "taken", Password: []byte("x"), Role: domain.RoleGakuseikai})
+	b, _ := domain.NewUser(domain.UserParams{Name: "b", LoginID: "free", Password: []byte("x"), Role: domain.RoleGakuseikai})
+	assert.NoError(t, repo.Create(ctx, a))
+	assert.NoError(t, repo.Create(ctx, b))
+
+	b.LoginID = "taken"
+	assert.ErrorIs(t, repo.Update(ctx, b), domain.ErrLoginIDTaken, "更新で重複")
+
+	c, _ := domain.NewUser(domain.UserParams{Name: "c", LoginID: "taken", Password: []byte("x"), Role: domain.RoleGakuseikai})
+	assert.ErrorIs(t, repo.Create(ctx, c), domain.ErrLoginIDTaken, "作成で重複")
+}

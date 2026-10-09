@@ -11,11 +11,14 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/meg44k/KCTFestNav-Backend/internal/auth"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 	"github.com/meg44k/KCTFestNav-Backend/internal/handler"
 	mv "github.com/meg44k/KCTFestNav-Backend/internal/middleware"
@@ -418,4 +421,44 @@ func TestUserE2E(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 0, count)
 	})
+}
+
+func TestUserE2E_ログインIDの重複と自分の削除(t *testing.T) {
+	e, db, rdb := setupUserE2ETest(t)
+	defer db.Close()
+	defer rdb.Close()
+	secret := []byte("test-secret")
+	adminID := uuid.New()
+	other := uuid.New()
+	hash, _ := bcrypt.GenerateFromPassword([]byte("p"), bcrypt.DefaultCost)
+	for _, u := range []struct {
+		id    uuid.UUID
+		login string
+	}{{adminID, "admin_a"}, {other, "gakuseikai_b"}} {
+		_, err := db.Exec("INSERT INTO users (id, name, login_id, password, role, assigned_booth_id) VALUES (?, ?, ?, ?, ?, NULL)", u.id.String(), u.login, u.login, hash, domain.RoleAdmin)
+		require.NoError(t, err)
+	}
+	token, err := auth.GenerateToken(adminID, domain.RoleAdmin, 0, secret)
+	require.NoError(t, err)
+	do := func(method, path string, body any) int {
+		var buf bytes.Buffer
+		if body != nil {
+			require.NoError(t, json.NewEncoder(&buf).Encode(body))
+		}
+		req := httptest.NewRequest(method, path, &buf)
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		req.Header.Set(echo.HeaderAuthorization, "Bearer "+token)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	update := map[string]any{"name": "b", "login_id": "admin_a", "role": domain.RoleAdmin}
+	assert.Equal(t, http.StatusConflict, do(http.MethodPut, "/manage/users/"+other.String(), update), "使われているログイン ID")
+	update["login_id"] = "  "
+	assert.Equal(t, http.StatusBadRequest, do(http.MethodPut, "/manage/users/"+other.String(), update), "空")
+	update["login_id"] = "renamed_b"
+	assert.Equal(t, http.StatusNoContent, do(http.MethodPut, "/manage/users/"+other.String(), update))
+
+	assert.Equal(t, http.StatusBadRequest, do(http.MethodDelete, "/manage/users/"+adminID.String(), nil), "自分は消せない")
+	assert.Equal(t, http.StatusNoContent, do(http.MethodDelete, "/manage/users/"+other.String(), nil))
 }
