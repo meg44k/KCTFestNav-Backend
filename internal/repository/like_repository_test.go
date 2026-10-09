@@ -104,11 +104,11 @@ func TestLikeRepository_番号を作る上限(t *testing.T) {
 	db, rdb, _ := setupLikeTest(t)
 	r := repository.NewLikeRepository(db, rdb)
 	ctx := context.Background()
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 3000; i++ {
 		ok, err := r.AllowNewVoter(ctx)
 		require.NoError(t, err)
 		require.True(t, ok, "%d 個目", i+1)
 	}
 	ok, _ := r.AllowNewVoter(ctx)
-	assert.False(t, ok, "301 個目は弾く")
+	assert.False(t, ok, "3001 個目は弾く")
 }

@@ -645,7 +645,7 @@ paths:
 
   /internal/voters:
     post:
-      summary: いいねの投票者番号を作る(Next.js のサーバーだけ。サーバー全体で 1 分 300 個まで)
+      summary: いいねの投票者番号を作る(Next.js のサーバーだけ。サーバー全体で 1 分 3,000 個まで)
       tags:
         - Likes
       security:

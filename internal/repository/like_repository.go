@@ -13,8 +13,8 @@ import (
 
 // 回数の上限(1 分あたり)
 const (
-	newVotersPerMinute = 300 // サーバー全体で新しく作る投票者番号
-	togglesPerMinute   = 60  // 1 つの番号でのいいねの切り替え
+	newVotersPerMinute = 3000 // サーバー全体で新しく作る投票者番号。来場者は届かない量で、異常な量から DB を守るためのブレーキ
+	togglesPerMinute   = 60   // 1 つの番号でのいいねの切り替え
 )
 
 type likeRepository struct {
