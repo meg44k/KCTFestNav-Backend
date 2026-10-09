@@ -10,7 +10,14 @@ import (
 // 番組表(セクション・ブロック・出演者)の編集は管理者だけ。
 // 当日の「次のバンドへ」「前に戻す」は学生会もできる
 type StageUsecase struct {
-	repo domain.StageRepository
+	repo   domain.StageRepository
+	images domain.ImageStore // 差し替えたときに古い画像を消す。nil なら消さない
+}
+
+// 画像の置き場所をつなぐ(出演者の画像が変わったら古い画像を消す)
+func (u *StageUsecase) WithImages(store domain.ImageStore) *StageUsecase {
+	u.images = store
+	return u
 }
 
 func NewStageUsecase(repo domain.StageRepository) *StageUsecase {
@@ -128,7 +135,19 @@ func (u *StageUsecase) UpdatePerformer(ctx context.Context, id int, in Performer
 		return err
 	}
 	p.ID = id
-	return u.repo.UpdatePerformer(ctx, p)
+	var before string
+	if u.images != nil {
+		current, err := u.repo.GetPerformer(ctx, id)
+		if err != nil {
+			return err
+		}
+		before = current.ThumbnailURL
+	}
+	if err := u.repo.UpdatePerformer(ctx, p); err != nil {
+		return err
+	}
+	removeReplacedImage(ctx, u.images, before, p.ThumbnailURL)
+	return nil
 }
 
 func (u *StageUsecase) DeletePerformer(ctx context.Context, id int) error {
