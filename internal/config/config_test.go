@@ -81,3 +81,18 @@ func TestLoad_いいねの秘密(t *testing.T) {
 		t.Errorf("空でよい: %v %q", err, c.VoterSecret)
 	}
 }
+
+func TestLoad_画像の置き場所(t *testing.T) {
+	c, _ := Load(env(map[string]string{}))
+	if c.Images.UploadDir != "./uploads" || c.Images.BaseURL != "https://localhost:3000/dev-images" || c.Images.R2Bucket != "" {
+		t.Errorf("既定: %+v", c.Images)
+	}
+	c, _ = Load(env(map[string]string{
+		"IMAGE_BASE_URL": "https://img.kctfes.app/", "R2_ACCOUNT_ID": "acc", "R2_BUCKET": "b",
+		"R2_ACCESS_KEY_ID": "k", "R2_SECRET_ACCESS_KEY": "s", "UPLOAD_DIR": "/tmp/u",
+	}))
+	want := ImagesConfig{BaseURL: "https://img.kctfes.app", UploadDir: "/tmp/u", R2AccountID: "acc", R2Bucket: "b", R2KeyID: "k", R2Secret: "s"}
+	if c.Images != want {
+		t.Errorf("%+v", c.Images)
+	}
+}

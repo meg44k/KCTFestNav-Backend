@@ -8,3 +8,6 @@ dump.rdb
 infra/.terraform/
 infra/*.tfvars
 infra/*.tfstate*
+
+# 手元で上げた画像
+uploads/
