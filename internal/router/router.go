@@ -46,6 +46,24 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	manage.DELETE("/users/:id", h.User.Delete) // ユーザの削除
 
 	StageRoutes(e, manage, h.Stage)
+	if h.Like != nil {
+		LikeRoutes(e, manage, h.Like, os.Getenv("INTERNAL_API_KEY"))
+	}
+}
+
+// クラス展示のいいねのルート。e2e テストでも同じものを使う
+func LikeRoutes(e *echo.Echo, manage *echo.Group, h *handler.LikeHandler, internalKey string) {
+	// 来場者用。Next.js のサーバーだけが合言葉(X-Internal-Key)を付けて呼ぶ
+	internal := e.Group("/internal", mv.InternalKey(internalKey))
+	internal.POST("/voters", h.IssueVoter)  // 投票者番号を作る
+	internal.GET("/likes/mine", h.Mine)     // 自分が押したブース
+	internal.PUT("/likes/:id", h.Like)      // いいねする
+	internal.DELETE("/likes/:id", h.Unlike) // 取り消す
+
+	// 管理者・学生会
+	manage.GET("/likes", h.Summary)            // 数と 10 分ごとの推移
+	manage.DELETE("/likes/:id", h.RemoveRange) // 時間帯を指定して消す
+	manage.DELETE("/likes", h.RemoveAll)       // 全部消す(管理者)
 }
 
 // ステージイベントのルート。e2e テストでも同じものを使う
