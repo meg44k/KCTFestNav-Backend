@@ -25,8 +25,8 @@ type Booth struct {
 }
 
 type Like struct {
-	BoothID   int32
 	VoterID   string
+	BoothID   int32
 	CreatedAt time.Time
 }
 

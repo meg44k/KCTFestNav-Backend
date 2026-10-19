@@ -1,11 +1,9 @@
--- クラス展示のいいね。1 つの投票者番号で同じブースは 1 件
+-- クラス展示への投票。1 つの投票者番号で 1 票(別の展示に入れ直すと移る)
 CREATE TABLE likes(
+  voter_id CHAR(36) NOT NULL PRIMARY KEY,
   booth_id INT NOT NULL,
-  voter_id CHAR(36) NOT NULL,
   created_at DATETIME NOT NULL,
-  PRIMARY KEY (booth_id, voter_id),
   INDEX likes_booth_time (booth_id, created_at),
-  INDEX likes_voter (voter_id),
   FOREIGN KEY (booth_id) REFERENCES booths(id) ON DELETE CASCADE
 );
 

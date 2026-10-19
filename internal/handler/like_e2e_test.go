@@ -32,10 +32,11 @@ type likeEnv struct {
 	e      *echo.Echo
 	secret []byte
 	class  int
+	class2 int
 	bazaar int
 }
 
-// 本物のルーターに、いいねの handler をつなぐ。クラス展示とバザーを 1 つずつ作る
+// 本物のルーターに、いいねの handler をつなぐ。クラス展示を 2 つとバザーを 1 つ作る
 func setupLikeE2E(t *testing.T) likeEnv {
 	t.Helper()
 	db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/kctfest_test_handler?parseTime=true")
@@ -58,6 +59,7 @@ func setupLikeE2E(t *testing.T) likeEnv {
 	}
 	env := likeEnv{t: t, secret: []byte("e2e-test-secret")}
 	env.class = insert("お化け屋敷", "3-2")
+	env.class2 = insert("カフェ", "2-1")
 	env.bazaar = insert("からあげ", "天文部")
 
 	uc := usecase.NewLikeUsecase(repository.NewLikeRepository(db, rdb), repository.NewBoothRepository(db, rdb), []byte("voter-secret"), time.Now)
@@ -139,12 +141,32 @@ func TestLikeE2E_押して自分のいいねに入り_2回でも1件(t *testing.
 	assert.JSONEq(t, fmt.Sprintf(`{"booth_ids":[%d]}`, env.class), rec.Body.String())
 
 	s := env.summary()
-	require.Len(t, s.Booths, 1, "クラス展示だけ")
+	require.Len(t, s.Booths, 2, "クラス展示だけ")
 	assert.Equal(t, 1, s.Booths[0].Total)
 
 	assert.Equal(t, http.StatusNoContent, env.call(http.MethodDelete, path, voterHeaders(v)).Code)
 	rec = env.call(http.MethodGet, "/internal/likes/mine", voterHeaders(v))
 	assert.JSONEq(t, `{"booth_ids":[]}`, rec.Body.String())
+}
+
+func TestLikeE2E_一人1票で_別の展示に入れ直すと票が移る(t *testing.T) {
+	env := setupLikeE2E(t)
+	v := env.voter()
+	require.Equal(t, http.StatusNoContent, env.call(http.MethodPut, fmt.Sprintf("/internal/likes/%d", env.class), voterHeaders(v)).Code)
+	require.Equal(t, http.StatusNoContent, env.call(http.MethodPut, fmt.Sprintf("/internal/likes/%d", env.class2), voterHeaders(v)).Code)
+
+	rec := env.call(http.MethodGet, "/internal/likes/mine", voterHeaders(v))
+	assert.JSONEq(t, fmt.Sprintf(`{"booth_ids":[%d]}`, env.class2), rec.Body.String())
+	totals := map[int]int{}
+	for _, b := range env.summary().Booths {
+		totals[b.BoothID] = b.Total
+	}
+	assert.Equal(t, map[int]int{env.class: 0, env.class2: 1}, totals, "合計は 1 票のまま")
+
+	// 前の展示を取り消しても、今の票は残る
+	assert.Equal(t, http.StatusNoContent, env.call(http.MethodDelete, fmt.Sprintf("/internal/likes/%d", env.class), voterHeaders(v)).Code)
+	rec = env.call(http.MethodGet, "/internal/likes/mine", voterHeaders(v))
+	assert.JSONEq(t, fmt.Sprintf(`{"booth_ids":[%d]}`, env.class2), rec.Body.String())
 }
 
 func TestLikeE2E_番号が無いときの自分のいいねは空(t *testing.T) {
@@ -183,7 +205,9 @@ func TestLikeE2E_時間帯で取り消す(t *testing.T) {
 	rec := env.call(http.MethodDelete, fmt.Sprintf("/manage/likes/%d?%s", env.class, q.Encode()), env.bearer(domain.RoleGakuseikai))
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	assert.JSONEq(t, `{"removed":1}`, rec.Body.String())
-	assert.Equal(t, 0, env.summary().Booths[0].Total)
+	for _, b := range env.summary().Booths {
+		assert.Equal(t, 0, b.Total)
+	}
 
 	bad := url.Values{"from": {now.Format(time.RFC3339)}, "to": {now.Format(time.RFC3339)}}
 	assert.Equal(t, http.StatusBadRequest, env.call(http.MethodDelete, fmt.Sprintf("/manage/likes/%d?%s", env.class, bad.Encode()), env.bearer(domain.RoleGakuseikai)).Code, "from >= to")

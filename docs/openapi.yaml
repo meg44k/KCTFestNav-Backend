@@ -668,7 +668,7 @@ paths:
           description: 上限を超えた
   /internal/likes/mine:
     get:
-      summary: その番号で押したブース(番号が無い・不正なら空)
+      summary: その番号で投票しているブース(1 人 1 票なので 0 か 1 件。番号が無い・不正なら空)
       tags:
         - Likes
       security:
@@ -689,7 +689,7 @@ paths:
                       type: integer
   /internal/likes/{id}:
     put:
-      summary: いいねする(クラス展示だけ。押してあっても 204。番号ごとに 1 分 60 回まで)
+      summary: 投票する(1 人 1 票。ほかの展示に入れていたら、こちらへ移す。クラス展示だけ。入れてあっても 204。番号ごとに 1 分 60 回まで)
       tags:
         - Likes
       security:
@@ -713,7 +713,7 @@ paths:
         '429':
           description: 上限を超えた
     delete:
-      summary: いいねを取り消す(押していなくても 204)
+      summary: 投票を取り消す(その展示に入れている時だけ消す。入れていなくても 204)
       tags:
         - Likes
       security:
