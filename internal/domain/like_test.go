@@ -9,6 +9,8 @@ func TestIsClassOrganizer(t *testing.T) {
 	for in, want := range map[string]bool{
 		"1-1": true, "5-4": true, " 3 - 2 ": true,
 		"0-1": false, "6-1": false, "天文部": false, "1-": false, "": false, "12-1": false,
+		// 3 年からは学科の 1 文字
+		"3M": true, "5C": true, " 4 R ": true, "6M": false, "3MR": false, "3m": false,
 	} {
 		if got := IsClassOrganizer(in); got != want {
 			t.Errorf("%q: got %v", in, got)
