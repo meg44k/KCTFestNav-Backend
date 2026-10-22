@@ -58,6 +58,33 @@ func TestLikeRepository_押す_取り消す_自分の一覧(t *testing.T) {
 	assert.Empty(t, ids)
 }
 
+func TestLikeRepository_一人1票で別の展示に入れ直せる(t *testing.T) {
+	db, rdb, first := setupLikeTest(t)
+	res, err := db.Exec(`INSERT INTO booths (name, organizer, detail, x, y, z) VALUES ('カフェ', '2-1', '', 0, 0, 0)`)
+	require.NoError(t, err)
+	id, _ := res.LastInsertId()
+	second := int(id)
+	r := repository.NewLikeRepository(db, rdb)
+	ctx := context.Background()
+	now := time.Date(2026, 10, 31, 1, 0, 0, 0, time.UTC)
+
+	require.NoError(t, r.Like(ctx, first, "v1", now))
+	require.NoError(t, r.Like(ctx, second, "v1", now.Add(time.Minute)))
+	ids, err := r.Mine(ctx, "v1")
+	require.NoError(t, err)
+	assert.Equal(t, []int{second}, ids, "前の展示の票は消えて、新しい展示だけ")
+
+	times, err := r.AllLikeTimes(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, times[first])
+	assert.Equal(t, []time.Time{now.Add(time.Minute)}, times[second], "入れ直した時刻で数える")
+
+	require.NoError(t, r.Unlike(ctx, first, "v1"), "入れていない展示の取り消しは何もしない")
+	ids, err = r.Mine(ctx, "v1")
+	require.NoError(t, err)
+	assert.Equal(t, []int{second}, ids)
+}
+
 func TestLikeRepository_時間帯で消すと記録が残る(t *testing.T) {
 	db, rdb, boothID := setupLikeTest(t)
 	r := repository.NewLikeRepository(db, rdb)

@@ -429,7 +429,10 @@ func (q *Queries) GetUserByLoginID(ctx context.Context, loginID string) (User, e
 }
 
 const insertLike = `-- name: InsertLike :exec
-INSERT IGNORE INTO likes (booth_id, voter_id, created_at) VALUES (?, ?, ?)
+INSERT INTO likes (booth_id, voter_id, created_at) VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  created_at = IF(booth_id = VALUES(booth_id), created_at, VALUES(created_at)),
+  booth_id = VALUES(booth_id)
 `
 
 type InsertLikeParams struct {
@@ -438,6 +441,7 @@ type InsertLikeParams struct {
 	CreatedAt time.Time
 }
 
+// 1 人 1 票。別の展示なら移して時刻も新しくし、同じ展示なら最初の時刻のまま
 func (q *Queries) InsertLike(ctx context.Context, arg InsertLikeParams) error {
 	_, err := q.db.ExecContext(ctx, insertLike, arg.BoothID, arg.VoterID, arg.CreatedAt)
 	return err
