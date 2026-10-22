@@ -17,6 +17,8 @@ type Handlers struct {
 	Booth        *BoothHandler
 	User         *UserHandler
 	Announcement *AnnouncementHandler
+	Like         *LikeHandler
+	Image        *ImageHandler
 }
 
 func OK(c *echo.Context) error {
@@ -40,7 +42,13 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 		errors.Is(err, domain.ErrContentRequired),
 		errors.Is(err, domain.ErrInvalidDirection),
 		errors.Is(err, domain.ErrInvalidFloor),
-		errors.Is(err, domain.ErrInvalidCongestion):
+		errors.Is(err, domain.ErrInvalidCongestion),
+		errors.Is(err, domain.ErrNotClassBooth),
+		errors.Is(err, domain.ErrInvalidRange),
+		errors.Is(err, domain.ErrLoginIDRequired),
+		errors.Is(err, domain.ErrCannotDeleteSelf),
+		errors.Is(err, domain.ErrInvalidImage),
+		errors.Is(err, domain.ErrInvalidImageTarget):
 		code = http.StatusBadRequest
 		message = err.Error()
 
@@ -54,6 +62,12 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 	case errors.Is(err, usecase.ErrUnauthorized):
 		code = http.StatusUnauthorized
 		message = "unauthorized"
+	case errors.Is(err, domain.ErrLoginIDTaken), errors.Is(err, domain.ErrImageChanged):
+		code = http.StatusConflict
+		message = err.Error()
+	case errors.Is(err, usecase.ErrTooMany):
+		code = http.StatusTooManyRequests
+		message = err.Error()
 
 	// パスワード系
 	case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):

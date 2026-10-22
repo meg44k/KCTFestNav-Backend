@@ -35,9 +35,7 @@ func setupUserTestDB(t *testing.T) (*sql.DB, *redis.Client) {
 	}
 
 	// テーブル初期化
-	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	_, err = db.Exec("TRUNCATE TABLE users")
-	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+	err = truncateTables(db, "users")
 	if err != nil {
 		t.Fatalf("Failed to truncate users table: %v", err)
 	}
@@ -54,9 +52,7 @@ func TestUserRepository_CreateAndGetByID(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: ユーザーを作成してGetByIDで取得できること", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec("TRUNCATE TABLE users")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		_ = truncateTables(db, "users")
 
 		targetID := uuid.New()
 		user, _ := domain.ReconstructUser(targetID, domain.UserParams{
@@ -99,9 +95,7 @@ func TestUserRepository_GetByLoginID(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: LoginIDでユーザーを取得できること", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec("TRUNCATE TABLE users")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		_ = truncateTables(db, "users")
 
 		targetID := uuid.New()
 		user, _ := domain.ReconstructUser(targetID, domain.UserParams{
@@ -136,9 +130,7 @@ func TestUserRepository_GetAll(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: 0件の場合は空のリストが返ること", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec("TRUNCATE TABLE users")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		_ = truncateTables(db, "users")
 
 		users, err := repo.GetAll(ctx)
 		assert.NoError(t, err)
@@ -146,9 +138,7 @@ func TestUserRepository_GetAll(t *testing.T) {
 	})
 
 	t.Run("正常系: 複数件のユーザーを取得できること", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec("TRUNCATE TABLE users")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		_ = truncateTables(db, "users")
 
 		user1, _ := domain.ReconstructUser(uuid.New(), domain.UserParams{
 			Name:            "テスト1",
@@ -194,10 +184,7 @@ func TestUserRepository_GetAll(t *testing.T) {
 	})
 
 	t.Run("正常系: 所属ブース(AssignedBoothID)が正しく保存・復元されること", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec("TRUNCATE TABLE users")
-		_, _ = db.Exec("TRUNCATE TABLE booths")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		_ = truncateTables(db, "users", "booths")
 
 		// 事前にブースを作成しておく
 		_, err := db.Exec("INSERT INTO booths (id, name, organizer, detail, x, y, z) VALUES (999, 'テストブース', 'テスト主催者', '詳細', 0, 0, 0)")
@@ -231,10 +218,7 @@ func TestUserRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: ユーザー情報を更新できること", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec("TRUNCATE TABLE users")
-		_, _ = db.Exec("TRUNCATE TABLE booths")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		_ = truncateTables(db, "users", "booths")
 
 		// 更新用のブースを用意しておく
 		_, _ = db.Exec("INSERT INTO booths (id, name, organizer, detail, x, y, z) VALUES (999, 'テストブース', '主催', '詳細', 0, 0, 0)")
@@ -283,9 +267,7 @@ func TestUserRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: ユーザーを削除できること", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec("TRUNCATE TABLE users")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		_ = truncateTables(db, "users")
 
 		targetID := uuid.New()
 		user, _ := domain.ReconstructUser(targetID, domain.UserParams{
@@ -306,4 +288,23 @@ func TestUserRepository_Delete(t *testing.T) {
 		_, err = repo.GetByID(ctx, targetID)
 		assert.Error(t, err) // 取得できないためエラーになるはず
 	})
+}
+
+func TestUserRepository_ログインIDの重複(t *testing.T) {
+	db, rdb := setupUserTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+	repo := repository.NewUserRepository(db, rdb)
+	ctx := context.Background()
+
+	a, _ := domain.NewUser(domain.UserParams{Name: "a", LoginID: "taken", Password: []byte("x"), Role: domain.RoleGakuseikai})
+	b, _ := domain.NewUser(domain.UserParams{Name: "b", LoginID: "free", Password: []byte("x"), Role: domain.RoleGakuseikai})
+	assert.NoError(t, repo.Create(ctx, a))
+	assert.NoError(t, repo.Create(ctx, b))
+
+	b.LoginID = "taken"
+	assert.ErrorIs(t, repo.Update(ctx, b), domain.ErrLoginIDTaken, "更新で重複")
+
+	c, _ := domain.NewUser(domain.UserParams{Name: "c", LoginID: "taken", Password: []byte("x"), Role: domain.RoleGakuseikai})
+	assert.ErrorIs(t, repo.Create(ctx, c), domain.ErrLoginIDTaken, "作成で重複")
 }

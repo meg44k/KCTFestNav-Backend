@@ -131,3 +131,27 @@ SET
     password = ?,
     role = ?
 WHERE id = ?;
+-- name: InsertLike :exec
+-- 1 人 1 票。別の展示なら移して時刻も新しくし、同じ展示なら最初の時刻のまま
+INSERT INTO likes (booth_id, voter_id, created_at) VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+  created_at = IF(booth_id = VALUES(booth_id), created_at, VALUES(created_at)),
+  booth_id = VALUES(booth_id);
+
+-- name: DeleteLike :exec
+DELETE FROM likes WHERE booth_id = ? AND voter_id = ?;
+
+-- name: ListLikedBoothIDs :many
+SELECT booth_id FROM likes WHERE voter_id = ? ORDER BY booth_id;
+
+-- name: ListLikeTimes :many
+SELECT booth_id, created_at FROM likes ORDER BY booth_id, created_at;
+
+-- name: DeleteLikesInRange :execrows
+DELETE FROM likes WHERE booth_id = ? AND created_at >= ? AND created_at < ?;
+
+-- name: DeleteAllLikes :execrows
+DELETE FROM likes;
+
+-- name: InsertLikeRemoval :exec
+INSERT INTO like_removals (booth_id, from_at, to_at, removed, removed_by, created_at) VALUES (?, ?, ?, ?, ?, ?);

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/meg44k/KCTFestNav-Backend/internal/database"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
@@ -35,7 +36,7 @@ func (ur *userRepository) Create(ctx context.Context, u *domain.User) error {
 		Password: string(u.Password),
 		Role:     string(u.Role),
 	}
-	return ur.db.CreateUser(ctx, arg)
+	return loginIDTaken(ur.db.CreateUser(ctx, arg))
 }
 
 func (ur *userRepository) Update(ctx context.Context, u *domain.User) error {
@@ -50,7 +51,16 @@ func (ur *userRepository) Update(ctx context.Context, u *domain.User) error {
 		Role:     string(u.Role),
 		ID:       u.ID.String(),
 	}
-	return ur.db.UpdateUser(ctx, arg)
+	return loginIDTaken(ur.db.UpdateUser(ctx, arg))
+}
+
+// ログイン ID の重複(MySQL の 1062)を、画面で言い分けられる誤りにする
+func loginIDTaken(err error) error {
+	var me *mysql.MySQLError
+	if errors.As(err, &me) && me.Number == 1062 {
+		return domain.ErrLoginIDTaken
+	}
+	return err
 }
 
 func (ur *userRepository) Delete(ctx context.Context, id uuid.UUID) error {

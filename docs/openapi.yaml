@@ -314,6 +314,8 @@ paths:
           schema:
             type: string
       responses:
+        '409':
+          description: そのログイン ID はもう使われている
         '204':
           description: 削除成功
 
@@ -643,14 +645,255 @@ paths:
         '404':
           description: 存在しない id
 
+  /internal/voters:
+    post:
+      summary: いいねの投票者番号を作る(Next.js のサーバーだけ。サーバー全体で 1 分 3,000 個まで)
+      tags:
+        - Likes
+      security:
+        - internalKey: []
+      responses:
+        '201':
+          description: 署名付きの番号(<UUID>.<署名>)。cookie kct-voter に入れる
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  voter:
+                    type: string
+        '401':
+          description: X-Internal-Key が無い・違う
+        '429':
+          description: 上限を超えた
+  /internal/likes/mine:
+    get:
+      summary: その番号で投票しているブース(1 人 1 票なので 0 か 1 件。番号が無い・不正なら空)
+      tags:
+        - Likes
+      security:
+        - internalKey: []
+      parameters:
+        - $ref: '#/components/parameters/Voter'
+      responses:
+        '200':
+          description: 押したブースの ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booth_ids:
+                    type: array
+                    items:
+                      type: integer
+  /internal/likes/{id}:
+    put:
+      summary: 投票する(1 人 1 票。ほかの展示に入れていたら、こちらへ移す。クラス展示だけ。入れてあっても 204。番号ごとに 1 分 60 回まで)
+      tags:
+        - Likes
+      security:
+        - internalKey: []
+      parameters:
+        - $ref: '#/components/parameters/Voter'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 押した
+        '400':
+          description: クラス展示でない
+        '401':
+          description: 合言葉か番号が無い・不正
+        '404':
+          description: 存在しない id
+        '429':
+          description: 上限を超えた
+    delete:
+      summary: 投票を取り消す(その展示に入れている時だけ消す。入れていなくても 204)
+      tags:
+        - Likes
+      security:
+        - internalKey: []
+      parameters:
+        - $ref: '#/components/parameters/Voter'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 取り消した
+        '401':
+          description: 合言葉か番号が無い・不正
+        '429':
+          description: 上限を超えた
+  /manage/likes:
+    get:
+      summary: クラス展示ごとのいいねの数(多い順)と 10 分ごとの推移・⚠
+      tags:
+        - Manage/Likes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 集計
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  booths:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BoothLikes'
+        '403':
+          description: Admin と学生会以外
+    delete:
+      summary: いいねを全部消す(Admin だけ。記録を残す)
+      tags:
+        - Manage/Likes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 消した件数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Removed'
+        '403':
+          description: Admin 以外
+  /manage/likes/{id}:
+    delete:
+      summary: そのブースの from 以上 to 未満のいいねを消す(Admin・学生会。記録を残す)
+      tags:
+        - Manage/Likes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: 消した件数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Removed'
+        '400':
+          description: 時刻の形が違う、または from >= to
+        '403':
+          description: Admin と学生会以外
+  /manage/images:
+    post:
+      summary: ブース・出演者の写真を上げる(権限はそれぞれを更新できる人と同じ)。URL を返すだけで、ブースや出演者の画像はまだ変えない
+      tags:
+        - Manage/Images
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: JPEG・PNG・WebP、2MB まで
+                target:
+                  type: string
+                  description: booth:<ID> か performer:<ID>
+      responses:
+        '201':
+          description: 置いた画像の URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+        '400':
+          description: 画像でない・大きすぎる・target が違う
+        '403':
+          description: その物を更新できない
+        '404':
+          description: ブース・出演者が無い
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+    internalKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Key
+      description: Next.js のサーバーと API だけが知る合言葉(INTERNAL_API_KEY)
+
+  parameters:
+    Voter:
+      name: X-Voter
+      in: header
+      required: false
+      schema:
+        type: string
+      description: 投票者番号(<UUID>.<署名>)
 
   schemas:
+    BoothLikes:
+      type: object
+      properties:
+        booth_id:
+          type: integer
+        name:
+          type: string
+        organizer:
+          type: string
+        total:
+          type: integer
+        burst:
+          type: boolean
+          description: どこかの 10 分に ⚠ がある
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              start:
+                type: string
+                format: date-time
+              count:
+                type: integer
+              burst:
+                type: boolean
+                description: 30 件以上かつ、そのブースの中央値(0 を除く)の 5 倍以上
+    Removed:
+      type: object
+      properties:
+        removed:
+          type: integer
     User:
       type: object
       properties:

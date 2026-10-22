@@ -12,7 +12,7 @@ resource "cloudflare_dns_record" "www" {
   zone_id = var.cloudflare_zone_id
   name    = "www.${var.domain}"
   type    = "CNAME"
-  content = "cname.vercel-dns.com"
+  content = var.vercel_www_cname
   ttl     = 1
   proxied = false
 }

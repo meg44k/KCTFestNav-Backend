@@ -36,9 +36,7 @@ func setupBoothTestDB(t *testing.T) (*sql.DB, *redis.Client) {
 	}
 
 	// テーブル初期化
-	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-	_, err = db.Exec("TRUNCATE TABLE booths")
-	_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+	err = truncateTables(db, "booths")
 	if err != nil {
 		t.Fatalf("Failed to truncate booths table: %v", err)
 	}
@@ -103,9 +101,7 @@ func TestBoothRepository_GetAll(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: 0件の場合は空のスライスが返る", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, err := db.Exec("TRUNCATE TABLE booths")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		err := truncateTables(db, "booths")
 		assert.NoError(t, err)
 
 		booths, err := repo.GetAll(ctx)
@@ -114,9 +110,7 @@ func TestBoothRepository_GetAll(t *testing.T) {
 	})
 
 	t.Run("正常系: 複数件のブースを取得できる", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, err := db.Exec("TRUNCATE TABLE booths")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		err := truncateTables(db, "booths")
 		assert.NoError(t, err)
 
 		// 2件INSERT
@@ -157,9 +151,7 @@ func TestBoothRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: 新規ブースを作成できる", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, err := db.Exec("TRUNCATE TABLE booths")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		err := truncateTables(db, "booths")
 		assert.NoError(t, err)
 
 		booth, _ := domain.NewBooth(domain.BoothParams{
@@ -197,9 +189,7 @@ func TestBoothRepository_Update(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: ブースを更新できる", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, err := db.Exec("TRUNCATE TABLE booths")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		err := truncateTables(db, "booths")
 		assert.NoError(t, err)
 
 		// 初期データを挿入
@@ -238,9 +228,7 @@ func TestBoothRepository_UpdateCongestion(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常系: 混雑状況を更新できる", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, err := db.Exec("TRUNCATE TABLE booths")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		err := truncateTables(db, "booths")
 		assert.NoError(t, err)
 
 		// 初期データを挿入
@@ -258,9 +246,7 @@ func TestBoothRepository_UpdateCongestion(t *testing.T) {
 		assert.Equal(t, 2, val)
 	})
 	t.Run("正常系: 混雑度を更新すると更新時刻も保存され、取得できる", func(t *testing.T) {
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 0")
-		_, _ = db.Exec("TRUNCATE TABLE booths")
-		_, _ = db.Exec("SET FOREIGN_KEY_CHECKS = 1")
+		_ = truncateTables(db, "booths")
 		res, err := db.ExecContext(ctx, "INSERT INTO booths (name, organizer, detail, x, y, z) VALUES (?, ?, ?, ?, ?, ?)", "ブースA", "主催", "詳細", 0, 0, 0)
 		assert.NoError(t, err)
 		id, _ := res.LastInsertId()

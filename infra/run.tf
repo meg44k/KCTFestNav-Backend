@@ -18,6 +18,10 @@ locals {
     REDIS_ADDR        = var.redis_addr
     REDIS_TLS         = "true"
     INIT_ADMIN_ID     = var.init_admin_id
+    # 写真の置き場所(R2)と、来場者に配る URL の頭
+    R2_ACCOUNT_ID  = var.cloudflare_account_id
+    R2_BUCKET      = cloudflare_r2_bucket.photos.name
+    IMAGE_BASE_URL = "https://img.${var.domain}"
   }
 }
 
