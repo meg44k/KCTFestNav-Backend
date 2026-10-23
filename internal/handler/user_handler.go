@@ -87,7 +87,8 @@ func (h *UserHandler) Login(c *echo.Context) error {
 	// ログインしたブラウザの番号(cookie)。合言葉を確かめた Next.js のサーバーが渡す(回数の上限を数えるのに使う)
 	client := c.Request().Header.Get("X-Login-Client")
 	if client == "" {
-		client = "unknown"
+		// 番号を渡さない古いフロント(出す順番の間)は、接続元で数える
+		client = "ip:" + c.Request().Header.Get("X-Client-IP")
 	}
 	user, err := h.userUsecase.Authenticate(c.Request().Context(), client, req.LoginID, []byte(req.Password))
 	var failed *usecase.LoginFailedError
