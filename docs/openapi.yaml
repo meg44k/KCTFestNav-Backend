@@ -10,16 +10,16 @@ servers:
 paths:
   /auth/login:
     post:
-      summary: ログイン(Next.js のサーバーからだけ。合言葉と接続元を付ける。同じ接続元・同じ ID で 10 分に 5 回まで)
+      summary: ログイン(Next.js のサーバーからだけ。合言葉とブラウザの番号を付ける。同じブラウザ・同じ ID で 10 分に 5 回まで)
       tags:
         - Auth
       security:
         - internalKey: []
       parameters:
-        - name: X-Client-IP
+        - name: X-Login-Client
           in: header
           required: true
-          description: ログインした人の接続元(回数の上限を数えるのに使う)
+          description: ログインしたブラウザの番号(Next.js のサーバーが cookie から渡す。回数の上限を数えるのに使う)
           schema:
             type: string
       requestBody:
@@ -57,7 +57,7 @@ paths:
                     type: integer
                     description: あと何回試せるか
         '429':
-          description: 同じ接続元・同じ ID で失敗が続いたので、しばらく試させない(最初の失敗から 10 分)
+          description: 同じブラウザ・同じ ID で失敗が続いたので、しばらく試させない(最初の失敗から 10 分)
 
   /auth/me:
     get:

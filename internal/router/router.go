@@ -53,7 +53,7 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 
 // ログインのルート。e2e テストでも同じものを使う。
 // ログインは Next.js のサーバーからだけ受け付ける(合言葉が要る)。直接呼んで BotID をすり抜けられないように、
-// また Next.js のサーバーが渡す接続元(X-Client-IP)を信じてよいように
+// また Next.js のサーバーが渡すブラウザの番号(X-Login-Client)を信じてよいように
 func AuthRoutes(e *echo.Echo, h *handler.UserHandler, jwtSecret []byte, internalKey string) {
 	auth := e.Group("/auth")
 	auth.POST("/login", h.Login, mv.InternalKey(internalKey)) // ログイン用API
