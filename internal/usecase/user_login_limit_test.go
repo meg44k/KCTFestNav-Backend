@@ -13,22 +13,23 @@ import (
 	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
 )
 
-// ログインの失敗を数える(Redis の代わり)。blocked の ID は試させない
+// ログインの失敗を数える(Redis の代わり)。blocked の ID は試させない。left は失敗したあとの残り
 type fakeLoginLimiter struct {
 	blocked   map[string]bool
+	left      int
 	failed    []string
 	succeeded []string
 }
 
-func (f *fakeLoginLimiter) Blocked(_ context.Context, loginID string) (bool, error) {
+func (f *fakeLoginLimiter) Blocked(_ context.Context, ip, loginID string) (bool, error) {
 	return f.blocked[loginID], nil
 }
-func (f *fakeLoginLimiter) Failed(_ context.Context, loginID string) error {
-	f.failed = append(f.failed, loginID)
-	return nil
+func (f *fakeLoginLimiter) Failed(_ context.Context, ip, loginID string) (int, error) {
+	f.failed = append(f.failed, ip+"/"+loginID)
+	return f.left, nil
 }
-func (f *fakeLoginLimiter) Succeeded(_ context.Context, loginID string) error {
-	f.succeeded = append(f.succeeded, loginID)
+func (f *fakeLoginLimiter) Succeeded(_ context.Context, ip, loginID string) error {
+	f.succeeded = append(f.succeeded, ip+"/"+loginID)
 	return nil
 }
 
@@ -51,7 +52,7 @@ func TestUserUsecase_Authenticate_回数の上限(t *testing.T) {
 		limiter := &fakeLoginLimiter{blocked: map[string]bool{"booth-1": true}}
 		uc := usecase.NewUserUsecase(repo).WithLoginLimiter(limiter)
 
-		_, err := uc.Authenticate(context.Background(), "booth-1", []byte("right"))
+		_, err := uc.Authenticate(context.Background(), "203.0.113.1", "booth-1", []byte("right"))
 		assert.ErrorIs(t, err, usecase.ErrTooMany)
 		assert.False(t, called)
 	})
@@ -63,14 +64,27 @@ func TestUserUsecase_Authenticate_回数の上限(t *testing.T) {
 			}
 			return nil, repository.ErrNotFound
 		}}
-		limiter := &fakeLoginLimiter{}
+		limiter := &fakeLoginLimiter{left: 3}
 		uc := usecase.NewUserUsecase(repo).WithLoginLimiter(limiter)
 
-		_, err := uc.Authenticate(context.Background(), "booth-1", []byte("wrong"))
+		_, err := uc.Authenticate(context.Background(), "203.0.113.1", "booth-1", []byte("wrong"))
 		assert.ErrorIs(t, err, usecase.ErrUnauthorized)
-		_, err = uc.Authenticate(context.Background(), "nobody", []byte("x"))
+		var failed *usecase.LoginFailedError
+		if assert.ErrorAs(t, err, &failed) {
+			assert.Equal(t, 3, failed.Remaining, "あと何回試せるかを返す")
+		}
+		_, err = uc.Authenticate(context.Background(), "203.0.113.1", "nobody", []byte("x"))
 		assert.ErrorIs(t, err, usecase.ErrUnauthorized)
-		assert.Equal(t, []string{"booth-1", "nobody"}, limiter.failed)
+		assert.Equal(t, []string{"203.0.113.1/booth-1", "203.0.113.1/nobody"}, limiter.failed)
+	})
+
+	t.Run("最後の 1 回を失敗したら、その場で止めたことを返す", func(t *testing.T) {
+		repo := &mockUserRepository{mockGetByLoginID: func(context.Context, string) (*domain.User, error) {
+			return loginUser(t, "right"), nil
+		}}
+		uc := usecase.NewUserUsecase(repo).WithLoginLimiter(&fakeLoginLimiter{left: 0})
+		_, err := uc.Authenticate(context.Background(), "203.0.113.1", "booth-1", []byte("wrong"))
+		assert.ErrorIs(t, err, usecase.ErrTooMany)
 	})
 
 	t.Run("ログインできたら、その ID の失敗の数を消す", func(t *testing.T) {
@@ -80,9 +94,9 @@ func TestUserUsecase_Authenticate_回数の上限(t *testing.T) {
 		limiter := &fakeLoginLimiter{}
 		uc := usecase.NewUserUsecase(repo).WithLoginLimiter(limiter)
 
-		_, err := uc.Authenticate(context.Background(), "booth-1", []byte("right"))
+		_, err := uc.Authenticate(context.Background(), "203.0.113.1", "booth-1", []byte("right"))
 		assert.NoError(t, err)
-		assert.Equal(t, []string{"booth-1"}, limiter.succeeded)
+		assert.Equal(t, []string{"203.0.113.1/booth-1"}, limiter.succeeded)
 		assert.Empty(t, limiter.failed)
 	})
 }

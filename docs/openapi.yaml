@@ -10,9 +10,18 @@ servers:
 paths:
   /auth/login:
     post:
-      summary: ログイン
+      summary: ログイン(Next.js のサーバーからだけ。合言葉と接続元を付ける。同じ接続元・同じ ID で 10 分に 5 回、同じ接続元で 30 回まで)
       tags:
         - Auth
+      security:
+        - internalKey: []
+      parameters:
+        - name: X-Client-IP
+          in: header
+          required: true
+          description: ログインした人の接続元(回数の上限を数えるのに使う)
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -36,9 +45,19 @@ paths:
                     type: string
                     description: JWTトークン
         '401':
-          description: 認証失敗
+          description: 合言葉が無い・違う、または ID かパスワードが違う。後者は残りの回数も返す
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  remaining:
+                    type: integer
+                    description: あと何回試せるか
         '429':
-          description: 同じ ID で失敗が続いたので、しばらく試させない(10 分に 10 回)
+          description: 失敗が続いたので、その接続元からはしばらく試させない(最初の失敗から 10 分)
 
   /auth/me:
     get:

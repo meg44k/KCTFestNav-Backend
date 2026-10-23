@@ -58,29 +58,40 @@ func (uu *UserUsecase) Create(ctx context.Context, inputPassword []byte, p domai
 	return uu.userRepo.Create(ctx, user)
 }
 
-func (uu *UserUsecase) Authenticate(ctx context.Context, loginID string, inputPassword []byte) (*domain.User, error) {
-	// 続けて失敗している ID は、パスワードを確かめる(重い計算)前に断る
-	if uu.limiter != nil {
-		blocked, err := uu.limiter.Blocked(ctx, loginID)
-		if err != nil {
-			return nil, err
-		}
-		if blocked {
-			return nil, ErrTooMany
-		}
+// パスワードが違った(または ID が無い)。あと何回試せるか(回数の上限を付けていなければ -1)
+type LoginFailedError struct{ Remaining int }
+
+func (e *LoginFailedError) Error() string { return ErrUnauthorized.Error() }
+func (e *LoginFailedError) Unwrap() error { return ErrUnauthorized }
+
+// ip はログインした人の接続元(Next.js のサーバーが渡す)。回数の上限を数えるのに使う
+func (uu *UserUsecase) Authenticate(ctx context.Context, ip, loginID string, inputPassword []byte) (*domain.User, error) {
+	if uu.limiter == nil {
+		return uu.authenticate(ctx, loginID, inputPassword)
+	}
+	// 続けて失敗している接続元は、パスワードを確かめる(重い計算)前に断る
+	blocked, err := uu.limiter.Blocked(ctx, ip, loginID)
+	if err != nil {
+		return nil, err
+	}
+	if blocked {
+		return nil, ErrTooMany
 	}
 
 	user, err := uu.authenticate(ctx, loginID, inputPassword)
-	if uu.limiter != nil {
-		switch {
-		case errors.Is(err, ErrUnauthorized):
-			if ferr := uu.limiter.Failed(ctx, loginID); ferr != nil {
-				return nil, ferr
-			}
-		case err == nil:
-			if serr := uu.limiter.Succeeded(ctx, loginID); serr != nil {
-				return nil, serr
-			}
+	switch {
+	case errors.Is(err, ErrUnauthorized):
+		left, ferr := uu.limiter.Failed(ctx, ip, loginID)
+		if ferr != nil {
+			return nil, ferr
+		}
+		if left <= 0 {
+			return nil, ErrTooMany
+		}
+		return nil, &LoginFailedError{Remaining: left}
+	case err == nil:
+		if serr := uu.limiter.Succeeded(ctx, ip, loginID); serr != nil {
+			return nil, serr
 		}
 	}
 	return user, err

@@ -14,10 +14,7 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	e.Use(middleware.RequestLogger())
 
 	// 認証系
-	auth := e.Group("/auth")
-
-	auth.POST("/login", h.User.Login)                    // ログイン用API
-	auth.GET("/me", h.User.GetMe, mv.JWTAuth(jwtSecret)) // ログイン中のユーザ情報取得
+	AuthRoutes(e, h.User, jwtSecret, os.Getenv("INTERNAL_API_KEY"))
 
 	// ブース情報
 	e.GET("/booths", h.Booth.GetAll)      // 全ブースの情報を取得
@@ -52,6 +49,15 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	if h.Like != nil {
 		LikeRoutes(e, manage, h.Like, os.Getenv("INTERNAL_API_KEY"))
 	}
+}
+
+// ログインのルート。e2e テストでも同じものを使う。
+// ログインは Next.js のサーバーからだけ受け付ける(合言葉が要る)。直接呼んで BotID をすり抜けられないように、
+// また Next.js のサーバーが渡す接続元(X-Client-IP)を信じてよいように
+func AuthRoutes(e *echo.Echo, h *handler.UserHandler, jwtSecret []byte, internalKey string) {
+	auth := e.Group("/auth")
+	auth.POST("/login", h.Login, mv.InternalKey(internalKey)) // ログイン用API
+	auth.GET("/me", h.GetMe, mv.JWTAuth(jwtSecret))           // ログイン中のユーザ情報取得
 }
 
 // クラス展示のいいねのルート。e2e テストでも同じものを使う

@@ -23,43 +23,58 @@ func setupLoginLimiter(t *testing.T) *redis.Client {
 	return rdb
 }
 
-func TestLoginLimiter_同じIDで10回失敗したら止める(t *testing.T) {
+const ip1, ip2 = "203.0.113.1", "198.51.100.2"
+
+func TestLoginLimiter_同じ接続元と同じIDは5回まで(t *testing.T) {
 	l := repository.NewLoginLimiter(setupLoginLimiter(t))
 	ctx := context.Background()
-	for i := 0; i < 9; i++ {
-		require.NoError(t, l.Failed(ctx, "booth-1"))
+	for want := 4; want >= 1; want-- {
+		left, err := l.Failed(ctx, ip1, "booth-1")
+		require.NoError(t, err)
+		assert.Equal(t, want, left, "あと何回")
+		blocked, _ := l.Blocked(ctx, ip1, "booth-1")
+		assert.False(t, blocked)
 	}
-	blocked, err := l.Blocked(ctx, "booth-1")
-	require.NoError(t, err)
-	assert.False(t, blocked, "9 回まではまだ試せる")
-
-	require.NoError(t, l.Failed(ctx, "booth-1"))
-	blocked, _ = l.Blocked(ctx, "booth-1")
-	assert.True(t, blocked, "10 回失敗したら止める")
-	blocked, _ = l.Blocked(ctx, "booth-2")
-	assert.False(t, blocked, "ほかの ID は別に数える")
+	left, _ := l.Failed(ctx, ip1, "booth-1")
+	assert.Equal(t, 0, left)
+	blocked, _ := l.Blocked(ctx, ip1, "booth-1")
+	assert.True(t, blocked, "5 回失敗したら止める")
 }
 
-func TestLoginLimiter_ログインできたら数を消す(t *testing.T) {
+func TestLoginLimiter_別の接続元の本人は止めない(t *testing.T) {
 	l := repository.NewLoginLimiter(setupLoginLimiter(t))
 	ctx := context.Background()
-	for i := 0; i < 9; i++ {
-		require.NoError(t, l.Failed(ctx, "booth-1"))
+	for i := 0; i < 5; i++ {
+		_, _ = l.Failed(ctx, ip1, "booth-1")
 	}
-	require.NoError(t, l.Succeeded(ctx, "booth-1"))
-	require.NoError(t, l.Failed(ctx, "booth-1"))
-	blocked, _ := l.Blocked(ctx, "booth-1")
-	assert.False(t, blocked, "消したので 1 回目から数え直す")
+	blocked, err := l.Blocked(ctx, ip2, "booth-1")
+	require.NoError(t, err)
+	assert.False(t, blocked, "わざと失敗を重ねても、ほかの場所からの本人は締め出されない")
 }
 
-func TestLoginLimiter_ほかのIDがたくさん失敗しても関係ないIDは止めない(t *testing.T) {
-	// 全体で止めると、でたらめな ID で失敗を重ねるだけで誰もログインできなくなる
+func TestLoginLimiter_同じ接続元からたくさんのIDに試したら止める(t *testing.T) {
 	l := repository.NewLoginLimiter(setupLoginLimiter(t))
 	ctx := context.Background()
-	for i := 0; i < 1000; i++ {
-		require.NoError(t, l.Failed(ctx, fmt.Sprintf("guess-%d", i)))
+	for i := 0; i < 29; i++ {
+		_, _ = l.Failed(ctx, ip1, fmt.Sprintf("booth-%d", i))
 	}
-	blocked, err := l.Blocked(ctx, "booth-1")
-	require.NoError(t, err)
-	assert.False(t, blocked)
+	blocked, _ := l.Blocked(ctx, ip1, "booth-99")
+	assert.False(t, blocked, "29 回まで")
+	left, _ := l.Failed(ctx, ip1, "booth-29")
+	assert.Equal(t, 0, left, "接続元の残りが 0 になったら 0")
+	blocked, _ = l.Blocked(ctx, ip1, "booth-99")
+	assert.True(t, blocked, "30 回失敗した接続元は、どの ID も止める")
+	blocked, _ = l.Blocked(ctx, ip2, "booth-99")
+	assert.False(t, blocked, "ほかの接続元は止めない")
+}
+
+func TestLoginLimiter_ログインできたらそのIDの数を消す(t *testing.T) {
+	l := repository.NewLoginLimiter(setupLoginLimiter(t))
+	ctx := context.Background()
+	for i := 0; i < 4; i++ {
+		_, _ = l.Failed(ctx, ip1, "booth-1")
+	}
+	require.NoError(t, l.Succeeded(ctx, ip1, "booth-1"))
+	left, _ := l.Failed(ctx, ip1, "booth-1")
+	assert.Equal(t, 4, left, "1 回目から数え直す")
 }
