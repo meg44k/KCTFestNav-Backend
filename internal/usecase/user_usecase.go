@@ -64,13 +64,13 @@ type LoginFailedError struct{ Remaining int }
 func (e *LoginFailedError) Error() string { return ErrUnauthorized.Error() }
 func (e *LoginFailedError) Unwrap() error { return ErrUnauthorized }
 
-// ip はログインした人の接続元(Next.js のサーバーが渡す)。回数の上限を数えるのに使う
-func (uu *UserUsecase) Authenticate(ctx context.Context, ip, loginID string, inputPassword []byte) (*domain.User, error) {
+// client はログインしたブラウザの番号(Next.js のサーバーが cookie から渡す)。回数の上限を数えるのに使う
+func (uu *UserUsecase) Authenticate(ctx context.Context, client, loginID string, inputPassword []byte) (*domain.User, error) {
 	if uu.limiter == nil {
 		return uu.authenticate(ctx, loginID, inputPassword)
 	}
-	// 続けて失敗している接続元は、パスワードを確かめる(重い計算)前に断る
-	blocked, err := uu.limiter.Blocked(ctx, ip, loginID)
+	// 続けて失敗しているブラウザは、パスワードを確かめる(重い計算)前に断る
+	blocked, err := uu.limiter.Blocked(ctx, client, loginID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func (uu *UserUsecase) Authenticate(ctx context.Context, ip, loginID string, inp
 	user, err := uu.authenticate(ctx, loginID, inputPassword)
 	switch {
 	case errors.Is(err, ErrUnauthorized):
-		left, ferr := uu.limiter.Failed(ctx, ip, loginID)
+		left, ferr := uu.limiter.Failed(ctx, client, loginID)
 		if ferr != nil {
 			return nil, ferr
 		}
@@ -90,7 +90,7 @@ func (uu *UserUsecase) Authenticate(ctx context.Context, ip, loginID string, inp
 		}
 		return nil, &LoginFailedError{Remaining: left}
 	case err == nil:
-		if serr := uu.limiter.Succeeded(ctx, ip, loginID); serr != nil {
+		if serr := uu.limiter.Succeeded(ctx, client, loginID); serr != nil {
 			return nil, serr
 		}
 	}
