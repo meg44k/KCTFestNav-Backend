@@ -52,20 +52,18 @@ func TestLoginLimiter_別の接続元の本人は止めない(t *testing.T) {
 	assert.False(t, blocked, "わざと失敗を重ねても、ほかの場所からの本人は締め出されない")
 }
 
-func TestLoginLimiter_同じ接続元からたくさんのIDに試したら止める(t *testing.T) {
+func TestLoginLimiter_同じ接続元でもほかのIDは止めない(t *testing.T) {
+	// 学内 Wi-Fi のように係の全員が同じ接続元でも、誰かの失敗やいたずらで全員が止まらないように
 	l := repository.NewLoginLimiter(setupLoginLimiter(t))
 	ctx := context.Background()
-	for i := 0; i < 29; i++ {
-		_, _ = l.Failed(ctx, ip1, fmt.Sprintf("booth-%d", i))
+	for i := 0; i < 100; i++ {
+		_, _ = l.Failed(ctx, ip1, fmt.Sprintf("guess-%d", i))
 	}
-	blocked, _ := l.Blocked(ctx, ip1, "booth-99")
-	assert.False(t, blocked, "29 回まで")
-	left, _ := l.Failed(ctx, ip1, "booth-29")
-	assert.Equal(t, 0, left, "接続元の残りが 0 になったら 0")
-	blocked, _ = l.Blocked(ctx, ip1, "booth-99")
-	assert.True(t, blocked, "30 回失敗した接続元は、どの ID も止める")
-	blocked, _ = l.Blocked(ctx, ip2, "booth-99")
-	assert.False(t, blocked, "ほかの接続元は止めない")
+	blocked, err := l.Blocked(ctx, ip1, "booth-1")
+	require.NoError(t, err)
+	assert.False(t, blocked)
+	left, _ := l.Failed(ctx, ip1, "booth-1")
+	assert.Equal(t, 4, left, "その ID の残りだけを数える")
 }
 
 func TestLoginLimiter_ログインできたらそのIDの数を消す(t *testing.T) {

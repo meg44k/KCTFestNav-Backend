@@ -86,7 +86,7 @@ func (r Role) IsValid() bool {
 	return false
 }
 
-// ログインの失敗を「接続元 + ID」と「接続元」で数え、続けて失敗したものをしばらく試させない
+// ログインの失敗を「接続元 + ID」で数え、続けて失敗したものをしばらく試させない
 type LoginLimiter interface {
 	// 失敗が上限に達していて、今は試させないか
 	Blocked(ctx context.Context, ip, loginID string) (bool, error)

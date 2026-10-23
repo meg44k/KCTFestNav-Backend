@@ -10,7 +10,7 @@ servers:
 paths:
   /auth/login:
     post:
-      summary: ログイン(Next.js のサーバーからだけ。合言葉と接続元を付ける。同じ接続元・同じ ID で 10 分に 5 回、同じ接続元で 30 回まで)
+      summary: ログイン(Next.js のサーバーからだけ。合言葉と接続元を付ける。同じ接続元・同じ ID で 10 分に 5 回まで)
       tags:
         - Auth
       security:
@@ -57,7 +57,7 @@ paths:
                     type: integer
                     description: あと何回試せるか
         '429':
-          description: 失敗が続いたので、その接続元からはしばらく試させない(最初の失敗から 10 分)
+          description: 同じ接続元・同じ ID で失敗が続いたので、しばらく試させない(最初の失敗から 10 分)
 
   /auth/me:
     get:

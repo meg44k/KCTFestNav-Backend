@@ -10,13 +10,14 @@ import (
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
 )
 
-// ログインの失敗の上限。最初の失敗から loginWindow の間に数え、超えたら次の窓まで試させない。
+// ログインの失敗の上限。同じ接続元・同じ ID の失敗を、最初の失敗から loginWindow の間に数え、超えたら次の窓まで試させない。
 // 接続元ごとに数えるので、わざと失敗を重ねても、ほかの場所からログインする本人は締め出されない。
-// ID ごと(接続元を問わず)では数えない(推測できる ID を、誰でも止められてしまうため)
+// ID ごと(接続元を問わず)や接続元ごと(ID を問わず)では止めない。推測できる ID や、学内 Wi-Fi のように
+// 係の全員が同じ接続元のときに、誰かの失敗やいたずらで大勢が止まってしまうため。
+// たくさんの ID に少しずつ試す攻撃は BotID(フロント)で止める
 const (
 	loginWindow       = 10 * time.Minute
-	loginFailsPerPair = 5  // 同じ接続元・同じ ID で試せる回数
-	loginFailsPerIP   = 30 // 同じ接続元で、ID を問わず失敗できる回数(たくさんの ID に少しずつ試すのを止める。学校の Wi-Fi のように大勢が同じ接続元でも困らない程度)
+	loginFailsPerPair = 5 // 同じ接続元・同じ ID で試せる回数
 )
 
 type loginLimiter struct{ rdb *redis.Client }
@@ -26,7 +27,6 @@ func NewLoginLimiter(rdb *redis.Client) domain.LoginLimiter {
 }
 
 func pairKey(ip, loginID string) string { return "login:fail:pair:" + ip + ":" + loginID }
-func ipKey(ip string) string            { return "login:fail:ip:" + ip }
 
 func (l *loginLimiter) count(ctx context.Context, key string) (int, error) {
 	n, err := l.rdb.Get(ctx, key).Int()
@@ -37,15 +37,11 @@ func (l *loginLimiter) count(ctx context.Context, key string) (int, error) {
 }
 
 func (l *loginLimiter) Blocked(ctx context.Context, ip, loginID string) (bool, error) {
-	pair, err := l.count(ctx, pairKey(ip, loginID))
+	n, err := l.count(ctx, pairKey(ip, loginID))
 	if err != nil {
 		return false, err
 	}
-	all, err := l.count(ctx, ipKey(ip))
-	if err != nil {
-		return false, err
-	}
-	return pair >= loginFailsPerPair || all >= loginFailsPerIP, nil
+	return n >= loginFailsPerPair, nil
 }
 
 // 数を 1 つ増やす。最初の失敗から数える
@@ -63,15 +59,11 @@ func (l *loginLimiter) incr(ctx context.Context, key string) (int, error) {
 }
 
 func (l *loginLimiter) Failed(ctx context.Context, ip, loginID string) (int, error) {
-	pair, err := l.incr(ctx, pairKey(ip, loginID))
+	n, err := l.incr(ctx, pairKey(ip, loginID))
 	if err != nil {
 		return 0, err
 	}
-	all, err := l.incr(ctx, ipKey(ip))
-	if err != nil {
-		return 0, err
-	}
-	return max(0, min(loginFailsPerPair-pair, loginFailsPerIP-all)), nil
+	return max(0, loginFailsPerPair-n), nil
 }
 
 func (l *loginLimiter) Succeeded(ctx context.Context, ip, loginID string) error {
