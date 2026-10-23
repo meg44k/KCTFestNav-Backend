@@ -13,6 +13,7 @@ import (
 
 type UserUsecase struct {
 	userRepo domain.UserRepository
+	limiter  domain.LoginLimiter
 }
 
 // contextにJWTから読み取ったRoleを入れるためのキー
@@ -33,6 +34,12 @@ func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 	}
 }
 
+// ログインに回数の上限を付ける(付けなければ数えない)
+func (uu *UserUsecase) WithLoginLimiter(l domain.LoginLimiter) *UserUsecase {
+	uu.limiter = l
+	return uu
+}
+
 func (uu *UserUsecase) Create(ctx context.Context, inputPassword []byte, p domain.UserParams) error {
 	reqUser, ok := ctx.Value(ContextRequestUserKey).(RequestUser)
 	if !ok || reqUser.Role != domain.RoleAdmin {
@@ -51,7 +58,46 @@ func (uu *UserUsecase) Create(ctx context.Context, inputPassword []byte, p domai
 	return uu.userRepo.Create(ctx, user)
 }
 
-func (uu *UserUsecase) Authenticate(ctx context.Context, loginID string, inputPassword []byte) (*domain.User, error) {
+// パスワードが違った(または ID が無い)。あと何回試せるか(回数の上限を付けていなければ -1)
+type LoginFailedError struct{ Remaining int }
+
+func (e *LoginFailedError) Error() string { return ErrUnauthorized.Error() }
+func (e *LoginFailedError) Unwrap() error { return ErrUnauthorized }
+
+// ip はログインした人の接続元(Next.js のサーバーが渡す)。回数の上限を数えるのに使う
+func (uu *UserUsecase) Authenticate(ctx context.Context, ip, loginID string, inputPassword []byte) (*domain.User, error) {
+	if uu.limiter == nil {
+		return uu.authenticate(ctx, loginID, inputPassword)
+	}
+	// 続けて失敗している接続元は、パスワードを確かめる(重い計算)前に断る
+	blocked, err := uu.limiter.Blocked(ctx, ip, loginID)
+	if err != nil {
+		return nil, err
+	}
+	if blocked {
+		return nil, ErrTooMany
+	}
+
+	user, err := uu.authenticate(ctx, loginID, inputPassword)
+	switch {
+	case errors.Is(err, ErrUnauthorized):
+		left, ferr := uu.limiter.Failed(ctx, ip, loginID)
+		if ferr != nil {
+			return nil, ferr
+		}
+		if left <= 0 {
+			return nil, ErrTooMany
+		}
+		return nil, &LoginFailedError{Remaining: left}
+	case err == nil:
+		if serr := uu.limiter.Succeeded(ctx, ip, loginID); serr != nil {
+			return nil, serr
+		}
+	}
+	return user, err
+}
+
+func (uu *UserUsecase) authenticate(ctx context.Context, loginID string, inputPassword []byte) (*domain.User, error) {
 	// データベースからパスワードを取得
 	user, err := uu.userRepo.GetByLoginID(ctx, loginID)
 	if err != nil {
