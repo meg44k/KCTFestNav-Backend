@@ -13,6 +13,7 @@ import (
 
 type UserUsecase struct {
 	userRepo domain.UserRepository
+	limiter  domain.LoginLimiter
 }
 
 // contextにJWTから読み取ったRoleを入れるためのキー
@@ -31,6 +32,12 @@ func NewUserUsecase(repo domain.UserRepository) *UserUsecase {
 	return &UserUsecase{
 		userRepo: repo,
 	}
+}
+
+// ログインに回数の上限を付ける(付けなければ数えない)
+func (uu *UserUsecase) WithLoginLimiter(l domain.LoginLimiter) *UserUsecase {
+	uu.limiter = l
+	return uu
 }
 
 func (uu *UserUsecase) Create(ctx context.Context, inputPassword []byte, p domain.UserParams) error {
@@ -52,6 +59,34 @@ func (uu *UserUsecase) Create(ctx context.Context, inputPassword []byte, p domai
 }
 
 func (uu *UserUsecase) Authenticate(ctx context.Context, loginID string, inputPassword []byte) (*domain.User, error) {
+	// 続けて失敗している ID は、パスワードを確かめる(重い計算)前に断る
+	if uu.limiter != nil {
+		blocked, err := uu.limiter.Blocked(ctx, loginID)
+		if err != nil {
+			return nil, err
+		}
+		if blocked {
+			return nil, ErrTooMany
+		}
+	}
+
+	user, err := uu.authenticate(ctx, loginID, inputPassword)
+	if uu.limiter != nil {
+		switch {
+		case errors.Is(err, ErrUnauthorized):
+			if ferr := uu.limiter.Failed(ctx, loginID); ferr != nil {
+				return nil, ferr
+			}
+		case err == nil:
+			if serr := uu.limiter.Succeeded(ctx, loginID); serr != nil {
+				return nil, serr
+			}
+		}
+	}
+	return user, err
+}
+
+func (uu *UserUsecase) authenticate(ctx context.Context, loginID string, inputPassword []byte) (*domain.User, error) {
 	// データベースからパスワードを取得
 	user, err := uu.userRepo.GetByLoginID(ctx, loginID)
 	if err != nil {

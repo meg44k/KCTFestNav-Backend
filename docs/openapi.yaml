@@ -37,6 +37,8 @@ paths:
                     description: JWTトークン
         '401':
           description: 認証失敗
+        '429':
+          description: 失敗が続いたので、しばらく試させない(同じ ID で 10 分に 10 回、全体で 10 分に 500 回)
 
   /auth/me:
     get:
