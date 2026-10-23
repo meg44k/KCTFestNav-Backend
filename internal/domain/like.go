@@ -9,9 +9,10 @@ import (
 	"time"
 )
 
-var classOrganizer = regexp.MustCompile(`^(\d+)\s*-\s*\d+$`)
+var classOrganizer = regexp.MustCompile(`^(\d+)\s*(?:-\s*\d+|[A-Z])$`)
 
-// クラス展示の主催者("1-1" のようなクラス表記、学年 1〜5)か。フロントの parseGrade と同じ決まり
+// クラス展示の主催者("1-1" のようなクラス表記、3 年からは "3M" のような学科の 1 文字。学年 1〜5)か。
+// フロントの parseGrade と同じ決まり
 func IsClassOrganizer(organizer string) bool {
 	m := classOrganizer.FindStringSubmatch(strings.TrimSpace(organizer))
 	if m == nil {
