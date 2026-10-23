@@ -18,7 +18,7 @@ type UserUsecase interface {
 		inputPassword []byte,
 		p domain.UserParams,
 	) error
-	Authenticate(ctx context.Context, ip, loginID string, password []byte) (*domain.User, error)
+	Authenticate(ctx context.Context, client, loginID string, password []byte) (*domain.User, error)
 	GetMe(ctx context.Context) (*domain.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetAll(ctx context.Context) ([]*domain.User, error)
@@ -84,12 +84,12 @@ func (h *UserHandler) Login(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
-	// 接続元は、合言葉を確かめた Next.js のサーバーが渡す(回数の上限を数えるのに使う)
-	ip := c.Request().Header.Get("X-Client-IP")
-	if ip == "" {
-		ip = "unknown"
+	// ログインしたブラウザの番号(cookie)。合言葉を確かめた Next.js のサーバーが渡す(回数の上限を数えるのに使う)
+	client := c.Request().Header.Get("X-Login-Client")
+	if client == "" {
+		client = "unknown"
 	}
-	user, err := h.userUsecase.Authenticate(c.Request().Context(), ip, req.LoginID, []byte(req.Password))
+	user, err := h.userUsecase.Authenticate(c.Request().Context(), client, req.LoginID, []byte(req.Password))
 	var failed *usecase.LoginFailedError
 	if errors.As(err, &failed) {
 		// ログイン画面で「あと N 回」と出せるよう、残りの回数も返す

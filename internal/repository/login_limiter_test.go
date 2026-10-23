@@ -23,9 +23,9 @@ func setupLoginLimiter(t *testing.T) *redis.Client {
 	return rdb
 }
 
-const ip1, ip2 = "203.0.113.1", "198.51.100.2"
+const ip1, ip2 = "browser-a", "browser-b"
 
-func TestLoginLimiter_同じ接続元と同じIDは5回まで(t *testing.T) {
+func TestLoginLimiter_同じブラウザと同じIDは5回まで(t *testing.T) {
 	l := repository.NewLoginLimiter(setupLoginLimiter(t))
 	ctx := context.Background()
 	for want := 4; want >= 1; want-- {
@@ -41,7 +41,7 @@ func TestLoginLimiter_同じ接続元と同じIDは5回まで(t *testing.T) {
 	assert.True(t, blocked, "5 回失敗したら止める")
 }
 
-func TestLoginLimiter_別の接続元の本人は止めない(t *testing.T) {
+func TestLoginLimiter_別のブラウザの本人は止めない(t *testing.T) {
 	l := repository.NewLoginLimiter(setupLoginLimiter(t))
 	ctx := context.Background()
 	for i := 0; i < 5; i++ {
@@ -49,11 +49,11 @@ func TestLoginLimiter_別の接続元の本人は止めない(t *testing.T) {
 	}
 	blocked, err := l.Blocked(ctx, ip2, "booth-1")
 	require.NoError(t, err)
-	assert.False(t, blocked, "わざと失敗を重ねても、ほかの場所からの本人は締め出されない")
+	assert.False(t, blocked, "わざと失敗を重ねても、ほかのブラウザの本人は締め出されない")
 }
 
-func TestLoginLimiter_同じ接続元でもほかのIDは止めない(t *testing.T) {
-	// 学内 Wi-Fi のように係の全員が同じ接続元でも、誰かの失敗やいたずらで全員が止まらないように
+func TestLoginLimiter_同じブラウザでもほかのIDは止めない(t *testing.T) {
+	// 同じブラウザでたくさんの ID に失敗しても、関係ない ID は止まらない
 	l := repository.NewLoginLimiter(setupLoginLimiter(t))
 	ctx := context.Background()
 	for i := 0; i < 100; i++ {
