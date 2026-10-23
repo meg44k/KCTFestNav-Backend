@@ -190,7 +190,7 @@ func TestUserUsecase_Authenticate(t *testing.T) {
 		}
 		uc := usecase.NewUserUsecase(mockRepo)
 
-		user, err := uc.Authenticate(context.Background(), "test", []byte(rawPassword))
+		user, err := uc.Authenticate(context.Background(), "203.0.113.1", "test", []byte(rawPassword))
 		assert.NoError(t, err)
 		assert.Equal(t, dummyUser, user)
 	})
@@ -203,7 +203,7 @@ func TestUserUsecase_Authenticate(t *testing.T) {
 		}
 		uc := usecase.NewUserUsecase(mockRepo)
 
-		user, err := uc.Authenticate(context.Background(), "test", []byte("mypassword"))
+		user, err := uc.Authenticate(context.Background(), "203.0.113.1", "test", []byte("mypassword"))
 		assert.ErrorIs(t, err, usecase.ErrUnauthorized)
 		assert.Nil(t, user)
 	})
@@ -226,7 +226,7 @@ func TestUserUsecase_Authenticate(t *testing.T) {
 		}
 		uc := usecase.NewUserUsecase(mockRepo)
 
-		user, err := uc.Authenticate(context.Background(), "test", []byte("wrongpassword"))
+		user, err := uc.Authenticate(context.Background(), "203.0.113.1", "test", []byte("wrongpassword"))
 		assert.ErrorIs(t, err, usecase.ErrUnauthorized)
 		assert.Nil(t, user)
 	})

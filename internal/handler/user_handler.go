@@ -2,12 +2,14 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v5"
 	"github.com/meg44k/KCTFestNav-Backend/internal/auth"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
+	"github.com/meg44k/KCTFestNav-Backend/internal/usecase"
 )
 
 type UserUsecase interface {
@@ -16,7 +18,7 @@ type UserUsecase interface {
 		inputPassword []byte,
 		p domain.UserParams,
 	) error
-	Authenticate(ctx context.Context, LoginID string, Password []byte) (*domain.User, error)
+	Authenticate(ctx context.Context, ip, loginID string, password []byte) (*domain.User, error)
 	GetMe(ctx context.Context) (*domain.User, error)
 	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetAll(ctx context.Context) ([]*domain.User, error)
@@ -82,7 +84,17 @@ func (h *UserHandler) Login(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
-	user, err := h.userUsecase.Authenticate(c.Request().Context(), req.LoginID, []byte(req.Password))
+	// 接続元は、合言葉を確かめた Next.js のサーバーが渡す(回数の上限を数えるのに使う)
+	ip := c.Request().Header.Get("X-Client-IP")
+	if ip == "" {
+		ip = "unknown"
+	}
+	user, err := h.userUsecase.Authenticate(c.Request().Context(), ip, req.LoginID, []byte(req.Password))
+	var failed *usecase.LoginFailedError
+	if errors.As(err, &failed) {
+		// ログイン画面で「あと N 回」と出せるよう、残りの回数も返す
+		return c.JSON(http.StatusUnauthorized, map[string]any{"error": "unauthorized", "remaining": failed.Remaining})
+	}
 	if err != nil {
 		return err
 	}

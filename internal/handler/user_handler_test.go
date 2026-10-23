@@ -50,7 +50,7 @@ func (m *mockUserUsecase) Delete(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (m *mockUserUsecase) Authenticate(ctx context.Context, loginID string, password []byte) (*domain.User, error) {
+func (m *mockUserUsecase) Authenticate(ctx context.Context, _ string, loginID string, password []byte) (*domain.User, error) {
 	if m.mockAuthenticate != nil {
 		return m.mockAuthenticate(ctx, loginID, password)
 	}
