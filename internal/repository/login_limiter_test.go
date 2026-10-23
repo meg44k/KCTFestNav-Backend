@@ -52,13 +52,14 @@ func TestLoginLimiter_ログインできたら数を消す(t *testing.T) {
 	assert.False(t, blocked, "消したので 1 回目から数え直す")
 }
 
-func TestLoginLimiter_全体で500回失敗したらどのIDも止める(t *testing.T) {
+func TestLoginLimiter_ほかのIDがたくさん失敗しても関係ないIDは止めない(t *testing.T) {
+	// 全体で止めると、でたらめな ID で失敗を重ねるだけで誰もログインできなくなる
 	l := repository.NewLoginLimiter(setupLoginLimiter(t))
 	ctx := context.Background()
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 1000; i++ {
 		require.NoError(t, l.Failed(ctx, fmt.Sprintf("guess-%d", i)))
 	}
 	blocked, err := l.Blocked(ctx, "booth-1")
 	require.NoError(t, err)
-	assert.True(t, blocked)
+	assert.False(t, blocked)
 }

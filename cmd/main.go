@@ -69,7 +69,7 @@ func main() {
 	boothHandler := handler.NewBoothHandler(boothUsecase)
 
 	userRepo := repository.NewUserRepository(db, rdb)
-	// ログインは続けて失敗したら止める(ID ごと・全体)
+	// ログインは同じ ID で続けて失敗したら、その ID だけしばらく止める
 	userUsecase := usecase.NewUserUsecase(userRepo).WithLoginLimiter(repository.NewLoginLimiter(rdb))
 	userHandler := handler.NewUserHandler(userUsecase, []byte(os.Getenv("JWT_SECRET")))
 	announceRepo := repository.NewAnnouncementRepository()
