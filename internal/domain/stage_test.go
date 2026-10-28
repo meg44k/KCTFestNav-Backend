@@ -85,16 +85,15 @@ func TestStageBlock_NowPlaying(t *testing.T) {
 		{"時間内でも終了", in, 4, three, false},
 		{"開始ちょうど", start, 2, three, true},
 		{"開始前でも押していれば演奏中(早めに始めた・当日前の確認)", start.Add(-24 * time.Hour), 1, three, true},
-		{"終了後も30分までは演奏中(延びた)", end.Add(29 * time.Minute), 2, three, true},
-		{"終了から30分ちょうどで消える(押し忘れ)", end.Add(NowPlayingGrace), 2, three, false},
-		{"終了から1時間後(押し忘れ)", end.Add(time.Hour), 2, three, false},
+		{"終了後も押していれば演奏中(延びた)", end.Add(29 * time.Minute), 2, three, true},
+		{"終了から1時間たっても押していれば演奏中(大きく延びた)", end.Add(time.Hour), 2, three, true},
 		{"出演者0人", in, 1, nil, false},
 		{"JSTで渡しても同じ瞬間なら時間内", in.In(time.FixedZone("JST", 9*3600)), 1, three, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &StageBlock{StartTime: start, EndTime: end, CurrentOrder: tt.current, Performers: tt.performers}
-			if got := b.NowPlaying(tt.now); got != tt.want {
+			if got := b.NowPlaying(); got != tt.want {
 				t.Fatalf("NowPlaying = %v, want %v", got, tt.want)
 			}
 		})
