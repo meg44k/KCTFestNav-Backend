@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/meg44k/KCTFestNav-Backend/internal/database"
@@ -97,19 +98,35 @@ func (br *boothRepository) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 	if err != nil {
 		return nil, err
 	}
-	booths := make([]*domain.Booth, len(dbBooths))
+	if len(dbBooths) == 0 {
+		return []*domain.Booth{}, nil
+	}
+	// 混雑度と更新時刻を、全ブース分まとめて 1 回で Redis から取る。
+	// 本番の Redis(Upstash)は 1 往復ごとに数 ms かかり、コマンド数で使用量を数えるため、
+	// ブースごとに取ると /booths が遅く(53 件で約 0.4 秒)、無料枠もすぐ使い切る
+	n := len(dbBooths)
+	keys := make([]string, 0, 2*n)
+	for _, b := range dbBooths {
+		keys = append(keys, formatRedisCongestionStatusKey(int(b.ID)))
+	}
+	for _, b := range dbBooths {
+		keys = append(keys, formatRedisCongestionUpdatedAtKey(int(b.ID)))
+	}
+	vals, err := br.cache.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	booths := make([]*domain.Booth, n)
 	for i, b := range dbBooths {
-		// Redisから混雑状況を取ってくる
-		rawStatus, err := br.cache.Get(ctx, formatRedisCongestionStatusKey(int(b.ID))).Int()
-		var congestionStatus domain.CongestionStatus
-		if err != nil {
-			if errors.Is(err, redis.Nil) { // congestionStatusが登録されていなかった時(まだ一度も設定していない)、準備中にする
-				congestionStatus = domain.BoothCongestionPreparing
-			} else {
+		// 混雑度が登録されていない(まだ一度も設定していない)ときは準備中にする
+		congestionStatus := domain.BoothCongestionPreparing
+		if v, ok := vals[i].(string); ok {
+			raw, err := strconv.Atoi(v)
+			if err != nil {
 				return nil, err
 			}
-		} else {
-			congestionStatus = domain.CongestionStatus(rawStatus)
+			congestionStatus = domain.CongestionStatus(raw)
 		}
 
 		booth, err := domain.ReconstructBooth(
@@ -132,13 +149,17 @@ func (br *boothRepository) GetAll(ctx context.Context) ([]*domain.Booth, error) 
 		if err != nil {
 			return nil, err
 		}
-		if booth.CongestionUpdatedAt, err = br.congestionUpdatedAt(ctx, int(b.ID)); err != nil {
-			return nil, err
+		// 更新時刻(UNIX 秒)。未更新ならゼロ値のまま
+		if v, ok := vals[n+i].(string); ok {
+			unix, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			booth.CongestionUpdatedAt = time.Unix(unix, 0)
 		}
 		booths[i] = booth
 	}
 	return booths, nil
-
 }
 
 func (br *boothRepository) Update(ctx context.Context, b *domain.Booth) error {
