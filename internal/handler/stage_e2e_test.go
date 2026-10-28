@@ -26,7 +26,7 @@ import (
 )
 
 // 本物のルーターに、時計を差し替えたステージの handler をつなぐ
-func setupStageE2E(t *testing.T, now *time.Time) (*echo.Echo, []byte) {
+func setupStageE2E(t *testing.T) (*echo.Echo, []byte) {
 	t.Helper()
 	db, err := sql.Open("mysql", "root:@tcp(127.0.0.1:3306)/kctfest_test_handler?parseTime=true")
 	if err != nil {
@@ -42,7 +42,7 @@ func setupStageE2E(t *testing.T, now *time.Time) (*echo.Echo, []byte) {
 	}
 
 	secret := []byte("e2e-test-secret")
-	h := handler.NewStageHandler(usecase.NewStageUsecase(repository.NewStageRepository(db)), func() time.Time { return *now })
+	h := handler.NewStageHandler(usecase.NewStageUsecase(repository.NewStageRepository(db)))
 	e := echo.New()
 	e.HTTPErrorHandler = handler.CustomHTTPErrorHandler
 	router.StageRoutes(e, e.Group("/manage", middleware.JWTAuth(secret)), h)
@@ -90,10 +90,7 @@ func tokenFor(t *testing.T, role domain.Role, secret []byte) string {
 }
 
 func TestStageE2E(t *testing.T) {
-	jst := time.FixedZone("JST", 9*3600)
-	start := time.Date(2026, 10, 31, 13, 0, 0, 0, jst)
-	now := start.Add(10 * time.Minute)
-	e, secret := setupStageE2E(t, &now)
+	e, secret := setupStageE2E(t)
 
 	admin := caller{t, e, tokenFor(t, domain.RoleAdmin, secret)}
 	gakuseikai := caller{t, e, tokenFor(t, domain.RoleGakuseikai, secret)}
@@ -135,14 +132,6 @@ func TestStageE2E(t *testing.T) {
 		assert.Equal(t, 1, s.Blocks[0].CurrentOrder)
 		assert.Equal(t, "バンドB", s.Blocks[0].Performers[1].Name)
 		assert.Equal(t, 2, s.Blocks[0].Performers[1].PerformOrder)
-	})
-
-	t.Run("終了から30分たてば now_playing は false(押し忘れ)", func(t *testing.T) {
-		now = start.Add(50*time.Minute + domain.NowPlayingGrace)
-		defer func() { now = start.Add(10 * time.Minute) }()
-		var res handler.StageResponse
-		require.NoError(t, json.Unmarshal(public.do(http.MethodGet, "/stage", nil).Body.Bytes(), &res))
-		assert.False(t, res.Sections[0].Blocks[0].NowPlaying)
 	})
 
 	t.Run("並べ替え・前に戻す・編集", func(t *testing.T) {

@@ -323,3 +323,42 @@ func TestBoothRepository_UnsetCongestionIsPreparing(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, domain.BoothCongestionPreparing, all[0].CongestionStatus())
 }
+
+// Redis に送ったコマンドを数える(パイプラインは中のコマンドを 1 つずつ数える)
+type countingHook struct{ n int }
+
+func (h *countingHook) DialHook(next redis.DialHook) redis.DialHook { return next }
+func (h *countingHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		h.n++
+		return next(ctx, cmd)
+	}
+}
+func (h *countingHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		h.n += len(cmds)
+		return next(ctx, cmds)
+	}
+}
+
+// 本番の Redis(Upstash)は 1 往復ごとに数 ms かかり、コマンド数で使用量を数える。
+// ブースの数だけ問い合わせると /booths が遅く、無料枠もすぐ使い切るので、まとめて 1 回で取る
+func TestBoothRepository_GetAllUsesOneRedisCommand(t *testing.T) {
+	db, rdb := setupBoothTestDB(t)
+	defer db.Close()
+	defer rdb.Close()
+	repo := NewBoothRepository(db, rdb)
+	ctx := context.Background()
+
+	for i := range 5 {
+		_, err := db.ExecContext(ctx, `INSERT INTO booths (name, organizer, detail, x, y, z) VALUES (?, '1-1', '', 0, 0, 0)`, fmt.Sprintf("ブース%d", i))
+		assert.NoError(t, err)
+	}
+	hook := &countingHook{}
+	rdb.AddHook(hook)
+
+	booths, err := repo.GetAll(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, booths, 5)
+	assert.Equal(t, 1, hook.n, "Redis へのコマンドはブースの数によらず 1 回")
+}

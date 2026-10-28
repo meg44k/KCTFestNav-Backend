@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v5"
 	"github.com/meg44k/KCTFestNav-Backend/internal/domain"
@@ -30,11 +31,17 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 	message := "internal server error"
 
 	var he *echo.HTTPError
+	var sc echo.HTTPStatusCoder
 	switch {
 	// echo既存機能のエラー(404など)
 	case errors.As(err, &he):
 		code = he.Code
 		message = fmt.Sprintf("%v", he.Message)
+	// 無い URL(404)・違うメソッド(405)。echo v5 のルーターは *HTTPError ではなく
+	// StatusCode() を持つ非公開の型で返すので、ここで拾わないと 500 になる
+	case errors.As(err, &sc):
+		code = sc.StatusCode()
+		message = strings.ToLower(http.StatusText(code))
 
 	// バリデーションチェック系(Bad request)
 	case errors.Is(err, domain.ErrEndTimeAfterStartTime),
