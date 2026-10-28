@@ -27,12 +27,11 @@ type StageUsecase interface {
 }
 
 type StageHandler struct {
-	uc  StageUsecase
-	now func() time.Time // 「演奏中」の判定に使う時計。テストで差し替える
+	uc StageUsecase
 }
 
-func NewStageHandler(uc StageUsecase, now func() time.Time) *StageHandler {
-	return &StageHandler{uc: uc, now: now}
+func NewStageHandler(uc StageUsecase) *StageHandler {
+	return &StageHandler{uc: uc}
 }
 
 // 来場者もフロントも日本時間で扱うので、時刻は +09:00 で返す
@@ -73,7 +72,7 @@ type CreatedResponse struct {
 	ID int `json:"id"`
 }
 
-func toBlockResponse(b *domain.StageBlock, now time.Time) StageBlockResponse {
+func toBlockResponse(b *domain.StageBlock) StageBlockResponse {
 	performers := make([]PerformerResponse, len(b.Performers))
 	for i, p := range b.Performers {
 		performers[i] = PerformerResponse{
@@ -91,7 +90,7 @@ func toBlockResponse(b *domain.StageBlock, now time.Time) StageBlockResponse {
 		StartTime:    b.StartTime.In(jst),
 		EndTime:      b.EndTime.In(jst),
 		CurrentOrder: b.CurrentOrder,
-		NowPlaying:   b.NowPlaying(now),
+		NowPlaying:   b.NowPlaying(),
 		Performers:   performers,
 	}
 }
@@ -101,12 +100,11 @@ func (h *StageHandler) GetSchedule(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	now := h.now()
 	res := StageResponse{Sections: make([]StageSectionResponse, len(sections))}
 	for i, s := range sections {
 		blocks := make([]StageBlockResponse, len(s.Blocks))
 		for j, b := range s.Blocks {
-			blocks[j] = toBlockResponse(b, now)
+			blocks[j] = toBlockResponse(b)
 		}
 		res.Sections[i] = StageSectionResponse{
 			ID:        s.ID,
@@ -274,7 +272,7 @@ func (h *StageHandler) step(c *echo.Context, fn func(context.Context, int) (*dom
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, toBlockResponse(b, h.now()))
+	return c.JSON(http.StatusOK, toBlockResponse(b))
 }
 
 // 演奏中を次の出演者へ進める(学生会・管理者)

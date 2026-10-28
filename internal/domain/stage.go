@@ -72,16 +72,10 @@ func ValidateMoveDirection(d MoveDirection) error {
 	return nil
 }
 
-// 終了時刻を過ぎても演奏中と出し続ける長さ。延びたライブに備え、押し忘れはこの後に消す
-const NowPlayingGrace = 30 * time.Minute
-
 // 来場者に「演奏中」と出すか。学生会が進めて current_order が出演者を指していれば、
-// 開始時刻に関係なく出す(早めの開始や当日前の確認でも見えるように)。
-// 押し忘れに備え、終了時刻から NowPlayingGrace たったら消す
-func (b *StageBlock) NowPlaying(now time.Time) bool {
-	if !now.Before(b.EndTime.Add(NowPlayingGrace)) {
-		return false
-	}
+// 時刻に関係なく出す(早めの開始や当日前の確認でも見え、大きく延びても消えないように)。
+// 終わったら学生会が最後の出演者の次へ進めて消す
+func (b *StageBlock) NowPlaying() bool {
 	return b.CurrentOrder >= 1 && b.CurrentOrder <= len(b.Performers)
 }
 

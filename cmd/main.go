@@ -62,7 +62,7 @@ func main() {
 	// 依存関係注入
 	stageRepo := repository.NewStageRepository(db)
 	stageUsecase := usecase.NewStageUsecase(stageRepo).WithImages(images)
-	stageHandler := handler.NewStageHandler(stageUsecase, time.Now)
+	stageHandler := handler.NewStageHandler(stageUsecase)
 
 	boothRepo := repository.NewBoothRepository(db, rdb)
 	boothUsecase := usecase.NewBoothUsecase(boothRepo).WithImages(images)
