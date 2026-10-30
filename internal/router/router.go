@@ -49,6 +49,17 @@ func InitRoutes(e *echo.Echo, h *handler.Handlers) {
 	if h.Like != nil {
 		LikeRoutes(e, manage, h.Like, os.Getenv("INTERNAL_API_KEY"))
 	}
+	if h.Visit != nil {
+		VisitRoutes(e, h.Visit, os.Getenv("INTERNAL_API_KEY"))
+	}
+}
+
+// 訪問者の数のルート。e2e テストでも同じものを使う。
+// 記録は Next.js のサーバーが、数は手元の負荷モニターが、合言葉(X-Internal-Key)を付けて呼ぶ
+func VisitRoutes(e *echo.Echo, h *handler.VisitHandler, internalKey string) {
+	visits := e.Group("/internal/visits", mv.InternalKey(internalKey))
+	visits.POST("", h.Record) // 今日そのブラウザが来た
+	visits.GET("", h.Count)   // 日ごとの数と合計
 }
 
 // ログインのルート。e2e テストでも同じものを使う。
