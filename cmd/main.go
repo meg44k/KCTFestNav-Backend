@@ -79,6 +79,7 @@ func main() {
 	likeUsecase := usecase.NewLikeUsecase(repository.NewLikeRepository(db, rdb), boothRepo, cfg.VoterSecret, time.Now)
 	likeHandler := handler.NewLikeHandler(likeUsecase)
 	imageHandler := handler.NewImageHandler(usecase.NewImageUsecase(images, boothRepo, stageRepo))
+	visitHandler := handler.NewVisitHandler(usecase.NewVisitUsecase(repository.NewVisitRepository(rdb), time.Now))
 
 	// ハンドラをまとめてルーターに渡す(ここもっと良くなるかも)
 	handlers := &handler.Handlers{
@@ -88,6 +89,7 @@ func main() {
 		Announcement: announceHandler,
 		Like:         likeHandler,
 		Image:        imageHandler,
+		Visit:        visitHandler,
 	}
 
 	router.InitRoutes(e, handlers)

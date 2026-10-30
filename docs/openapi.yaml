@@ -687,6 +687,64 @@ paths:
           description: X-Internal-Key が無い・違う
         '429':
           description: 上限を超えた
+  /internal/visits:
+    post:
+      summary: 今日(日本時間)そのブラウザが来たと記録する。Next.js のサーバーが 1 日 1 回だけ呼ぶ
+      tags:
+        - Visits
+      security:
+        - internalKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [visitor]
+              properties:
+                visitor:
+                  type: string
+                  format: uuid
+                  description: ブラウザが作って覚えておく番号
+      responses:
+        '204':
+          description: 記録した(同じ日の同じ番号は 1 人と数える)
+        '400':
+          description: 番号が UUID でない
+    get:
+      summary: 直近の日ごとの訪問者の数と、その間の重なりなしの合計(HyperLogLog なのでおおよそ)。手元の負荷モニターが呼ぶ
+      tags:
+        - Visits
+      security:
+        - internalKey: []
+      parameters:
+        - name: days
+          in: query
+          description: 今日までの何日分か(1〜60、既定 7)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 古い日から順の日ごとの数と合計
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  days:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        day:
+                          type: string
+                          example: '2026-10-31'
+                        visitors:
+                          type: integer
+                  total:
+                    type: integer
+        '400':
+          description: days が範囲の外
   /internal/likes/mine:
     get:
       summary: その番号で投票しているブース(1 人 1 票なので 0 か 1 件。番号が無い・不正なら空)
