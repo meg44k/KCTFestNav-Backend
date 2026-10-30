@@ -20,6 +20,7 @@ type Handlers struct {
 	Announcement *AnnouncementHandler
 	Like         *LikeHandler
 	Image        *ImageHandler
+	Visit        *VisitHandler
 }
 
 func OK(c *echo.Context) error {
@@ -52,6 +53,7 @@ func CustomHTTPErrorHandler(c *echo.Context, err error) {
 		errors.Is(err, domain.ErrInvalidCongestion),
 		errors.Is(err, domain.ErrNotClassBooth),
 		errors.Is(err, domain.ErrInvalidRange),
+		errors.Is(err, domain.ErrInvalidVisitor),
 		errors.Is(err, domain.ErrLoginIDRequired),
 		errors.Is(err, domain.ErrCannotDeleteSelf),
 		errors.Is(err, domain.ErrInvalidImage),
