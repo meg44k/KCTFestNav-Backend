@@ -72,7 +72,7 @@ func main() {
 	// ログインは同じブラウザ・同じ ID で 5 回続けて失敗したら、しばらく止める
 	userUsecase := usecase.NewUserUsecase(userRepo).WithLoginLimiter(repository.NewLoginLimiter(rdb))
 	userHandler := handler.NewUserHandler(userUsecase, []byte(os.Getenv("JWT_SECRET")))
-	announceRepo := repository.NewAnnouncementRepository()
+	announceRepo := repository.NewAnnouncementRepository(rdb)
 	announceUsecase := usecase.NewAnnouncementUsecase(announceRepo)
 	announceHandler := handler.NewAnnouncementHandler(announceUsecase)
 
